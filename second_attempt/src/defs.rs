@@ -1,9 +1,18 @@
 use lazy_static::lazy_static;
 
 pub const NAME: &str = "Unknown";
-pub const BOARD_SQUARE_NUMBER: u8 = 120;
-pub const MAX_GAME_MOVES: u8 = 2048;
+pub const BOARD_SQUARE_NUMBER: usize = 120;
+pub const MAX_GAME_MOVES: usize = 2048;
 pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+// A1 B1 C1 D1 E1 F1 G1 H1
+// A2 B2 C2 D2 E2 F2 G2 H2
+// A3 B3 C3 D3 E3 F3 G3 H3
+// A4 B4 C4 D4 E4 F4 G4 H4
+// A5 B5 C5 D5 E5 F5 G5 H5
+// A6 B6 C6 D6 E6 F6 G6 H6
+// A7 B7 C7 D7 E7 F7 G7 H7
+// A8 B8 C8 D8 E8 F8 G8 H8
 
 #[repr(u8)]
 pub enum Pieces {
@@ -107,12 +116,28 @@ pub struct Board {
 
     pub history: [Undo; MAX_GAME_MOVES],
 
-    pub piece_list: [[u8; 10]; 13],
+    pub piece_list: [[u8; 10]; 13], // piece_list [WhiteKnight][0] = E1 | for looping through only pieces for move generation
 }
 
+// small board equivalent big board
+#[macro_export]
 macro_rules! FR2SQ {
     ($file:ident, $rank:ident) => {
-        (21 + {file} + {rank} * 10);
+        (21 + $file + $rank * 10)
+    };
+}
+
+#[macro_export]
+macro_rules! SQ64 {
+    ($sq120:ident) => {
+        crate::defs::SQ120_TO_SQ64[$sq120 as usize]
+    };
+}
+
+#[macro_export]
+macro_rules! SQ120 {
+    ($sq64:ident) => {
+        crate::defs::SQ64_TO_SQ120[$sq64 as usize]
     };
 }
 
@@ -121,10 +146,10 @@ lazy_static! {
         let mut sq120_to_sq64 = [65; BOARD_SQUARE_NUMBER];
         let mut square64: u8 = 0;
 
-        for rank in Rank1 as u8..=Rank8 as u8 {
+        for rank in Ranks::Rank1 as u8..=Ranks::Rank8 as u8 {
             for file in Files::FileA as u8..=Files::FileH as u8 {
                 let square = FR2SQ!(file, rank) as u8;
-                sq120_to_sq64[square] = square64;
+                sq120_to_sq64[square as usize] = square64;
                 square64 += 1;
             }
         }
@@ -137,7 +162,7 @@ lazy_static! {
         for rank in Ranks::Rank1 as u8..=Ranks::Rank8 as u8 {
             for file in Files::FileA as u8..=Files::FileH as u8 {
                 let square = FR2SQ!(file, rank) as u8;
-                sq64_to_sq120[square64] = square;
+                sq64_to_sq120[square64 as usize] = square;
                 square64 += 1;
             }
         }
