@@ -116,9 +116,10 @@ pub struct Board {
 
     pub history: [Undo; MAX_GAME_MOVES],
 
-    pub piece_list: [[u8; 10]; 13], // piece_list [WhiteKnight][0] = E1 | for looping through only pieces for move generation
+    // piece_list [WhiteKnight][0] = E1 | for looping through only pieces for move generation
+    pub piece_list: [[u8; 10]; 13],
 }
-
+// TODO: Convert macros to functions
 // small board equivalent big board
 #[macro_export]
 macro_rules! FR2SQ {
@@ -167,5 +168,22 @@ lazy_static! {
             }
         }
         sq64_to_sq120
+    };
+
+    // array of integers, each is 8x8 u64 all 0 except for one set to 1
+    pub static ref SET_MASK: [u64; 64] = {
+        let mut mask = [0; 64];
+        for i in 0..64 {
+            mask[i] = 1 << i;
+        }
+        mask
+    };
+    // vice-versa
+    pub static ref CLEAR_MASK: [u64; 64] = {
+        let mut mask = [0; 64];
+        for i in 0..64 {
+            mask[i] = !(1 << i);
+        }
+        mask
     };
 }
