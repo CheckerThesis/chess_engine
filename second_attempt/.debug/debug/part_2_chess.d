@@ -1,0 +1,1 @@
+c:\Users\Tien\ Cao\Desktop\Code\rust_projects\chess_engine\second_attempt\.debug\debug\part_2_chess.exe: c:\Users\Tien\ Cao\Desktop\Code\rust_projects\chess_engine\second_attempt\src\bitboards.rs c:\Users\Tien\ Cao\Desktop\Code\rust_projects\chess_engine\second_attempt\src\defs.rs c:\Users\Tien\ Cao\Desktop\Code\rust_projects\chess_engine\second_attempt\src\main.rs

@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use rand::{thread_rng, Rng};
 
 pub const NAME: &str = "Unknown";
 pub const BOARD_SQUARE_NUMBER: usize = 120;
@@ -119,27 +120,26 @@ pub struct Board {
     // piece_list [WhiteKnight][0] = E1 | for looping through only pieces for move generation
     pub piece_list: [[u8; 10]; 13],
 }
-// TODO: Convert macros to functions
+
 // small board equivalent big board
-#[macro_export]
-macro_rules! FR2SQ {
-    ($file:ident, $rank:ident) => {
-        (21 + $file + $rank * 10)
-    };
+pub fn fr2sq(file: u8, rank: u8) -> u8 {
+    21 + file + rank * 10
 }
 
-#[macro_export]
-macro_rules! SQ64 {
-    ($sq120:ident) => {
-        crate::defs::SQ120_TO_SQ64[$sq120 as usize]
-    };
+pub fn sq64(sq120: u8) -> u8 {
+    SQ120_TO_SQ64[sq120 as usize]
 }
 
-#[macro_export]
-macro_rules! SQ120 {
-    ($sq64:ident) => {
-        crate::defs::SQ64_TO_SQ120[$sq64 as usize]
-    };
+pub fn sq120(sq64: u8) -> u8 {
+    SQ64_TO_SQ120[sq64 as usize]
+}
+
+pub fn clear_bit(bitboard: &mut u64, square: u8) {
+    *bitboard &= CLEAR_MASK[sq64(square) as usize];
+}
+
+pub fn set_bit(bitboard: &mut u64, square: u8) {
+    *bitboard |= SET_MASK[sq64(square) as usize];
 }
 
 lazy_static! {
@@ -149,7 +149,7 @@ lazy_static! {
 
         for rank in Ranks::Rank1 as u8..=Ranks::Rank8 as u8 {
             for file in Files::FileA as u8..=Files::FileH as u8 {
-                let square = FR2SQ!(file, rank) as u8;
+                let square = fr2sq(file, rank);
                 sq120_to_sq64[square as usize] = square64;
                 square64 += 1;
             }
@@ -162,7 +162,7 @@ lazy_static! {
 
         for rank in Ranks::Rank1 as u8..=Ranks::Rank8 as u8 {
             for file in Files::FileA as u8..=Files::FileH as u8 {
-                let square = FR2SQ!(file, rank) as u8;
+                let square = fr2sq(file, rank);
                 sq64_to_sq120[square64 as usize] = square;
                 square64 += 1;
             }
@@ -185,5 +185,18 @@ lazy_static! {
             mask[i] = !(1 << i);
         }
         mask
+    };
+
+    pub static ref PIECE_KEYS: [[u64; 13]; 120] = {
+        let mut rng = thread_rng();
+        [[rng.gen(); 13]; 120]
+    };
+    pub static ref SIDE_KEY: u64 = {
+        let mut rng = thread_rng();
+        rng.gen()
+    };
+    pub static ref CASTLE_KEYS: [u64; 16] = {
+        let mut rng = thread_rng();
+        [rng.gen(); 16]
     };
 }

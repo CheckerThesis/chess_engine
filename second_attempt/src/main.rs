@@ -1,30 +1,16 @@
 mod defs;
 mod bitboards;
+mod hashkeys;
+mod board;
 
 use bitboards::{print_bitboard, pop_bit, count_bits};
 
-use crate::defs::{Squares::*, SET_MASK};
+use defs::{clear_bit, set_bit, sq64};
+use crate::defs::{Squares::*};
 
 fn main() {
-    let mut board: u64 = 0;
-    // decimal 0 in u64 is:     decimal 1 in u64 is:
-    // 00000000                 00000000
-    // 00000000                 00000000
-    // 00000000                 00000000
-    // 00000000                 00000000
-    // 00000000                 00000000
-    // 00000000                 00000000
-    // 00000000                 00000000
-    // 00000000                 00000001 = c
-    // we use 1 << n, c moves n times left, then or's it with our original number
-    board |= 1 << SQ64!(D2);
-    board |= 1 << SQ64!(D3);
-    board |= 1 << SQ64!(D4);
-    println!("Popped bit: {}\nCount board: {}", pop_bit(&mut board), count_bits(board));
-
-    print_bitboard(board);
 }
-// print board with borders
+// Print board with borders:
 // for i in 0..BOARD_SQUARE_NUMBER {
 //     if i % 10 == 0 {
 //         println!();
@@ -37,3 +23,29 @@ fn main() {
 //     }
 //     print!("{}   ", SQ64_TO_SQ120[i])
 // }
+
+// Test pop and set/clear masks:
+// let mut board: u64 = 0;
+//     // decimal 0 in u64 is:     decimal 1 in u64 is:
+//     // 00000000                 00000000
+//     // 00000000                 00000000
+//     // 00000000                 00000000
+//     // 00000000                 00000000
+//     // 00000000                 00000000
+//     // 00000000                 00000000
+//     // 00000000                 00000000
+//     // 00000000                 00000001 = c
+//     // we use 1 << n, c moves n times left, then or's it with our original number
+//     board |= 1 << sq64(D2 as u8);
+//     board |= 1 << sq64(D3 as u8);
+//     board |= 1 << sq64(D4 as u8);
+//     board |= 1 << sq64(H2 as u8);
+//     println!("Popped bit: {}\nCount board: {}", pop_bit(&mut board), count_bits(board));
+
+//     print_bitboard(board);
+//     println!();
+//     set_bit(&mut board, B7 as u8);
+//     print_bitboard(board);
+//     println!();
+//     clear_bit(&mut board, D3 as u8);
+//     print_bitboard(board);
