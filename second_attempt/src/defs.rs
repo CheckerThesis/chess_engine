@@ -6,16 +6,17 @@ pub const BOARD_SQUARE_NUMBER: usize = 120;
 pub const MAX_GAME_MOVES: usize = 2048;
 pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-// A1 B1 C1 D1 E1 F1 G1 H1
-// A2 B2 C2 D2 E2 F2 G2 H2
-// A3 B3 C3 D3 E3 F3 G3 H3
-// A4 B4 C4 D4 E4 F4 G4 H4
-// A5 B5 C5 D5 E5 F5 G5 H5
-// A6 B6 C6 D6 E6 F6 G6 H6
-// A7 B7 C7 D7 E7 F7 G7 H7
 // A8 B8 C8 D8 E8 F8 G8 H8
+// A7 B7 C7 D7 E7 F7 G7 H7
+// A6 B6 C6 D6 E6 F6 G6 H6
+// A5 B5 C5 D5 E5 F5 G5 H5
+// A4 B4 C4 D4 E4 F4 G4 H4
+// A3 B3 C3 D3 E3 F3 G3 H3
+// A2 B2 C2 D2 E2 F2 G2 H2
+// A1 B1 C1 D1 E1 F1 G1 H1
 
 #[repr(u8)]
+#[derive(Copy, Clone)]
 pub enum Pieces {
     Empty,
     WhitePawn,
@@ -85,6 +86,8 @@ pub enum Castling {
     BlackQueenCastle = 8,
 }
 
+#[derive(Default)]
+#[derive(Copy, Clone)]
 pub struct Undo {
     pub the_move: u8,
     pub castle_permission: u8,
@@ -92,9 +95,9 @@ pub struct Undo {
     pub fifty_move: u8,
     pub position_key: u8,
 }
-
 pub struct Board {
     pub pieces: [u8; BOARD_SQUARE_NUMBER],
+    // pawn bitboard
     pub pawns: [u64; 3],
 
     pub king_square: [u8; 2],
@@ -111,17 +114,41 @@ pub struct Board {
     pub position_key: u64,
 
     pub piece_number: [u8; 13],
-    pub big_piece: [u8; 3],
-    pub major_piece: [u8; 3],
-    pub minor_piece: [u8; 3],
+    pub big_piece: [u8; 2],
+    pub major_piece: [u8; 2],
+    pub minor_piece: [u8; 2],
+    pub material: [u16; 2],
 
     pub history: [Undo; MAX_GAME_MOVES],
 
     // piece_list [WhiteKnight][0] = E1 | for looping through only pieces for move generation
     pub piece_list: [[u8; 10]; 13],
 }
+impl Default for Board {
+    fn default() -> Self {
+        Board {
+            pieces: [Squares::OffBoard as u8; BOARD_SQUARE_NUMBER],
+            pawns: [0; 3],
+            king_square: [Squares::NoSq as u8; 2],
+            side: Sides::Both as u8,
+            en_passent: Squares::NoSq as u8,
+            fifty_move: 0,
+            ply: 0,
+            history_ply: 0,
+            castle_permission: 0,
+            position_key: 0,
+            piece_number: [0; 13],
+            big_piece: [0; 2],
+            major_piece: [0; 2],
+            minor_piece: [0; 2],
+            material: [0; 2],
+            history: [Undo::default(); MAX_GAME_MOVES],
+            piece_list: [[0; 10]; 13],
+        }
+    }
+}
 
-// small board equivalent big board
+// small board to big board
 pub fn fr2sq(file: u8, rank: u8) -> u8 {
     21 + file + rank * 10
 }
@@ -187,9 +214,9 @@ lazy_static! {
         mask
     };
 
-    pub static ref PIECE_KEYS: [[u64; 13]; 120] = {
+    pub static ref PIECE_KEYS: [[u64; 120]; 13] = {
         let mut rng = thread_rng();
-        [[rng.gen(); 13]; 120]
+        [[rng.gen(); 120]; 13]
     };
     pub static ref SIDE_KEY: u64 = {
         let mut rng = thread_rng();
@@ -198,5 +225,53 @@ lazy_static! {
     pub static ref CASTLE_KEYS: [u64; 16] = {
         let mut rng = thread_rng();
         [rng.gen(); 16]
+    };
+
+    // println!("Files board");
+    // for i in 0..BOARD_SQUARE_NUMBER {
+    //     if i % 10 == 0 && i != 0 {
+    //         println!();
+    //     }
+    //     print!("{:<4}", FILES_BOARD[i]);
+    // }
+    // println!("\n\nRanks board");
+    // for i in 0..BOARD_SQUARE_NUMBER {
+    //     if i % 10 == 0 && i != 0 {
+    //         println!();
+    //     }
+    //     print!("{:<4}", RANKS_BOARD[i]);
+    // }
+    // see above comments
+    pub static ref FILES_BOARD: [u8; BOARD_SQUARE_NUMBER] = {
+        let mut files_board: [u8; BOARD_SQUARE_NUMBER] = [BOARD_SQUARE_NUMBER as u8; BOARD_SQUARE_NUMBER];
+
+        for i in 0..BOARD_SQUARE_NUMBER {
+            files_board[i] = Squares::OffBoard as u8;
+        }
+
+        for rank in Ranks::Rank1 as u8..=Ranks::Rank8 as u8 {
+            for file in Files::FileA as u8..=Files::FileH as u8 {
+                let square = fr2sq(file, rank) as usize;
+                files_board[square] = file;
+            }
+        }
+
+        files_board
+    };
+    pub static ref RANKS_BOARD: [u8; BOARD_SQUARE_NUMBER] = {
+        let mut ranks_board: [u8; BOARD_SQUARE_NUMBER] = [BOARD_SQUARE_NUMBER as u8; BOARD_SQUARE_NUMBER];
+
+        for i in 0..BOARD_SQUARE_NUMBER {
+            ranks_board[i] = Squares::OffBoard as u8;
+        }
+
+        for rank in Ranks::Rank1 as u8..=Ranks::Rank8 as u8 {
+            for file in Files::FileA as u8..=Files::FileH as u8 {
+                let square = fr2sq(file, rank) as usize;
+                ranks_board[square] = rank;
+            }
+        }
+
+        ranks_board
     };
 }

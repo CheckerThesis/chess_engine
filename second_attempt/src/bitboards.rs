@@ -1,4 +1,4 @@
-use crate::{defs::{fr2sq, sq64, Files, Ranks}};
+use crate::defs::{fr2sq, sq64, Files, Ranks};
 
 static BIT_TABLE: [u64; 64] = [
     63, 30, 3, 32, 25, 41, 22, 33, 15, 50, 42, 13, 11, 53, 19, 34, 61, 29, 2,
@@ -11,7 +11,7 @@ pub fn pop_bit(bitboard: &mut u64) -> u32 {
     let least_significant_bit = *bitboard & (*bitboard as i64).wrapping_neg() as u64;
 
     // Performs a bit-scan forward operation to get the index of the LSB
-    let mut lsb_index = least_significant_bit.trailing_zeros();
+    let lsb_index = least_significant_bit.trailing_zeros();
 
     // Clear the LSB from the bitboard
     *bitboard &= *bitboard - 1;
