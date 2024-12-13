@@ -5,6 +5,9 @@ pub const NAME: &str = "Unknown";
 pub const BOARD_SQUARE_NUMBER: usize = 120;
 pub const MAX_GAME_MOVES: usize = 2048;
 pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+pub const WHITE: usize = 0;
+pub const BLACK: usize = 1;
+pub const BOTH: usize = 2;
 
 // A8 B8 C8 D8 E8 F8 G8 H8
 // A7 B7 C7 D7 E7 F7 G7 H7
@@ -56,12 +59,12 @@ pub enum Ranks {
     Rank8,
     RankNone,
 }
-#[repr(u8)]
-pub enum Sides {
-    White,
-    Black,
-    Both,
-}
+// #[repr(u8)]
+// pub enum Sides {
+//     White,
+//     Black,
+//     Both,
+// }
 #[repr(u8)]
 pub enum Squares {
     A1 = 21, B1, C1, D1, E1, F1, G1, H1,
@@ -113,10 +116,15 @@ pub struct Board {
 
     pub position_key: u64,
 
+    // number of pieces for each piece type
     pub piece_number: [u8; 13],
+    // anything that's not a pawn
     pub big_piece: [u8; 2],
+    // rooks and queens
     pub major_piece: [u8; 2],
+    // bishops and knights
     pub minor_piece: [u8; 2],
+    // value of each side
     pub material: [u16; 2],
 
     pub history: [Undo; MAX_GAME_MOVES],
@@ -130,7 +138,7 @@ impl Default for Board {
             pieces: [Squares::OffBoard as u8; BOARD_SQUARE_NUMBER],
             pawns: [0; 3],
             king_square: [Squares::NoSq as u8; 2],
-            side: Sides::Both as u8,
+            side: BOTH as u8,
             en_passent: Squares::NoSq as u8,
             fifty_move: 0,
             ply: 0,
@@ -169,7 +177,34 @@ pub fn set_bit(bitboard: &mut u64, square: u8) {
     *bitboard |= SET_MASK[sq64(square) as usize];
 }
 
+pub fn reverse_bits(n: u64) -> u64 {
+    let mut reversed = 0;
+    let mut input = n;
+    for _ in 0..64 {
+        reversed = (reversed << 1) | (input & 1);
+        input >>= 1;
+    }
+    reversed
+}
+
 lazy_static! {
+    // println!("SQ120-SQ64");
+    // for i in 0..BOARD_SQUARE_NUMBER {
+    //     if i % 10 == 0 {
+    //         println!();
+    //     }
+    //     print!("{:>4}", SQ120_TO_SQ64[i]);
+    // }
+    // println!();
+    // println!("SQ64-SQ120");
+    // for i in 0..64 {
+    //     if i % 8 == 0 {
+    //         println!();
+    //     }
+    //     print!("{:>4}", SQ64_TO_SQ120[i])
+    // }
+    // println!();
+    // see above comment
     pub static ref SQ120_TO_SQ64: [u8; BOARD_SQUARE_NUMBER] = {
         let mut sq120_to_sq64 = [65; BOARD_SQUARE_NUMBER];
         let mut square64: u8 = 0;
@@ -241,7 +276,7 @@ lazy_static! {
     //     }
     //     print!("{:<4}", RANKS_BOARD[i]);
     // }
-    // see above comments
+    // see above comment
     pub static ref FILES_BOARD: [u8; BOARD_SQUARE_NUMBER] = {
         let mut files_board: [u8; BOARD_SQUARE_NUMBER] = [BOARD_SQUARE_NUMBER as u8; BOARD_SQUARE_NUMBER];
 

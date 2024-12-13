@@ -6,12 +6,12 @@ static BIT_TABLE: [u64; 64] = [
     26, 60, 6, 23, 44, 46, 27, 56, 16, 7, 39, 48, 24, 59, 14, 12, 55, 38, 28,
     58, 20, 37, 17, 36, 8];
 
-pub fn pop_bit(bitboard: &mut u64) -> u32 {
+pub fn pop_bit(bitboard: &mut u64) -> u64 {
     // Isolates the least significant bit (LSB) that is set to 1
     let least_significant_bit = *bitboard & (*bitboard as i64).wrapping_neg() as u64;
 
     // Performs a bit-scan forward operation to get the index of the LSB
-    let lsb_index = least_significant_bit.trailing_zeros();
+    let lsb_index: u64 = least_significant_bit.trailing_zeros() as u64;
 
     // Clear the LSB from the bitboard
     *bitboard &= *bitboard - 1;

@@ -1,4 +1,4 @@
-use crate::defs::{Board, Pieces::Empty, Sides::White, Squares::{NoSq, OffBoard}, BOARD_SQUARE_NUMBER, CASTLE_KEYS, PIECE_KEYS, SIDE_KEY};
+use crate::defs::{Board, Pieces::Empty, Squares::{NoSq, OffBoard}, WHITE, BOARD_SQUARE_NUMBER, CASTLE_KEYS, PIECE_KEYS, SIDE_KEY};
 
 pub fn generate_position_key(position: &Board) -> u64 {
     let mut final_key: u64 = 0;
@@ -13,7 +13,7 @@ pub fn generate_position_key(position: &Board) -> u64 {
     }
 
     // add position (SIDE_KEY) to final_key
-    if position.side == White as u8 {
+    if position.side == WHITE as u8 {
         final_key ^= *SIDE_KEY;
     }
 

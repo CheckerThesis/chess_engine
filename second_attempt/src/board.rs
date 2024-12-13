@@ -1,6 +1,258 @@
 use std::collections::HashMap;
-use crate::{data::{PIECE_BIG, PIECE_COLOR, PIECE_MAJOR, PIECE_MINOR, PIECE_VALUE}, defs::{fr2sq, set_bit, sq120, sq64, Board, Castling::{*}, Castling::{*}, Files::*, Pieces::{self, *}, Ranks::*, Sides::*, Squares::{NoSq, OffBoard}, BOARD_SQUARE_NUMBER, SQ64_TO_SQ120}, hashkeys::generate_position_key};
+use crate::{bitboards::{count_bits, pop_bit}, data::{PIECE_BIG, PIECE_COLOR, PIECE_MAJOR, PIECE_MINOR, PIECE_VALUE}, defs::{fr2sq, reverse_bits, set_bit, sq120, sq64, Board, Castling::{*}, Castling::{*}, Files::*, Pieces::{self, *}, Ranks::*, Squares::{NoSq, OffBoard}, BLACK, BOARD_SQUARE_NUMBER, BOTH, RANKS_BOARD, SQ64_TO_SQ120, WHITE}, hashkeys::generate_position_key};
 use crate::data::{PIECE_CHAR, SIDE_CHAR, RANK_CHAR, FILE_CHAR};
+
+// fill temp variables with current, then compare them with the values filled
+pub fn check_board(position: &mut Board) -> Result<(), &'static str> {
+    // fill these values with position values, at the end see if they
+    let mut temp_piece_number: [u8; 13] = [0; 13];
+    let mut temp_big_piece: [u8; 2] = [0; 2];
+    let mut temp_major_piece: [u8; 2] = [0; 2];
+    let mut temp_minor_piece: [u8; 2] = [0; 2];
+    let mut temp_material: [u16; 2] = [0; 2];
+
+    let mut temp_pawns: [u64; 3] = [0; 3];
+    temp_pawns[WHITE] = position.pawns[WHITE];
+    temp_pawns[BLACK] = position.pawns[BLACK];
+    temp_pawns[BOTH] = position.pawns[BOTH];
+
+    // temp_piece = piece type
+    for temp_piece in WhitePawn as u8..BlackKing as u8 {
+        // temp_piece_num = number of pieces for that type
+        for temp_piece_num in 0..position.piece_number[temp_piece as usize] {
+            let square120 = position.piece_list[temp_piece as usize][temp_piece_num as usize];
+            // if piece at pieces array != temp_piece
+            if position.pieces[square120 as usize] != temp_piece {
+                return Err("Check piece lists error")
+            }
+        }
+    }
+
+    for square64 in 0..64 {
+        let square120 = sq120(square64 as u8);
+
+        let piece: usize = position.pieces[square120 as usize] as usize;
+        temp_piece_number[piece] += 1;
+        let color: usize = PIECE_COLOR[piece] as usize;
+
+        if PIECE_BIG[piece] {
+            temp_big_piece[color] += 1;
+        }
+        if PIECE_MINOR[piece] {
+            temp_minor_piece[color] += 1;
+        }
+        if PIECE_MAJOR[piece] {
+            temp_major_piece[color] += 1;
+        }
+
+        if color != BOTH {
+            temp_material[color] += PIECE_VALUE[piece];
+        }
+
+    }
+
+    for piece in WhitePawn as usize..BlackKing as usize {
+        if temp_piece_number[piece] != position.piece_number[piece] {
+            return Err("Piece number error")
+        }
+    }
+
+    let mut pawn_count = count_bits(temp_pawns[WHITE]);
+    if pawn_count != position.piece_number[WhitePawn as usize] as u64 {
+        return Err("White pawn count error")
+    }
+    pawn_count = count_bits(temp_pawns[BLACK]);
+    if pawn_count != position.piece_number[BlackPawn as usize] as u64 {
+        return Err("Black pawn count error")
+    }
+    pawn_count = count_bits(temp_pawns[BOTH]);
+    if pawn_count != (position.piece_number[WhitePawn as usize] + position.piece_number[BlackPawn as usize]) as u64 {
+        return Err("Both pawn count error")
+    }
+
+    // while bitboard not empty
+    // if pieces array at the bitboard position does not have a pawn
+    while temp_pawns[WHITE] != 0 {
+        let square64 = pop_bit(&mut temp_pawns[WHITE]);
+
+        if position.pieces[sq120(square64 as u8) as usize] != WhitePawn as u8 {
+            return Err("WhitePawn bitboard error")
+        }
+    }
+    while temp_pawns[BLACK] != 0 {
+        let square64 = pop_bit(&mut temp_pawns[BLACK]);
+
+        if position.pieces[sq120(square64 as u8) as usize] != BlackPawn as u8 {
+            return Err("BlackPawn bitboard error")
+        }
+    }
+    while temp_pawns[BOTH] != 0 {
+        let square64 = pop_bit(&mut temp_pawns[BOTH]);
+        // when square64 = 8, sq120(8) = 31
+        // let test = position.pieces[31];
+
+        if (position.pieces[sq120(square64 as u8) as usize] != BlackPawn as u8) &&
+        (position.pieces[sq120(square64 as u8) as usize] != WhitePawn as u8) {
+            return Err("BothPawn bitboard error")
+        }
+    }
+
+    if temp_material[WHITE] != position.material[WHITE] && temp_material[BLACK] != position.material[BLACK] {
+        return Err("Material value error")
+    }
+    if temp_major_piece[WHITE] != position.major_piece[WHITE] && temp_major_piece[BLACK] != position.major_piece[BLACK] {
+        return Err("Major piece count error")
+    }
+    if temp_minor_piece[WHITE] != position.minor_piece[WHITE] && temp_minor_piece[BLACK] != position.minor_piece[BLACK] {
+        return Err("Minor piece count error")
+    }
+    if temp_big_piece[WHITE] != position.big_piece[WHITE] && temp_big_piece[BLACK] != position.big_piece[BLACK] {
+        return Err("Big piece count error")
+    }
+
+    if position.side != WHITE as u8 && position.side != BLACK as u8 {
+        return Err("Side error")
+    }
+    if generate_position_key(position) != position.position_key {
+        return Err("Position key error")
+    }
+
+    // if en_passent isn't NoSq and a position on Rank6/Rank3 (corresponding to side)
+    if position.en_passent != NoSq as u8 ||
+    (RANKS_BOARD[position.en_passent as usize] != Rank6 as u8 && position.side != WHITE as u8) &&
+    (RANKS_BOARD[position.en_passent as usize] != Rank3 as u8 && position.side != BLACK as u8) {
+        return Err("En_passent error")
+    }
+
+    if position.pieces[position.king_square[WHITE as usize] as usize] != WhiteKing as u8 {
+        return Err("White king square error")
+    }
+    if position.pieces[position.king_square[BLACK as usize] as usize] != BlackKing as u8 {
+        return Err("Black king square error")
+    }
+
+    Ok(())
+}
+
+pub fn check_board2(position: &mut Board) -> Result<(), &'static str> {
+    let mut temp_piece_number: [u8; 13] = [0; 13];
+    let mut temp_big_piece: [u8; 2] = [0; 2];
+    let mut temp_major_piece: [u8; 2] = [0; 2];
+    let mut temp_minor_piece: [u8; 2] = [0; 2];
+    let mut temp_material: [u16; 3] = [0; 3];
+
+    let mut temp_pawns: [u64; 3] = [0; 3];
+    temp_pawns[WHITE] = position.pawns[WHITE];
+    temp_pawns[BLACK] = position.pawns[BLACK];
+    temp_pawns[BOTH] = position.pawns[BOTH];
+
+    // check piece lists
+    for piece in WhitePawn as u8..BlackKing as u8 {
+        for piece_number in 0..position.piece_number[piece as usize] {
+            // gets position of piece according to piece_list
+            let square120 = position.piece_list[piece as usize][piece_number as usize];
+            // compares it to to the pieces array
+            if position.pieces[square120 as usize] != piece {
+                return Err("Check piece lists error")
+            }
+        }
+    }
+
+    // check piece count and other counters
+    for square64 in 0..64 {
+        let square120 = sq120(square64 as u8);
+
+        let piece: usize = position.pieces[square120 as usize] as usize;
+        temp_piece_number[piece] += 1;
+        let color: usize = PIECE_COLOR[piece] as usize;
+
+        if PIECE_BIG[piece] {
+            temp_big_piece[color] += 1;
+        }
+        if PIECE_MINOR[piece] {
+            temp_minor_piece[color] += 1;
+        }
+        if PIECE_MAJOR[piece] {
+            temp_major_piece[color] += 1;
+        }
+
+        temp_material[color] += PIECE_VALUE[piece];
+    }
+
+    for piece in WhitePawn as usize..BlackKing as usize {
+        if temp_piece_number[piece] != position.piece_number[piece] {
+            return Err("Piece number error")
+        }
+    }
+
+    let mut pawn_count = count_bits(temp_pawns[WHITE]);
+    if pawn_count != position.piece_number[WhitePawn as usize] as u64 {
+        return Err("Where the problem at")
+    }
+
+    pawn_count = count_bits(temp_pawns[BLACK]);
+    if pawn_count != position.piece_number[BlackPawn as usize] as u64 {
+        return Err("Where the problem at")
+    }
+
+    pawn_count = count_bits(temp_pawns[BOTH]);
+    if pawn_count != (position.piece_number[WhitePawn as usize] + position.piece_number[BlackPawn as usize]) as u64 {
+        return Err("Pawn count error")
+    }
+
+    while temp_pawns[WHITE] != 0 {
+        let square64 = pop_bit(&mut temp_pawns[WHITE]);
+        if position.pieces[sq120(square64 as u8) as usize] != WhitePawn as u8 {
+            return Err("WhitePawn bitboard error")
+        }
+    }
+    while temp_pawns[BLACK] != 0 {
+        let square64 = pop_bit(&mut temp_pawns[BLACK]);
+        if position.pieces[sq120(square64 as u8) as usize] != BlackPawn as u8 {
+            return Err("BlackPawn bitboard error")
+        }
+    }
+    while temp_pawns[BOTH] != 0 {
+        let square64 = pop_bit(&mut temp_pawns[BOTH]);
+        if (position.pieces[sq120(square64 as u8) as usize] != WhitePawn as u8) ||
+        (position.pieces[sq120(square64 as u8) as usize] != BlackPawn as u8) {
+            return Err("BothPawn bitboard error")
+        }
+    }
+
+    if temp_material[WHITE] != position.material[WHITE] && temp_material[BLACK] != position.material[BLACK] {
+        return Err("Where the problem at")
+    }
+    if temp_major_piece[WHITE] != position.major_piece[WHITE] && temp_major_piece[BLACK] != position.major_piece[BLACK] {
+        return Err("Where the problem at")
+    }
+    if temp_minor_piece[WHITE] != position.minor_piece[WHITE] && temp_minor_piece[BLACK] != position.minor_piece[BLACK] {
+        return Err("Where the problem at")
+    }
+    if temp_big_piece[WHITE] != position.big_piece[WHITE] && temp_big_piece[BLACK] != position.big_piece[BLACK] {
+        return Err("Where the problem at")
+    }
+
+    if position.side != WHITE as u8 || position.side != BLACK as u8 {
+        return Err("Where the problem at")
+    }
+    if generate_position_key(position) != position.position_key {
+        return Err("Where the problem at")
+    }
+
+    if (position.en_passent != NoSq as u8 || RANKS_BOARD[position.en_passent as usize] != Rank6 as u8 && position.side != WHITE as u8) || (RANKS_BOARD[position.en_passent as usize] != Rank3 as u8 && position.side != BLACK as u8) {
+        return Err("Where the problem at")
+    }
+
+    if position.pieces[position.king_square[WHITE as usize] as usize] != WhiteKing as u8 {
+        return Err("Where the problem at")
+    }
+    if position.pieces[position.king_square[BLACK as usize] as usize] != BlackKing as u8 {
+        return Err("Where the problem at")
+    }
+
+    Ok(())
+}
 
 pub fn update_lists_material(position: &mut Board) {
     for square in 0..BOARD_SQUARE_NUMBER {
@@ -36,11 +288,11 @@ pub fn update_lists_material(position: &mut Board) {
 
             // if pawn, set the bit (in the pawn bitboard) corresponding to the square to 1
             if piece == WhitePawn as usize {
-                set_bit(&mut position.pawns[White as usize], square as u8);
-                set_bit(&mut position.pawns[Both as usize], square as u8);
+                set_bit(&mut position.pawns[WHITE], square as u8);
+                set_bit(&mut position.pawns[BOTH], square as u8);
             } else if piece == BlackPawn as usize {
-                set_bit(&mut position.pawns[Black as usize], square as u8);
-                set_bit(&mut position.pawns[Both as usize], square as u8);
+                set_bit(&mut position.pawns[BLACK], square as u8);
+                set_bit(&mut position.pawns[BOTH], square as u8);
             }
         }
     }
@@ -98,8 +350,8 @@ pub fn parse_fen(fen: &str, position: &mut Board) -> Result<(), &'static str> {
     }
 
     position.side = match fen_split[1] {
-        "w" => White as u8,
-        "b" => Black as u8,
+        "w" => WHITE as u8,
+        "b" => BLACK as u8,
         _ => return Err("Invalid FEN part 2")
     };
 
@@ -154,10 +406,10 @@ pub fn reset_board(position: &mut Board) {
         position.piece_number[i] = 0;
     }
 
-    position.king_square[White as usize] = NoSq as u8;
-    position.king_square[Black as usize] = NoSq as u8;
+    position.king_square[WHITE] = NoSq as u8;
+    position.king_square[BLACK] = NoSq as u8;
 
-    position.side = Both as u8;
+    position.side = BOTH as u8;
     position.en_passent = NoSq as u8;
     position.fifty_move = 0;
 
