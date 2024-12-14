@@ -8,7 +8,7 @@ mod data;
 
 use bitboards::{print_bitboard, pop_bit, count_bits};
 
-use board::{check_board, check_board2, debug_board, parse_fen, print_board};
+use board::{check_board, debug_board, parse_fen, print_board};
 use defs::{clear_bit, set_bit, sq64, Board, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, START_FEN, WHITE};
 use crate::defs::{Squares::*, Pieces::*};
 
