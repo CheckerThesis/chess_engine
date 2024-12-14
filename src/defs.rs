@@ -76,11 +76,6 @@ pub enum Squares {
     A7 = 81, B7, C7, D7, E7, F7, G7, H7,
     A8 = 91, B8, C8, D8, E8, F8, G8, H8, NoSq, OffBoard
 }
-#[repr(u8)]
-pub enum TrueFalse{
-    FALSE,
-    TRUE,
-}
 
 pub enum Castling {
     WhiteKingCastle = 1,
@@ -98,6 +93,27 @@ pub struct Undo {
     pub fifty_move: u8,
     pub position_key: u8,
 }
+
+
+/*
+One block of bits = F
+1111 = F
+1000 = 8
+1000 1111 = 8F
+
+Lowest square a piece will be on is 21, highest is 98
+0000 0000 0000 0000 0111 1111 -> From
+0000 0000 0011 1111 1000 0000 -> To
+0000 0011 1100 0000 0000 0000 -> Captured (go up to 12)
+0000 0100 0000 0000 0000 0000 -> En-passent capture (piece to promoted to)
+0111 1000 0000 0000 0000 0000 -> Promoted piece
+1000 0000 0000 0000 0000 0000  -> Castle
+*/
+pub struct Move {
+    pub the_move: u8,
+    pub score: u8,
+}
+
 pub struct Board {
     pub pieces: [u8; BOARD_SQUARE_NUMBER],
     // pawn bitboard
