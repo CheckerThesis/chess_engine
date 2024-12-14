@@ -5,16 +5,18 @@ mod bitboards;
 mod hashkeys;
 mod board;
 mod data;
+mod attack;
 
+use attack::{square_attacked, test_square_attacked};
 use bitboards::{print_bitboard, pop_bit, count_bits};
 
 use board::{check_board, debug_board, parse_fen, print_board};
-use defs::{clear_bit, set_bit, sq64, Board, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, START_FEN, WHITE};
+use defs::{clear_bit, fr2sq, set_bit, sq64, Board, Files::*, Ranks::*, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, START_FEN, WHITE};
 use crate::defs::{Squares::*, Pieces::*};
 
 fn main() {
-    let fen5 = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-
+    // let fen5 = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+    let fen5 = "8/3q1p2/8/5P2/4Q3/8/8/8 w KQkq - 0 1";
 
     let my_board: &mut Board = &mut Board::default();
     // debug_board(my_board);
@@ -25,13 +27,16 @@ fn main() {
     }
     print_board(my_board);
 
-    my_board.position_key -= 1;
+    // let result2 = check_board(my_board);
+    // match result2 {
+    //     Ok(_) => print!(""),
+    //     Err(e) => println!("{}", e),
+    // }
 
-    let result2 = check_board(my_board);
-    match result2 {
-        Ok(_) => print!(""),
-        Err(e) => println!("{}", e),
-    }
+    test_square_attacked(WHITE, my_board);
+    println!();
+    test_square_attacked(BLACK, my_board);
+
 }
 // -----------------------------
 // Test pop and set/clear masks:
