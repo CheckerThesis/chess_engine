@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use rand::{thread_rng, Rng};
+use rand::{seq::index, thread_rng, Rng};
 
 pub const NAME: &str = "Unknown";
 pub const BOARD_SQUARE_NUMBER: usize = 120;
@@ -9,14 +9,16 @@ pub const WHITE: usize = 0;
 pub const BLACK: usize = 1;
 pub const BOTH: usize = 2;
 
-// A8 B8 C8 D8 E8 F8 G8 H8
-// A7 B7 C7 D7 E7 F7 G7 H7
-// A6 B6 C6 D6 E6 F6 G6 H6
-// A5 B5 C5 D5 E5 F5 G5 H5
-// A4 B4 C4 D4 E4 F4 G4 H4
-// A3 B3 C3 D3 E3 F3 G3 H3
-// A2 B2 C2 D2 E2 F2 G2 H2
-// A1 B1 C1 D1 E1 F1 G1 H1
+/*
+A8 B8 C8 D8 E8 F8 G8 H8
+A7 B7 C7 D7 E7 F7 G7 H7
+A6 B6 C6 D6 E6 F6 G6 H6
+A5 B5 C5 D5 E5 F5 G5 H5
+A4 B4 C4 D4 E4 F4 G4 H4
+A3 B3 C3 D3 E3 F3 G3 H3
+A2 B2 C2 D2 E2 F2 G2 H2
+A1 B1 C1 D1 E1 F1 G1 H1
+*/
 
 #[repr(u8)]
 #[derive(Copy, Clone)]
@@ -59,12 +61,7 @@ pub enum Ranks {
     Rank8,
     RankNone,
 }
-// #[repr(u8)]
-// pub enum Sides {
-//     White,
-//     Black,
-//     Both,
-// }
+
 #[repr(u8)]
 pub enum Squares {
     A1 = 21, B1, C1, D1, E1, F1, G1, H1,
@@ -94,21 +91,6 @@ pub struct Undo {
     pub position_key: u8,
 }
 
-
-/*
-One block of bits = F
-1111 = F
-1000 = 8
-1000 1111 = 8F
-
-Lowest square a piece will be on is 21, highest is 98
-0000 0000 0000 0000 0111 1111 -> From
-0000 0000 0011 1111 1000 0000 -> To
-0000 0011 1100 0000 0000 0000 -> Captured (go up to 12)
-0000 0100 0000 0000 0000 0000 -> En-passent capture (piece to promoted to)
-0111 1000 0000 0000 0000 0000 -> Promoted piece
-1000 0000 0000 0000 0000 0000  -> Castle
-*/
 pub struct Move {
     pub the_move: u8,
     pub score: u8,
@@ -173,35 +155,66 @@ impl Default for Board {
 }
 
 // small board to big board
-pub fn fr2sq(file: u8, rank: u8) -> u8 {
-    21 + file + rank * 10
-}
+pub fn fr2sq(file: u8, rank: u8) -> u8 { 21 + file + rank * 10 }
 
-pub fn sq64(sq120: u8) -> u8 {
-    SQ120_TO_SQ64[sq120 as usize]
-}
+pub fn sq64(sq120: u8) -> u8 { SQ120_TO_SQ64[sq120 as usize] }
 
-pub fn sq120(sq64: u8) -> u8 {
-    SQ64_TO_SQ120[sq64 as usize]
-}
+pub fn sq120(sq64: u8) -> u8 { SQ64_TO_SQ120[sq64 as usize] }
 
-pub fn clear_bit(bitboard: &mut u64, square: u8) {
-    *bitboard &= CLEAR_MASK[sq64(square) as usize];
-}
+pub fn clear_bit(bitboard: &mut u64, square: u8) { *bitboard &= CLEAR_MASK[sq64(square) as usize]; }
 
-pub fn set_bit(bitboard: &mut u64, square: u8) {
-    *bitboard |= SET_MASK[sq64(square) as usize];
-}
+pub fn set_bit(bitboard: &mut u64, square: u8) { *bitboard |= SET_MASK[sq64(square) as usize]; }
 
-pub fn reverse_bits(n: u64) -> u64 {
-    let mut reversed = 0;
-    let mut input = n;
-    for _ in 0..64 {
-        reversed = (reversed << 1) | (input & 1);
-        input >>= 1;
+/*
+One block of bits = F
+1111 = F = 15
+1000 = 8
+1000 1111 = 8F
+
+0001 = 1
+0010 = 2
+0100 = 4
+
+Lowest square a piece will be on is 21, highest is 98
+0000 0000 0000 0000 0000 0111 1111 -> From -> 0x3F
+0000 0000 0000 0011 1111 1000 0000 -> To >> 7 0x3F (shift right by 7 bits)
+0000 0000 0011 1100 0000 0000 0000 -> Captured (go up to 12) >> 14 0xF (F because it is 4 digits)
+0000 0000 0100 0000 0000 0000 0000 -> En-passent capture (piece to promoted to) -> 0x40000
+0000 0000 1000 0000 0000 0000 0000 -> Pawn start -> 0x80000
+0000 1111 0000 0000 0000 0000 0000 -> Promoted piece >> 20 0xF
+0001 0000 0000 0000 0000 0000 0000 -> Castle -> 0x1000000
+So essentially, each hexidecimal digit represents each 4 digits
+            4    8    9    7    F  -> 4897F
+0000 0000 0100 1000 1001 0111 1111
+*/
+pub fn print_binary(the_move: u64) {
+    println!("As binary: ");
+
+    for i in (0..=27).rev() {
+        if 1 << i & the_move == 0 {
+            print!("0");
+        } else {
+            print!("1");
+        }
+        if i % 4 == 0 { print!(" "); }
     }
-    reversed
+    println!();
 }
+
+
+// the_move >> x , x is how much the shift is
+// the_move >> x & y, y is the amount of digits (7 for 0x3F)
+pub fn from_square(the_move: u64) -> u64 { the_move & 0x3F }
+pub fn to_square(the_move: u64) -> u64 { the_move >> 7 & 0x3F }
+pub fn captured(the_move: u64) -> u64 { the_move >> 14 & 0xF }
+pub fn promoted(the_move: u64) -> u64 { the_move >> 20 & 0xF }
+
+// beginning number is hex to decimal, 0's is empty 4-digits
+pub const MOVE_FLAG_EN_PASSENT: u64 = 0x40000; // 0000 0000 0100 0000 0000 0000 0000
+pub const MOVE_FLAG_PAWN_START: u64 = 0x80000; // 0000 0000 1000 0000 0000 0000 0000
+pub const MOVE_FLAG_CASTLE: u64 = 0x1000000; // 0001 0000 0000 0000 0000 0000 0000
+pub const MOVE_FLAG_CAPTURE: u64 = 0x7C000; // 0000 0000 0011 1100 0000 0000 0000
+pub const MOVE_FLAG_PROMOTE: u64 = 0xF00000; // 0000 1111 0000 0000 0000 0000 0000
 
 lazy_static! {
     // println!("SQ120-SQ64");
