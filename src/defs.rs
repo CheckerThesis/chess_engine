@@ -176,8 +176,8 @@ One block of bits = F
 0100 = 4
 
 Lowest square a piece will be on is 21, highest is 98
-0000 0000 0000 0000 0000 0111 1111 -> From -> 0x3F
-0000 0000 0000 0011 1111 1000 0000 -> To >> 7 0x3F (shift right by 7 bits)
+0000 0000 0000 0000 0000 0111 1111 -> From -> 0x7F
+0000 0000 0000 0011 1111 1000 0000 -> To >> 7 0x7F (shift right by 7 bits)
 0000 0000 0011 1100 0000 0000 0000 -> Captured (go up to 12) >> 14 0xF (F because it is 4 digits)
 0000 0000 0100 0000 0000 0000 0000 -> En-passent capture (piece to promoted to) -> 0x40000
 0000 0000 1000 0000 0000 0000 0000 -> Pawn start -> 0x80000
@@ -204,8 +204,8 @@ pub fn print_binary(the_move: u64) {
 
 // the_move >> x , x is how much the shift is
 // the_move >> x & y, y is the amount of digits (7 for 0x3F)
-pub fn from_square(the_move: u64) -> u64 { the_move & 0x3F }
-pub fn to_square(the_move: u64) -> u64 { the_move >> 7 & 0x3F }
+pub fn from_square(the_move: u64) -> u64 { the_move & 0x7F }
+pub fn to_square(the_move: u64) -> u64 { the_move >> 7 & 0x7F }
 pub fn captured(the_move: u64) -> u64 { the_move >> 14 & 0xF }
 pub fn promoted(the_move: u64) -> u64 { the_move >> 20 & 0xF }
 
