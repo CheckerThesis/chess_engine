@@ -4,6 +4,7 @@ use rand::{seq::index, thread_rng, Rng};
 pub const NAME: &str = "Unknown";
 pub const BOARD_SQUARE_NUMBER: usize = 120;
 pub const MAX_GAME_MOVES: usize = 2048;
+pub const MAX_POSITION_MOVES: usize = 256;
 pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 pub const WHITE: usize = 0;
 pub const BLACK: usize = 1;
@@ -91,9 +92,24 @@ pub struct Undo {
     pub position_key: u8,
 }
 
+#[derive(Default)]
+#[derive(Copy, Clone)]
 pub struct Move {
-    pub the_move: u8,
+    pub el_move: u64,
     pub score: u8,
+}
+
+pub struct MoveList {
+    pub moves: [Move; MAX_POSITION_MOVES],
+    pub count: usize,
+}
+impl Default for MoveList {
+    fn default() -> Self {
+        MoveList {
+            moves: [Move::default(); MAX_POSITION_MOVES],
+            count: 0,
+        }
+    }
 }
 
 pub struct Board {

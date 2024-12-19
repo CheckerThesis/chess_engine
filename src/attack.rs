@@ -1,4 +1,4 @@
-use crate::{data::{IS_BISHOP_QUEEN, IS_KING, IS_KNIGHT, IS_ROOK_QUEEN, PIECE_COLOR}, defs::{fr2sq, Board, Files::*, Pieces::*, Ranks::*, Squares::OffBoard, WHITE}};
+use crate::{board::check_board, data::{IS_BISHOP_QUEEN, IS_KING, IS_KNIGHT, IS_ROOK_QUEEN, PIECE_COLOR}, defs::{fr2sq, Board, Files::*, Pieces::*, Ranks::*, Squares::OffBoard, WHITE}, validate::{side_valid, square_on_board}};
 
 const KNIGHT_DIRECTION: [i8; 8] = [-8, -19, -21, -12, 8, 19, 21, 12];
 const ROOK_DIRECTION: [i8; 4] = [-1, -10, 1, 10];
@@ -8,6 +8,13 @@ const KING_DIRECTION: [i8; 8] = [-1, -10, 1, 10, -9, -11, 9, 11];
 // square is the square we're interested in attacking
 pub fn square_attacked(square: usize, side: usize, position: &mut Board) -> bool {
     let squarei8 = square as i8;
+
+    if !square_on_board(square) { println!("Square not on board"); }
+    if !side_valid(side) { println!("Wrong side"); }
+    match check_board(position) {
+        Ok(_) => print!(""),
+        Err(e) => println!("{}", e),
+    }
 
     // if white, check bottom left and bottom right square if there is WhitePawn
     if side == WHITE {

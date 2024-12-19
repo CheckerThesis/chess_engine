@@ -7,6 +7,8 @@ mod board;
 mod data;
 mod attack;
 mod io;
+mod movegen;
+mod validate;
 
 use std::sync::Mutex;
 
@@ -14,13 +16,13 @@ use attack::{square_attacked, test_square_attacked};
 use bitboards::{print_bitboard, pop_bit, count_bits};
 
 use board::{check_board, debug_board, parse_fen, print_board};
-use defs::{captured, clear_bit, fr2sq, from_square, print_binary, promoted, set_bit, sq64, to_square, Board, Files::*, Ranks::*, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, MOVE_FLAG_PAWN_START, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, START_FEN, WHITE};
-use io::{print_move, print_square};
+use defs::{captured, clear_bit, fr2sq, from_square, print_binary, promoted, set_bit, sq64, to_square, Board, Files::*, MoveList, Ranks::*, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, MOVE_FLAG_PAWN_START, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, START_FEN, WHITE};
+use io::{print_move, print_move_list, print_square};
+use movegen::generate_all_moves;
 use crate::defs::{Squares::*, Pieces::*};
 
 fn main() {
-    let fen5 = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-
+    let fen5 = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1";
     let my_board: &mut Board = &mut Board::default();
     // debug_board(my_board);
     match parse_fen(fen5, my_board) {
@@ -28,32 +30,11 @@ fn main() {
         Err(e) => println!("{}", e),
     }
     print_board(my_board);
-    match check_board(my_board) {
-        Ok(_) => print!(""),
-        Err(e) => println!("{}", e),
-    }
-    println!();
 
-    let mut el_move: u64 = 0;
-    let from = A2 as u64;
-    let to = H7 as u64;
+    let move_list = &mut MoveList::default();
 
-    let capture = WhiteRook as u64;
-    let promote = BlackKing as u64;
-
-    el_move = from | (to << 7) | (capture << 14) | (promote << 20);
-
-    println!("from: {}  to: {}  capture: {}  promote: {}",
-        from_square(el_move),
-        to_square(el_move),
-        captured(el_move),
-        promoted(el_move)
-    );
-    println!("algebraic from: {}\nalgebraic to: {}\nalgebraic move: {}",
-        print_square(from as u8),
-        print_square(to as u8),
-        print_move(el_move)
-    );
+    generate_all_moves(my_board, move_list);
+    print_move_list(move_list);
 }
 /*
 -----------------------------
@@ -103,7 +84,7 @@ print_board(my_board);
 parse_fen(&fen2, my_board);
 print_board(my_board);
 parse_fen(&fen3, my_board);
-print_board(my_board);x
+print_board(my_board);
 parse_fen(&fen4, my_board);
 print_board(my_board);
 
@@ -177,4 +158,41 @@ how the move flags work is by &ing everything out because it's all 0
 */
 el_move |= MOVE_FLAG_PAWN_START; // comment this in and out
 println!("is pawn start: {}", el_move & MOVE_FLAG_PAWN_START) != 0;
+
+-----------------------------
+Algebraic moves (send io into gui):
+let fen5 = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+let my_board: &mut Board = &mut Board::default();
+// debug_board(my_board);
+match parse_fen(fen5, my_board) {
+    Ok(_) => print!(""),
+    Err(e) => println!("{}", e),
+}
+print_board(my_board);
+match check_board(my_board) {
+    Ok(_) => print!(""),
+    Err(e) => println!("{}", e),
+}
+println!();
+
+let mut el_move: u64 = 0;
+let from = A2 as u64;
+let to = H7 as u64;
+
+let capture = WhiteRook as u64;
+let promote = BlackKing as u64;
+
+el_move = from | (to << 7) | (capture << 14) | (promote << 20);
+
+println!("from: {}  to: {}  capture: {}  promote: {}",
+    from_square(el_move),
+    to_square(el_move),
+    captured(el_move),
+    promoted(el_move)
+);
+println!("algebraic from: {}\nalgebraic to: {}\nalgebraic move: {}",
+    print_square(from as u8),
+    print_square(to as u8),
+    print_move(el_move)
+);
 */

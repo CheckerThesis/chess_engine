@@ -1,4 +1,4 @@
-use crate::{data::{IS_BISHOP_QUEEN, IS_KNIGHT, IS_ROOK_QUEEN}, defs::{from_square, promoted, to_square, FILES_BOARD, RANKS_BOARD}};
+use crate::{data::{IS_BISHOP_QUEEN, IS_KNIGHT, IS_ROOK_QUEEN}, defs::{from_square, promoted, to_square, MoveList, FILES_BOARD, RANKS_BOARD}};
 
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
@@ -55,4 +55,16 @@ pub fn print_move(the_move: u64) -> String {
     let mut global_move_string = MOVE_STRING.lock().unwrap();
     *global_move_string = move_string;
     global_move_string.clone()
+}
+
+pub fn print_move_list(move_list: &mut MoveList) {
+    println!("Move list:");
+
+    for i in 0..move_list.count {
+        let the_move = move_list.moves[i].el_move;
+        let score = move_list.moves[i].score;
+
+        println!("Move: {} > {} (score: {})", i + 1, print_move(the_move), score);
+    }
+    println!("Move list total moves: {}", move_list.count);
 }
