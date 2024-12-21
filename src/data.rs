@@ -17,3 +17,5 @@ pub static IS_KNIGHT: [bool; 13] = [false, false, true, false, false, false, fal
 pub static IS_KING: [bool; 13] = [false, false, false, false, false, false, true, false, false, false, false, false, true];
 pub static IS_ROOK_QUEEN: [bool; 13] = [false, false, false, false, true, true, false, false, false, false, true, true, false];
 pub static IS_BISHOP_QUEEN: [bool; 13] = [false, false, false, true, false, true, false, false, false, true, false, true, false];
+
+pub static PIECE_SLIDES: [bool; 13] = [false, false, false, true, true, true, false, false, false, true, true, true, false];

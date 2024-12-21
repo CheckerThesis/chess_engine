@@ -307,20 +307,22 @@ lazy_static! {
         [rng.gen(); 16]
     };
 
-    // println!("Files board");
-    // for i in 0..BOARD_SQUARE_NUMBER {
-    //     if i % 10 == 0 && i != 0 {
-    //         println!();
-    //     }
-    //     print!("{:<4}", FILES_BOARD[i]);
-    // }
-    // println!("\n\nRanks board");
-    // for i in 0..BOARD_SQUARE_NUMBER {
-    //     if i % 10 == 0 && i != 0 {
-    //         println!();
-    //     }
-    //     print!("{:<4}", RANKS_BOARD[i]);
-    // }
+    /*
+    println!("Files board");
+    for i in 0..BOARD_SQUARE_NUMBER {
+        if i % 10 == 0 && i != 0 {
+            println!();
+        }
+        print!("{:<4}", FILES_BOARD[i]);
+    }
+    println!("\n\nRanks board");
+    for i in 0..BOARD_SQUARE_NUMBER {
+        if i % 10 == 0 && i != 0 {
+            println!();
+        }
+        print!("{:<4}", RANKS_BOARD[i]);
+    }
+    */
     // see above comment
     pub static ref FILES_BOARD: [u8; BOARD_SQUARE_NUMBER] = {
         let mut files_board: [u8; BOARD_SQUARE_NUMBER] = [BOARD_SQUARE_NUMBER as u8; BOARD_SQUARE_NUMBER];

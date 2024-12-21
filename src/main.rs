@@ -22,19 +22,23 @@ use movegen::generate_all_moves;
 use crate::defs::{Squares::*, Pieces::*};
 
 fn main() {
-    let fen5 = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1";
+    let fen_white_pawns = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1";
+    let fen_black_pawns = "rnbqkbnr/p1p1p3/3p3p/1p1p4/2P1Pp2/8/PP1P1PpP/RNBQKB1R b KQkq e3 0 1";
+    let fen_knights_kings = "5k2/1n6/4n3/6N1/8/3N4/8/5K2 w - - 0 1";
+    let fen_rooks = "6k1/8/5r2/8/1nR5/5N2/8/6K1 b - - 0 1";
+    let fen_queens = "6k1/8/4nq2/8/1nQ5/5N2/1N6/6K1 b - - 0 1";
+    let fen_bishops = "6k1/1b6/4n3/8/1n4B1/1B3N2/1N6/2b3K1 b - - 0 1";
+
     let my_board: &mut Board = &mut Board::default();
-    // debug_board(my_board);
-    match parse_fen(fen5, my_board) {
+    match parse_fen(fen_bishops, my_board) {
         Ok(_) => print!(""),
         Err(e) => println!("{}", e),
     }
     print_board(my_board);
+    println!();
 
     let move_list = &mut MoveList::default();
-
     generate_all_moves(my_board, move_list);
-    print_move_list(move_list);
 }
 /*
 -----------------------------

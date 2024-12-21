@@ -118,9 +118,9 @@ pub fn check_board(position: &mut Board) -> Result<(), &'static str> {
     }
 
     // if en_passent isn't NoSq and a position on Rank6/Rank3 (corresponding to side)
-    if position.en_passent == NoSq as u8 ||
-    (RANKS_BOARD[position.en_passent as usize] != Rank6 as u8 && position.side != WHITE as u8) &&
-    (RANKS_BOARD[position.en_passent as usize] != Rank3 as u8 && position.side != BLACK as u8) {
+    if position.en_passent != NoSq as u8 &&
+    ((RANKS_BOARD[position.en_passent as usize] != Rank6 as u8 && position.side == WHITE as u8) ||
+    (RANKS_BOARD[position.en_passent as usize] != Rank3 as u8 && position.side == BLACK as u8)) {
         return Err("En_passent error")
     }
 
@@ -216,7 +216,6 @@ pub fn parse_fen(fen: &str, position: &mut Board) -> Result<(), &'static str> {
         // if new rank/'/'
         } else if c == '/' {
             if file != 8 {
-                println!("Ello");
                 return Err("Incorrect amount of char in file");
             }
             // .checked_sub(1) checks if the subtraction (sub) of 1 is ok on rank,
