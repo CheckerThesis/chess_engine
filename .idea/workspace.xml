@@ -7,7 +7,25 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d75bb39c-4a4d-4647-bbe0-a8a255c35ab8" name="Changes" comment="" />
+    <list default="true" id="d75bb39c-4a4d-4647-bbe0-a8a255c35ab8" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.debug/.rustc_info.json" beforeDir="false" afterPath="$PROJECT_DIR$/.debug/.rustc_info.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.debug/debug/.fingerprint/part_2_chess-f330b49f9b62cda4/bin-part_2_chess" beforeDir="false" afterPath="$PROJECT_DIR$/.debug/debug/.fingerprint/part_2_chess-f330b49f9b62cda4/bin-part_2_chess" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.debug/debug/.fingerprint/part_2_chess-f330b49f9b62cda4/bin-part_2_chess.json" beforeDir="false" afterPath="$PROJECT_DIR$/.debug/debug/.fingerprint/part_2_chess-f330b49f9b62cda4/bin-part_2_chess.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.debug/debug/.fingerprint/part_2_chess-f330b49f9b62cda4/dep-bin-part_2_chess" beforeDir="false" afterPath="$PROJECT_DIR$/.debug/debug/.fingerprint/part_2_chess-f330b49f9b62cda4/dep-bin-part_2_chess" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.debug/debug/.fingerprint/part_2_chess-f330b49f9b62cda4/output-bin-part_2_chess" beforeDir="false" afterPath="$PROJECT_DIR$/.debug/debug/.fingerprint/part_2_chess-f330b49f9b62cda4/output-bin-part_2_chess" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.debug/debug/deps/part_2_chess.d" beforeDir="false" afterPath="$PROJECT_DIR$/.debug/debug/deps/part_2_chess.d" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.debug/debug/deps/part_2_chess.exe" beforeDir="false" afterPath="$PROJECT_DIR$/.debug/debug/deps/part_2_chess.exe" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.debug/debug/deps/part_2_chess.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/.debug/debug/deps/part_2_chess.pdb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.debug/debug/part_2_chess.d" beforeDir="false" afterPath="$PROJECT_DIR$/.debug/debug/part_2_chess.d" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.debug/debug/part_2_chess.exe" beforeDir="false" afterPath="$PROJECT_DIR$/.debug/debug/part_2_chess.exe" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.debug/debug/part_2_chess.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/.debug/debug/part_2_chess.pdb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.vscode/launch.json" beforeDir="false" afterPath="$PROJECT_DIR$/.vscode/launch.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/defs.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/defs.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/movegen.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/movegen.rs" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -15,29 +33,37 @@
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:dev" />
   <component name="Git.Settings">
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="MacroExpansionManager">
     <option name="directoryName" value="0pfz0ouv" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 0
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 0
+}</component>
   <component name="ProjectId" id="2prUyzW22JDAdKr0Jubni6C3dPh" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "Cargo.Run part_2_chess.executor": "Debug",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.rust.reset.selective.auto.import": "true",
-    "git-widget-placeholder": "main",
+    "git-widget-placeholder": "move__generation",
     "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "C:/Users/Tien Cao/Desktop/Code/rust_projects/chess_engine",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
     "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
     "org.rust.first.attach.projects": "true",
-    "settings.editor.selected.configurable": "preferences.lookFeel",
+    "settings.editor.selected.configurable": "preferences.keymap",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -90,10 +116,34 @@
       <option name="presentableId" value="Default" />
       <updated>1733523947100</updated>
       <workItem from="1733523948424" duration="55000" />
+      <workItem from="1734891812914" duration="88000" />
+      <workItem from="1734891912616" duration="134000" />
+      <workItem from="1734892122242" duration="376000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <ignored-roots>
+      <path value="$PROJECT_DIR$/.." />
+    </ignored-roots>
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/src/movegen.rs</url>
+          <line>156</line>
+          <option name="timeStamp" value="2" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/src/main.rs</url>
+          <line>42</line>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>

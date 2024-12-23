@@ -5,7 +5,6 @@ pub const NAME: &str = "Unknown";
 pub const BOARD_SQUARE_NUMBER: usize = 120;
 pub const MAX_GAME_MOVES: usize = 2048;
 pub const MAX_POSITION_MOVES: usize = 256;
-pub const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 pub const WHITE: usize = 0;
 pub const BLACK: usize = 1;
 pub const BOTH: usize = 2;
@@ -217,7 +216,6 @@ pub fn print_binary(the_move: u64) {
     println!();
 }
 
-
 // the_move >> x , x is how much the shift is
 // the_move >> x & y, y is the amount of digits (7 for 0x3F)
 pub fn from_square(the_move: u64) -> u64 { the_move & 0x7F }
@@ -228,28 +226,30 @@ pub fn promoted(the_move: u64) -> u64 { the_move >> 20 & 0xF }
 // beginning number is hex to decimal, 0's is empty 4-digits
 pub const MOVE_FLAG_EN_PASSENT: u64 = 0x40000; // 0000 0000 0100 0000 0000 0000 0000
 pub const MOVE_FLAG_PAWN_START: u64 = 0x80000; // 0000 0000 1000 0000 0000 0000 0000
-pub const MOVE_FLAG_CASTLE: u64 = 0x1000000; // 0001 0000 0000 0000 0000 0000 0000
-pub const MOVE_FLAG_CAPTURE: u64 = 0x7C000; // 0000 0000 0011 1100 0000 0000 0000
-pub const MOVE_FLAG_PROMOTE: u64 = 0xF00000; // 0000 1111 0000 0000 0000 0000 0000
+pub const MOVE_FLAG_CASTLE: u64 = 0x1000000;   // 0001 0000 0000 0000 0000 0000 0000
+pub const MOVE_FLAG_CAPTURE: u64 = 0x7C000;    // 0000 0000 0011 1100 0000 0000 0000
+pub const MOVE_FLAG_PROMOTE: u64 = 0xF00000;   // 0000 1111 0000 0000 0000 0000 0000
 
 lazy_static! {
-    // println!("SQ120-SQ64");
-    // for i in 0..BOARD_SQUARE_NUMBER {
-    //     if i % 10 == 0 {
-    //         println!();
-    //     }
-    //     print!("{:>4}", SQ120_TO_SQ64[i]);
-    // }
-    // println!();
-    // println!("SQ64-SQ120");
-    // for i in 0..64 {
-    //     if i % 8 == 0 {
-    //         println!();
-    //     }
-    //     print!("{:>4}", SQ64_TO_SQ120[i])
-    // }
-    // println!();
-    // see above comment
+    /*
+    println!("SQ120-SQ64");
+    for i in 0..BOARD_SQUARE_NUMBER {
+        if i % 10 == 0 {
+            println!();
+        }
+        print!("{:>4}", SQ120_TO_SQ64[i]);
+    }
+    println!();
+    println!("SQ64-SQ120");
+    for i in 0..64 {
+        if i % 8 == 0 {
+            println!();
+        }
+        print!("{:>4}", SQ64_TO_SQ120[i])
+    }
+    println!();
+    see above comment
+    */
     pub static ref SQ120_TO_SQ64: [u8; BOARD_SQUARE_NUMBER] = {
         let mut sq120_to_sq64 = [65; BOARD_SQUARE_NUMBER];
         let mut square64: u8 = 0;
@@ -322,8 +322,8 @@ lazy_static! {
         }
         print!("{:<4}", RANKS_BOARD[i]);
     }
+    see above comment
     */
-    // see above comment
     pub static ref FILES_BOARD: [u8; BOARD_SQUARE_NUMBER] = {
         let mut files_board: [u8; BOARD_SQUARE_NUMBER] = [BOARD_SQUARE_NUMBER as u8; BOARD_SQUARE_NUMBER];
 

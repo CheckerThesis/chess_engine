@@ -16,21 +16,25 @@ use attack::{square_attacked, test_square_attacked};
 use bitboards::{print_bitboard, pop_bit, count_bits};
 
 use board::{check_board, debug_board, parse_fen, print_board};
-use defs::{captured, clear_bit, fr2sq, from_square, print_binary, promoted, set_bit, sq64, to_square, Board, Files::*, MoveList, Ranks::*, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, MOVE_FLAG_PAWN_START, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, START_FEN, WHITE};
+use defs::{captured, clear_bit, fr2sq, from_square, print_binary, promoted, set_bit, sq64, to_square, Board, Files::*, MoveList, Ranks::*, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, MOVE_FLAG_PAWN_START, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, WHITE};
 use io::{print_move, print_move_list, print_square};
 use movegen::generate_all_moves;
 use crate::defs::{Squares::*, Pieces::*};
 
-fn main() {
-    let fen_white_pawns = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1";
-    let fen_black_pawns = "rnbqkbnr/p1p1p3/3p3p/1p1p4/2P1Pp2/8/PP1P1PpP/RNBQKB1R b KQkq e3 0 1";
-    let fen_knights_kings = "5k2/1n6/4n3/6N1/8/3N4/8/5K2 w - - 0 1";
-    let fen_rooks = "6k1/8/5r2/8/1nR5/5N2/8/6K1 b - - 0 1";
-    let fen_queens = "6k1/8/4nq2/8/1nQ5/5N2/1N6/6K1 b - - 0 1";
-    let fen_bishops = "6k1/1b6/4n3/8/1n4B1/1B3N2/1N6/2b3K1 b - - 0 1";
+const FEN_START: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const FEN_WHITE_PAWNS: &str = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1";
+const FEN_BLACK_PAWNS: &str = "rnbqkbnr/p1p1p3/3p3p/1p1p4/2P1Pp2/8/PP1P1PpP/RNBQKB1R b KQkq e3 0 1";
+const FEN_KNIGHTS_KINGS: &str = "5k2/1n6/4n3/6N1/8/3N4/8/5K2 w - - 0 1";
+const FEN_ROOKS: &str = "6k1/8/5r2/8/1nR5/5N2/8/6K1 b - - 0 1";
+const FEN_QUEENS: &str = "6k1/8/4nq2/8/1nQ5/5N2/1N6/6K1 b - - 0 1";
+const FEN_BISHOPS: &str = "6k1/1b6/4n3/8/1n4B1/1B3N2/1N6/2b3K1 b - - 0 1";
+const FEN_CASTLE1: &str = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
+const FEN_CASTLE2: &str = "3rk2r/8/8/8/8/8/6p1/R3K2R b KQk - 0 1";
+const FEN_TRICKY: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
 
+fn main() {
     let my_board: &mut Board = &mut Board::default();
-    match parse_fen(fen_bishops, my_board) {
+    match parse_fen(&FEN_TRICKY, my_board) {
         Ok(_) => print!(""),
         Err(e) => println!("{}", e),
     }
@@ -39,6 +43,7 @@ fn main() {
 
     let move_list = &mut MoveList::default();
     generate_all_moves(my_board, move_list);
+    print_move_list(move_list);
 }
 /*
 -----------------------------

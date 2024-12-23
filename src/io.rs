@@ -4,6 +4,7 @@ use once_cell::sync::Lazy;
 use std::sync::Mutex;
 
 static SQUARE_STRING: Lazy<Mutex<String>> = Lazy::new(|| Mutex::new(String::new()));
+
 pub fn print_square(square: u8) -> String {
     let file = ('a' as u8 + FILES_BOARD[square as usize]) as char;
     let rank = ('1' as u8 + RANKS_BOARD[square as usize]) as char;
@@ -18,12 +19,14 @@ pub fn print_square(square: u8) -> String {
 }
 
 static MOVE_STRING: Lazy<Mutex<String>> = Lazy::new(|| Mutex::new(String::new()));
+
 pub fn print_move(the_move: u64) -> String {
     let file_from = FILES_BOARD[from_square(the_move) as usize];
     let rank_from = RANKS_BOARD[from_square(the_move) as usize];
     let file_to = FILES_BOARD[to_square(the_move) as usize];
     let rank_to = RANKS_BOARD[to_square(the_move) as usize];
 
+    // get the promoted bit
     let promoted = promoted(the_move);
 
     let move_string: String;
