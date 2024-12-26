@@ -9,6 +9,8 @@ mod attack;
 mod io;
 mod movegen;
 mod validate;
+mod makemove;
+mod perft;
 
 use std::sync::Mutex;
 
@@ -18,8 +20,11 @@ use bitboards::{print_bitboard, pop_bit, count_bits};
 use board::{check_board, debug_board, parse_fen, print_board};
 use defs::{captured, clear_bit, fr2sq, from_square, print_binary, promoted, set_bit, sq64, to_square, Board, Files::*, MoveList, Ranks::*, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, MOVE_FLAG_PAWN_START, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, WHITE};
 use io::{print_move, print_move_list, print_square};
+use makemove::{make_move, take_move};
 use movegen::generate_all_moves;
 use crate::defs::{Squares::*, Pieces::*};
+
+use std::io as std_io; // Import std::io as std_io
 
 const FEN_START: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const FEN_WHITE_PAWNS: &str = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1";
@@ -33,17 +38,31 @@ const FEN_CASTLE2: &str = "3rk2r/8/8/8/8/8/6p1/R3K2R b KQk - 0 1";
 const FEN_TRICKY: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
 
 fn main() {
-    let my_board: &mut Board = &mut Board::default();
-    match parse_fen(&FEN_TRICKY, my_board) {
+    let position: &mut Board = &mut Board::default();
+    match parse_fen(&FEN_START, position) {
         Ok(_) => print!(""),
-        Err(e) => println!("{}", e),
+        Err(e) => eprintln!("{}", e),
     }
-    print_board(my_board);
     println!();
 
     let move_list = &mut MoveList::default();
-    generate_all_moves(my_board, move_list);
-    print_move_list(move_list);
+    generate_all_moves(position, move_list);
+
+    let mut test = String::new();
+    for move_number in 0..move_list.count {
+        let the_move = move_list.moves[move_number].el_move;
+        println!("move_number: {}", move_number);
+
+        if !make_move(position, the_move) { continue; }
+
+        println!("MADE: {}", print_move(the_move));
+        print_board(position);
+
+        take_move(position);
+        println!("TAKEN: {}", print_move(the_move));
+        print_board(position);
+        std_io::stdin().read_line(&mut test).expect("Failed to read");
+    }
 }
 /*
 -----------------------------
@@ -83,69 +102,69 @@ Check print_board
 let fen2 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
 let fen3 = "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2";
 let fen4 = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2";
-let my_board: &mut Board = &mut Board::default();
-let result = parse_fen(START_FEN, my_board);
+let position: &mut Board = &mut Board::default();
+let result = parse_fen(START_FEN, position);
 match result {
     Ok(_) => print!(""),
     Err(e) => println!("{}", e),
 }
-print_board(my_board);
-parse_fen(&fen2, my_board);
-print_board(my_board);
-parse_fen(&fen3, my_board);
-print_board(my_board);
-parse_fen(&fen4, my_board);
-print_board(my_board);
+print_board(position);
+parse_fen(&fen2, position);
+print_board(position);
+parse_fen(&fen3, position);
+print_board(position);
+parse_fen(&fen4, position);
+print_board(position);
 
 -----------------------------
 Pawn bitboards:
 let fen5 = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
 
-let my_board: &mut Board = &mut Board::default();
-// debug_board(my_board);
-let result = parse_fen(fen5, my_board);
+let position: &mut Board = &mut Board::default();
+// debug_board(position);
+let result = parse_fen(fen5, position);
 match result {
     Ok(_) => print!(""),
     Err(e) => println!("{}", e),
 }
-print_board(my_board);
+print_board(position);
 
 println!("WhitePawn");
-print_bitboard(my_board.pawns[WHITE as usize]);
+print_bitboard(position.pawns[WHITE as usize]);
 println!("BlackPawns");
-print_bitboard(my_board.pawns[BLACK as usize]);
+print_bitboard(position.pawns[BLACK as usize]);
 println!("BothPawns");
-print_bitboard(my_board.pawns[BOTH as usize]);
+print_bitboard(position.pawns[BOTH as usize]);
 }
 
 -----------------------------
 Attack squares:
 let fen5 = "8/3q1p2/8/5P2/4Q3/8/8/8 w KQkq - 0 1";
 
-let my_board: &mut Board = &mut Board::default();
-let result = parse_fen(fen5, my_board);
+let position: &mut Board = &mut Board::default();
+let result = parse_fen(fen5, position);
 match result {
     Ok(_) => print!(""),
     Err(e) => println!("{}", e),
 }
-print_board(my_board);
+print_board(position);
 
-test_square_attacked(WHITE, my_board);
+test_square_attacked(WHITE, position);
 println!();
-test_square_attacked(BLACK, my_board);
+test_square_attacked(BLACK, position);
 
 -----------------------------
 Move integer bits:
 let fen5 = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
 
-let my_board: &mut Board = &mut Board::default();
-// debug_board(my_board);
-match parse_fen(fen5, my_board) {
+let position: &mut Board = &mut Board::default();
+// debug_board(position);
+match parse_fen(fen5, position) {
     Ok(_) => print!(""),
     Err(e) => println!("{}", e),
 }
-print_board(my_board);
-match check_board(my_board) {
+print_board(position);
+match check_board(position) {
     Ok(_) => print!(""),
     Err(e) => println!("{}", e),
 }
@@ -171,14 +190,14 @@ println!("is pawn start: {}", el_move & MOVE_FLAG_PAWN_START) != 0;
 -----------------------------
 Algebraic moves (send io into gui):
 let fen5 = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-let my_board: &mut Board = &mut Board::default();
-// debug_board(my_board);
-match parse_fen(fen5, my_board) {
+let position: &mut Board = &mut Board::default();
+// debug_board(position);
+match parse_fen(fen5, position) {
     Ok(_) => print!(""),
     Err(e) => println!("{}", e),
 }
-print_board(my_board);
-match check_board(my_board) {
+print_board(position);
+match check_board(position) {
     Ok(_) => print!(""),
     Err(e) => println!("{}", e),
 }

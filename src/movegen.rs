@@ -7,33 +7,35 @@ fn move_gen(board, moveList)
             moveList->count++
 */
 
+use colored::Colorize;
+
 use crate::{attack::square_attacked, board::check_board, data::{PIECE_CHAR, PIECE_COLOR}, defs::{Board, Castling::*, MoveList, Pieces::{self, *}, Ranks::*, Squares::*, FILES_BOARD, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, RANKS_BOARD}, io::print_square, validate::{piece_valid, piece_valid_empty, square_on_board}, BLACK, WHITE};
 
 pub fn move_builder(from: u64, to: u64, capture: u64, promote: u64, flag: u64) -> u64 { from | (to << 7) | (capture << 14) | (promote << 20) | flag }
 
 // add move to array and increment
-pub fn add_quiet_move(position: &mut Board, the_move: u64, move_list: &mut MoveList) {
+pub fn add_quiet_move(_position: &mut Board, the_move: u64, move_list: &mut MoveList) {
     move_list.moves[move_list.count].el_move = the_move;
     move_list.moves[move_list.count].score = 0;
     move_list.count += 1;
 }
 
-pub fn add_capture_move(position: &mut Board, the_move: u64, move_list: &mut MoveList) {
+pub fn add_capture_move(_position: &mut Board, the_move: u64, move_list: &mut MoveList) {
     move_list.moves[move_list.count].el_move = the_move;
     move_list.moves[move_list.count].score = 0;
     move_list.count += 1;
 }
 
-pub fn add_en_passent_move(position: &mut Board, the_move: u64, move_list: &mut MoveList) {
+pub fn add_en_passent_move(_position: &mut Board, the_move: u64, move_list: &mut MoveList) {
     move_list.moves[move_list.count].el_move = the_move;
     move_list.moves[move_list.count].score = 0;
     move_list.count += 1;
 }
 
 pub fn add_white_pawn_capture_move(position: &mut Board, from: usize, to: usize, capture: usize, move_list: &mut MoveList) {
-    if !piece_valid_empty(capture) { println!("Piece empty wrong"); }
-    if !square_on_board(from) { println!("From not on board"); }
-    if !square_on_board(to) { println!("To not on board"); }
+    if !piece_valid_empty(capture) { println!("{}", "add_white_pawn_capture_move: [capture] piece isn't empty or a piece".red()); }
+    if !square_on_board(from as usize) { eprintln!("{}", "add_white_pawn_capture_move: [from] square not on board".red()); }
+    if !square_on_board(to as usize) { eprintln!("{}", "add_white_pawn_capture_move: [to] square not on board".red()); }
 
     // if able to promote on capture
     if RANKS_BOARD[from as usize] == Rank7 as u8 {
@@ -46,8 +48,8 @@ pub fn add_white_pawn_capture_move(position: &mut Board, from: usize, to: usize,
     }
 }
 pub fn add_white_pawn_move(position: &mut Board, from: usize, to: usize, move_list: &mut MoveList) {
-    if !square_on_board(from) { println!("From not on board"); }
-    if !square_on_board(to) { println!("To not on board"); }
+    if !square_on_board(from as usize) { eprintln!("{}", "add_white_pawn_move: [from] square not on board".red()); }
+    if !square_on_board(to as usize) { eprintln!("{}", "add_white_pawn_move: [to] square not on board".red()); }
 
     // if WhitePawn is on Rank7, it will promote on capture
     if RANKS_BOARD[from as usize] == Rank7 as u8 {
@@ -61,9 +63,10 @@ pub fn add_white_pawn_move(position: &mut Board, from: usize, to: usize, move_li
 }
 
 pub fn add_black_pawn_capture_move(position: &mut Board, from: usize, to: usize, capture: usize, move_list: &mut MoveList) {
-    if !piece_valid_empty(capture) { println!("Piece empty wrong"); }
-    if !square_on_board(from) { println!("From not on board"); }
-    if !square_on_board(to) { println!("To not on board"); }
+    if !piece_valid_empty(capture) { println!("{}", "add_black_pawn_capture_move: [capture] piece isn't empty or a piece".red()); }
+    if !square_on_board(from as usize) { eprintln!("{}", "add_black_pawn_capture_move: [from] square not on board".red()); }
+    if !square_on_board(to as usize) { eprintln!("{}", "add_black_pawn_capture_move: [to] square not on board".red()); }
+
 
     // if able to promote on capture
     if RANKS_BOARD[from as usize] == Rank2 as u8 {
@@ -76,8 +79,9 @@ pub fn add_black_pawn_capture_move(position: &mut Board, from: usize, to: usize,
     }
 }
 pub fn add_black_pawn_move(position: &mut Board, from: usize, to: usize, move_list: &mut MoveList) {
-    if !square_on_board(from) { println!("From not on board"); }
-    if !square_on_board(to) { println!("To not on board"); }
+    if !square_on_board(from as usize) { eprintln!("{}", "add_black_pawn_move: [from] square not on board".red()); }
+    if !square_on_board(to as usize) { eprintln!("{}", "add_black_pawn_move: [to] square not on board".red()); }
+
 
     // if BlackPawn is on Rank2, it will promote on capture
     if RANKS_BOARD[from as usize] == Rank2 as u8 {
@@ -91,10 +95,7 @@ pub fn add_black_pawn_move(position: &mut Board, from: usize, to: usize, move_li
 }
 
 pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
-    match check_board(position) {
-        Ok(_) => print!(""),
-        Err(e) => println!("{}", e),
-    }
+    check_board(position);
 
     move_list.count = 0;
     let side = position.side;
@@ -104,7 +105,7 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
         // loop through each WhitePawn
         for piece_number in 0..position.piece_number[WhitePawn as usize] {
             let square: usize = position.piece_list[WhitePawn as usize][piece_number as usize] as usize;
-            if !square_on_board(square) { println!("Square not on board"); }
+            if !square_on_board(square) { eprintln!("{}", "generate_all_moves: [square] square not on board (WhitePawn movement)".red()); }
 
             // Non-capture moves:
             // if square in front is empty
@@ -202,7 +203,7 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
         // loop through each BlackPawn
         for piece_number in 0..position.piece_number[BlackPawn as usize] {
             let square: usize = position.piece_list[BlackPawn as usize][piece_number as usize] as usize;
-            if !square_on_board(square) { println!("Square not on board"); }
+            if !square_on_board(square) { eprintln!("{}", "generate_all_moves: [square] square not on board (BlackPawn movement)".red()); }
 
             // Non-capture moves:
             // if square in front is empty
@@ -225,11 +226,11 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
             // Capture moves:
             // if top left
             if FILES_BOARD[square - 9] != OffBoard as u8 && PIECE_COLOR[position.pieces[square - 9] as usize] == WHITE as u8 {
-                add_black_pawn_capture_move(position, square, square - 9, position.pieces[square + 9] as usize, move_list);
+                add_black_pawn_capture_move(position, square, square - 9, position.pieces[square - 9] as usize, move_list);
             }
             // if top right
             if FILES_BOARD[square - 11] != OffBoard as u8 && PIECE_COLOR[position.pieces[square - 11] as usize] == WHITE as u8 {
-                add_black_pawn_capture_move(position, square, square - 11, position.pieces[square + 11] as usize, move_list);
+                add_black_pawn_capture_move(position, square, square - 11, position.pieces[square - 11] as usize, move_list);
             }
 
             if position.en_passent != NoSq as u8 {
@@ -297,7 +298,7 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
     }
 
     // indexes that pieces move (like pawn captures)
-    let piece_direction: [[i8; 8]; 13] = [
+    const PIECE_DIRECTION: [[i8; 8]; 13] = [
         [0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0],
         [-8, -19, -21, -12, 8, 19, 21, 12],
@@ -313,30 +314,30 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
         [-1, -10, 1, 10, -9, -11, 11, 9]
     ];
     // number of directions each piece can move (rook 4, queen 8)
-    let number_direction: [u8; 13] = [0, 0, 8, 4, 4, 8, 8, 0, 8, 4, 4, 8, 8];
+    const NUMBER_DIRECTION: [u8; 13] = [0, 0, 8, 4, 4, 8, 8, 0, 8, 4, 4, 8, 8];
 
     // Loop for slide pieces:
-    let loop_slide_pieces: [u8; 8] = [WhiteBishop as u8, WhiteRook as u8, WhiteQueen as u8, 0, BlackBishop as u8, BlackRook as u8, BlackQueen as u8, 0];
-    let loop_slide_index: [usize; 2] = [0, 4];
+    const LOOP_SLIDE_PIECES: [u8; 8] = [WhiteBishop as u8, WhiteRook as u8, WhiteQueen as u8, 0, BlackBishop as u8, BlackRook as u8, BlackQueen as u8, 0];
+    const LOOP_SLIDE_INDEX: [usize; 2] = [0, 4];
 
-    let mut piece_index = loop_slide_index[side as usize]; // to skip the 0 (non-slide piece)
-    let mut piece = loop_slide_pieces[piece_index];
+    let mut piece_index = LOOP_SLIDE_INDEX[side as usize]; // to skip the 0 (non-slide piece)
+    let mut piece = LOOP_SLIDE_PIECES[piece_index];
     piece_index += 1;
 
     while piece != 0 {
-        if !piece_valid(piece as usize) { println!("While loop, piece not valid"); }
+        if !piece_valid(piece as usize) { eprintln!("{}", "generate_all_moves: [piece] piece not valid (loop for slide pieces)".red()); }
         // println!("sliders piece_index: {}   piece: {}", piece_index, piece);
 
         // loop through every (slide) piece
         for piece_number in 0..position.piece_number[piece as usize] {
             let square = position.piece_list[piece as usize][piece_number as usize];
 
-            if !square_on_board(square as usize) { println!("Square not on board") }
+            if !square_on_board(square as usize) { eprintln!("{}", "generate_all_moves: [square] square not on board (loop for slide pieces)".red()); }
             // println!("piece: {} on {}", PIECE_CHAR.chars().nth(piece as usize).unwrap_or(' '), print_square(square));
 
-            for i in 0..number_direction[piece as usize] {
+            for i in 0..NUMBER_DIRECTION[piece as usize] {
                 // get target_square via piece_direction array
-                let direction = piece_direction[piece as usize][i as usize] as i16;
+                let direction = PIECE_DIRECTION[piece as usize][i as usize] as i16;
                 let mut target_square = square as i16 + direction as i16;
 
                 // while target_square is on board
@@ -374,32 +375,32 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
             }
         }
 
-        piece = loop_slide_pieces[piece_index];
+        piece = LOOP_SLIDE_PIECES[piece_index];
         piece_index += 1;
     }
 
     // Loop for non-slide:
-    let loop_non_slide_pieces: [u8; 6] = [WhiteKnight as u8, WhiteKing as u8, 0, BlackKnight as u8, BlackKing as u8, 0];
-    let loop_non_slide_index: [usize; 2] = [0, 3];
+    const LOOP_NON_SLIDE_PIECES: [u8; 6] = [WhiteKnight as u8, WhiteKing as u8, 0, BlackKnight as u8, BlackKing as u8, 0];
+    const LOOP_NON_SLIDE_INDEX: [usize; 2] = [0, 3];
 
-    let mut piece_index = loop_non_slide_index[side as usize];
-    let mut piece = loop_non_slide_pieces[piece_index];
+    let mut piece_index = LOOP_NON_SLIDE_INDEX[side as usize];
+    let mut piece = LOOP_NON_SLIDE_PIECES[piece_index];
     piece_index += 1;
 
     while piece != 0 {
-        if !piece_valid(piece as usize) { println!("While loop, piece not valid"); }
+        if !piece_valid(piece as usize) { eprintln!("{}", "generate_all_moves: [piece] piece not valid (loop for non-slide pieces)".red()); }
         // println!("non-sliders piece_index: {}   piece: {}", piece_index, piece);
 
         // loop through every (non-slide) piece
         for piece_number in 0..position.piece_number[piece as usize] {
             let square = position.piece_list[piece as usize][piece_number as usize];
 
-            if !square_on_board(square as usize) { println!("Square not on board") }
+            if !square_on_board(square as usize) { eprintln!("{}", "generate_all_moves: [square] square not on board (loop for non-slide pieces)".red()); }
             // println!("piece: {} on {}", PIECE_CHAR.chars().nth(piece as usize).unwrap_or(' '), print_square(square));
 
-            for i in 0..number_direction[piece as usize] {
+            for i in 0..NUMBER_DIRECTION[piece as usize] {
             // get target_square via piece_direction array
-                let direction: i8 = piece_direction[piece as usize][i as usize];
+                let direction: i8 = PIECE_DIRECTION[piece as usize][i as usize];
                 let target_square = (square as i16 + direction as i16) as usize;
 
                 if !square_on_board(target_square as usize) { continue; }
@@ -433,7 +434,7 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
             }
         }
 
-        piece = loop_non_slide_pieces[piece_index];
+        piece = LOOP_NON_SLIDE_PIECES[piece_index];
         piece_index += 1;
     }
 }

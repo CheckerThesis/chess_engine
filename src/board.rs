@@ -1,9 +1,11 @@
 use std::collections::HashMap;
+use colored::Colorize;
+
 use crate::{bitboards::{count_bits, pop_bit}, data::{PIECE_BIG, PIECE_COLOR, PIECE_MAJOR, PIECE_MINOR, PIECE_VALUE}, defs::{fr2sq, set_bit, sq120, sq64, Board, Castling::{*}, Castling::{*}, Files::*, Pieces::{self, *}, Ranks::*, Squares::{NoSq, OffBoard}, BLACK, BOARD_SQUARE_NUMBER, BOTH, RANKS_BOARD, SQ64_TO_SQ120, WHITE}, hashkeys::generate_position_key};
 use crate::data::{PIECE_CHAR, SIDE_CHAR, RANK_CHAR, FILE_CHAR};
 
 // fill temp variables with current, then compare them with the values filled
-pub fn check_board(position: &mut Board) -> Result<(), &'static str> {
+pub fn check_board(position: &mut Board) {
     // fill these values with position values, at the end see if they
     let mut temp_piece_number: [u8; 13] = [0; 13];
     let mut temp_big_piece: [u8; 2] = [0; 2];
@@ -23,7 +25,7 @@ pub fn check_board(position: &mut Board) -> Result<(), &'static str> {
             let square120 = position.piece_list[temp_piece as usize][temp_piece_num as usize];
             // if piece at pieces array != temp_piece
             if position.pieces[square120 as usize] != temp_piece {
-                return Err("Check piece lists error")
+                eprintln!("{}", "check_board: position.piece_list and board/position.pieces are not synced".red());
             }
         }
     }
@@ -53,21 +55,22 @@ pub fn check_board(position: &mut Board) -> Result<(), &'static str> {
 
     for piece in WhitePawn as usize..BlackKing as usize {
         if temp_piece_number[piece] != position.piece_number[piece] {
-            return Err("Piece number error")
+            eprintln!("{}", "check_board: position.piece_number and board/position.pieces are not synced".red());
         }
     }
 
     let mut pawn_count = count_bits(temp_pawns[WHITE]);
     if pawn_count != position.piece_number[WhitePawn as usize] as u64 {
-        return Err("White pawn count error")
+        eprintln!("{}", "check_board: position.piece_number[WhitePawn] and WhitePawn bitboard are not synced".red());
     }
     pawn_count = count_bits(temp_pawns[BLACK]);
     if pawn_count != position.piece_number[BlackPawn as usize] as u64 {
-        return Err("Black pawn count error")
+        eprintln!("{}", "check_board: position.piece_number[BlackPawn] and BlackPawn bitboard are not synced".red());
+
     }
     pawn_count = count_bits(temp_pawns[BOTH]);
     if pawn_count != (position.piece_number[WhitePawn as usize] + position.piece_number[BlackPawn as usize]) as u64 {
-        return Err("Both pawn count error")
+        eprintln!("{}", "check_board: position.piece_number[BothPawns] and Both bitboard are not synced".red());
     }
 
     // while bitboard not empty
@@ -76,14 +79,15 @@ pub fn check_board(position: &mut Board) -> Result<(), &'static str> {
         let square64 = pop_bit(&mut temp_pawns[WHITE]);
 
         if position.pieces[sq120(square64 as u8) as usize] != WhitePawn as u8 {
-            return Err("WhitePawn bitboard error")
+            eprintln!("{}", "check_board: WhitePawn bitboard and board/position.pieces are not synced".red());
         }
     }
     while temp_pawns[BLACK] != 0 {
         let square64 = pop_bit(&mut temp_pawns[BLACK]);
 
         if position.pieces[sq120(square64 as u8) as usize] != BlackPawn as u8 {
-            return Err("BlackPawn bitboard error")
+            eprintln!("{}", "check_board: BlackPawn bitboard and board/position.pieces are not synced".red());
+
         }
     }
     while temp_pawns[BOTH] != 0 {
@@ -93,45 +97,44 @@ pub fn check_board(position: &mut Board) -> Result<(), &'static str> {
 
         if (position.pieces[sq120(square64 as u8) as usize] != BlackPawn as u8) &&
         (position.pieces[sq120(square64 as u8) as usize] != WhitePawn as u8) {
-            return Err("BothPawn bitboard error")
+            eprintln!("{}", "check_board: BothPawns bitboard and board/position.pieces are not synced".red());
         }
     }
 
     if temp_material[WHITE] != position.material[WHITE] && temp_material[BLACK] != position.material[BLACK] {
-        return Err("Material value error")
+        eprintln!("{}", "check_board: position.pieces material (value) and position.material[WHITE or BLACK] are not synced".red());
     }
     if temp_major_piece[WHITE] != position.major_piece[WHITE] && temp_major_piece[BLACK] != position.major_piece[BLACK] {
-        return Err("Major piece count error")
+        eprintln!("{}", "check_board: position.pieces major_piece count and position.major_piece[WHITE or BLACK] are not synced".red());
     }
     if temp_minor_piece[WHITE] != position.minor_piece[WHITE] && temp_minor_piece[BLACK] != position.minor_piece[BLACK] {
-        return Err("Minor piece count error")
+        eprintln!("{}", "check_board: position.pieces minor_piece count and position.minor_piece[WHITE or BLACK] are not synced".red());
     }
     if temp_big_piece[WHITE] != position.big_piece[WHITE] && temp_big_piece[BLACK] != position.big_piece[BLACK] {
-        return Err("Big piece count error")
+        eprintln!("{}", "check_board: position.pieces big_piece count and position.big_piece[WHITE or BLACK] are not synced".red());
     }
 
     if position.side != WHITE as u8 && position.side != BLACK as u8 {
-        return Err("Side error")
+        eprintln!("{}", "check_board: position.side is not WHITE or BLACK".red());
     }
+
     if generate_position_key(position) != position.position_key {
-        return Err("Position key error")
+        eprintln!("{}", "check_board: generated position_key does not equal stored position_key".red());
     }
 
     // if en_passent isn't NoSq and a position on Rank6/Rank3 (corresponding to side)
     if position.en_passent != NoSq as u8 &&
     ((RANKS_BOARD[position.en_passent as usize] != Rank6 as u8 && position.side == WHITE as u8) ||
     (RANKS_BOARD[position.en_passent as usize] != Rank3 as u8 && position.side == BLACK as u8)) {
-        return Err("En_passent error")
+        eprintln!("{}", "check_board: position.en_passent is not NoSq and not on Rank6/Rank3".red());
     }
 
     if position.pieces[position.king_square[WHITE as usize] as usize] != WhiteKing as u8 {
-        return Err("White king square error")
+        eprintln!("{}", "check_board: position.king_square doesn't have a WhiteKing on position.pieces".red());
     }
     if position.pieces[position.king_square[BLACK as usize] as usize] != BlackKing as u8 {
-        return Err("Black king square error")
+        eprintln!("{}", "check_board: position.king_square doesn't have a BlackKing on position.pieces".red());
     }
-
-    Ok(())
 }
 
 pub fn update_lists_material(position: &mut Board) {
@@ -300,31 +303,53 @@ pub fn reset_board(position: &mut Board) {
     position.position_key = 0;
 }
 
-pub fn debug_board(position: &mut Board) {
-    print!("Debug board:");
+// pub fn debug_board(position: &mut Board) {
+//     print!("Debug board:");
 
-    for i in 0..BOARD_SQUARE_NUMBER {
-        if i % 10 == 0 {
-            println!();
+//     for i in 0..BOARD_SQUARE_NUMBER {
+//         if i % 10 == 0 {
+//             println!();
+//         }
+//         // {:>3} is a format specifier that assuers whatever printed has a width of 3
+//         // and is right side aligned
+//         print!("{:>3} ", position.pieces[i]);
+//     }
+//     println!();
+
+//     let mut count = 0;
+//     for i in 0..BOARD_SQUARE_NUMBER {
+//         if i % 10 == 0 {
+//             println!();
+//         }
+//         // {:>3} is a format specifier that assuers whatever printed has a width of 3
+//         // and is right side aligned
+//         print!("{:>3} ", count);
+//         count += 1;
+//     }
+//     println!("\n");
+// }
+
+pub fn debug_board(position: &mut Board) {
+    println!("Debug board:");
+
+    for row in (0..BOARD_SQUARE_NUMBER / 10).rev() {
+        for col in 0..10 {
+            let index = row * 10 + col;
+            // Print the board values with 3-width alignment
+            print!("{:>3} ", position.pieces[index]);
         }
-        // {:>3} is a format specifier that assuers whatever printed has a width of 3
-        // and is right side aligned
-        print!("{:>3} ", position.pieces[i]);
+        // Add 5 spaces for the gap
+        print!("     ");
+        for col in 0..10 {
+            let index = row * 10 + col;
+            // Print the index numbers with 3-width alignment
+            print!("{:>3} ", index);
+        }
+        println!();
     }
     println!();
-
-    let mut count = 0;
-    for i in 0..BOARD_SQUARE_NUMBER {
-        if i % 10 == 0 {
-            println!();
-        }
-        // {:>3} is a format specifier that assuers whatever printed has a width of 3
-        // and is right side aligned
-        print!("{:>3} ", count);
-        count += 1;
-    }
-    println!("\n");
 }
+
 
 pub fn print_board(position: &mut Board) {
     println!("Game board:");

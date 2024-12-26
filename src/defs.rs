@@ -84,11 +84,11 @@ pub enum Castling {
 #[derive(Default)]
 #[derive(Copy, Clone)]
 pub struct Undo {
-    pub the_move: u8,
+    pub the_move: u64,
     pub castle_permission: u8,
     pub en_passent: u8,
     pub fifty_move: u8,
-    pub position_key: u8,
+    pub position_key: u64,
 }
 
 #[derive(Default)]
@@ -123,7 +123,7 @@ pub struct Board {
     pub fifty_move: u8,
 
     pub ply: u8,
-    pub history_ply: u8,
+    pub history_ply: usize,
 
     pub castle_permission: u8,
 
@@ -239,7 +239,7 @@ lazy_static! {
         }
         print!("{:>4}", SQ120_TO_SQ64[i]);
     }
-    println!();
+    println!("\n");
     println!("SQ64-SQ120");
     for i in 0..64 {
         if i % 8 == 0 {
@@ -247,7 +247,7 @@ lazy_static! {
         }
         print!("{:>4}", SQ64_TO_SQ120[i])
     }
-    println!();
+    println!("\n");
     see above comment
     */
     pub static ref SQ120_TO_SQ64: [u8; BOARD_SQUARE_NUMBER] = {
