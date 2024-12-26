@@ -2,7 +2,7 @@ use std::mem::take;
 
 use colored::*;
 
-use crate::{attack::square_attacked, board::{check_board, debug_board}, data::{IS_KING, IS_PAWN, PIECE_BIG, PIECE_COLOR, PIECE_MAJOR, PIECE_VALUE}, defs::{captured, clear_bit, from_square, print_binary, promoted, set_bit, to_square, Board, Pieces::*, Ranks::*, Squares::*, BOTH, CASTLE_KEYS, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, PIECE_KEYS, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, WHITE}, hashkeys::generate_position_key, validate::{piece_valid, side_valid, square_on_board}};
+use crate::{attack::square_attacked, board::{check_board, debug_board}, data::{IS_KING, IS_PAWN, PIECE_BIG, PIECE_COLOR, PIECE_MAJOR, PIECE_VALUE}, defs::{captured, clear_bit, from_square, print_binary, promoted, set_bit, to_square, Board, Pieces::*, Ranks::*, Squares::*, BOTH, CASTLE_KEYS, DEBUG, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, PIECE_KEYS, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, WHITE}, hashkeys::generate_position_key, validate::{piece_valid, side_valid, square_on_board}};
 
 /*
 1. make move
@@ -44,9 +44,9 @@ const CASTLE_PERMISSION: [u8; 120] = [
 ];
 
 pub fn clear_piece(square: usize, position: &mut Board) {
-    if !square_on_board(square as usize) { eprintln!("{}", "clear_piece: [square] square not on board".red()); }
+    if DEBUG && !square_on_board(square as usize) { eprintln!("{}", "clear_piece: [square] square not on board".red()); }
     let piece = position.pieces[square] as usize;
-    if !piece_valid(piece as usize) { eprintln!("{}", "clear_piece: [piece] piece not valid".red()); }
+    if DEBUG && !piece_valid(piece as usize) { eprintln!("{}", "clear_piece: [piece] piece not valid".red()); }
     let color = PIECE_COLOR[piece as usize] as usize;
 
     // hash out
@@ -86,7 +86,7 @@ pub fn clear_piece(square: usize, position: &mut Board) {
         }
     }
 
-    if temp_piece_number == -1 { eprintln!("{}", "clear_piece: temp_piece_number not defined (cannot find square containing piece)".red()); }
+    if DEBUG && temp_piece_number == -1 { eprintln!("{}", "clear_piece: temp_piece_number not defined (cannot find square containing piece)".red()); }
 
     position.piece_number[piece] -= 1; // position.piece_number[WhitePawn] == 4
     position.piece_list[piece][temp_piece_number as usize] = position.piece_list[piece][position.piece_number[piece] as usize];
@@ -101,8 +101,11 @@ pub fn clear_piece(square: usize, position: &mut Board) {
 }
 
 pub fn add_piece(square: usize, position: &mut Board, piece: usize) {
-    if !square_on_board(square as usize) { eprintln!("{}", "add_piece: [square] square not on board".red()); }
-    if !piece_valid(piece as usize) { eprintln!("{}", "add_piece: [piece] piece not valid".red()); }
+    if DEBUG {
+        if !square_on_board(square as usize) { eprintln!("{}", "add_piece: [square] square not on board".red()); }
+        if !piece_valid(piece as usize) { eprintln!("{}", "add_piece: [piece] piece not valid".red()); }
+    }
+
     let color = PIECE_COLOR[piece as usize] as usize;
 
     // hash in
@@ -129,8 +132,10 @@ pub fn add_piece(square: usize, position: &mut Board, piece: usize) {
 }
 
 pub fn move_piece(from: u8, to: u8, position: &mut Board) {
-    if !square_on_board(from as usize) { eprintln!("{}", "move_piece: [from] square not on board".red()); }
-    if !square_on_board(to as usize) { eprintln!("{}", "move_piece: [to] square not on board".red()); }
+    if DEBUG {
+        if !square_on_board(from as usize) { eprintln!("{}", "move_piece: [from] square not on board".red()); }
+        if !square_on_board(to as usize) { eprintln!("{}", "move_piece: [to] square not on board".red()); }
+    }
 
     let piece = position.pieces[from as usize] as usize;
     let color = PIECE_COLOR[piece] as usize;
@@ -162,18 +167,18 @@ pub fn move_piece(from: u8, to: u8, position: &mut Board) {
 }
 
 pub fn make_move(position: &mut Board, the_move: u64) -> bool {
-    check_board(position);
+    if DEBUG { check_board(position); }
 
     let from = from_square(the_move);
     let to = to_square(the_move);
     let side = position.side;
 
-    // let valid = !piece_valid(position.pieces[from as usize] as usize);
-    // println!("{valid}");
-    if !square_on_board(from as usize) { eprintln!("{}", "make_move: [from] square not on board".red()); }
-    if !square_on_board(to as usize) { eprintln!("{}", "make_move: [to] square not on board".red()); }
-    if !side_valid(side as usize) { eprintln!("{}", "make_move: [side] side not valid".red()); }
-    if !piece_valid(position.pieces[from as usize] as usize) { eprintln!("{}", "make_move: [position.pieces[from]] piece not valid".red()); }
+    if DEBUG {
+        if !square_on_board(from as usize) { eprintln!("{}", "make_move: [from] square not on board".red()); }
+        if !square_on_board(to as usize) { eprintln!("{}", "make_move: [to] square not on board".red()); }
+        if !side_valid(side as usize) { eprintln!("{}", "make_move: [side] side not valid".red()); }
+        if !piece_valid(position.pieces[from as usize] as usize) { eprintln!("{}", "make_move: [position.pieces[from]] piece not valid".red()); }
+    }
 
     // store hashkey
     position.history[position.history_ply].position_key = position.position_key;
@@ -219,7 +224,7 @@ pub fn make_move(position: &mut Board, the_move: u64) -> bool {
 
     let captured = captured(the_move);
     if captured != Empty as u64 {
-        if !piece_valid(captured as usize) { eprintln!("make_move: [captured] piece not valid"); }
+        if DEBUG && !piece_valid(captured as usize) { eprintln!("make_move: [captured] piece not valid"); }
 
         clear_piece(to as usize, position);
         position.fifty_move = 0;
@@ -234,10 +239,10 @@ pub fn make_move(position: &mut Board, the_move: u64) -> bool {
         if the_move & MOVE_FLAG_PAWN_START != 0 {
             if side == WHITE as u8 {
                 position.en_passent = (from + 10) as u8;
-                if RANKS_BOARD[position.en_passent as usize] != Rank3 as u8 { eprintln!("{}", "make_move: white en passant not on proper rank".red()); }
+                if DEBUG && RANKS_BOARD[position.en_passent as usize] != Rank3 as u8 { eprintln!("{}", "make_move: white en passant not on proper rank".red()); }
             } else {
                 position.en_passent = (from - 10) as u8;
-                if RANKS_BOARD[position.en_passent as usize] != Rank6 as u8 { eprintln!("{}", "make_move: black en passant not on proper rank".red()); }
+                if DEBUG && RANKS_BOARD[position.en_passent as usize] != Rank6 as u8 { eprintln!("{}", "make_move: black en passant not on proper rank".red()); }
             }
             hash_en_passant(position);
         }
@@ -248,7 +253,7 @@ pub fn make_move(position: &mut Board, the_move: u64) -> bool {
     // promotion
     let promote_piece = promoted(the_move);
     if promote_piece != Empty as u64 {
-        if !piece_valid(promote_piece as usize) { eprintln!("{}", "make_move: [promote_piece] piece not valid".red()); }
+        if DEBUG && !piece_valid(promote_piece as usize) { eprintln!("{}", "make_move: [promote_piece] piece not valid".red()); }
         clear_piece(to as usize, position);
         add_piece(to as usize, position, promote_piece as usize);
     }
@@ -259,18 +264,18 @@ pub fn make_move(position: &mut Board, the_move: u64) -> bool {
     position.side ^= 1;
     hash_side(position);
 
-    check_board(position);
+    if DEBUG { check_board(position); }
 
     if square_attacked(position.king_square[side as usize] as usize, position.side as usize, position) {
         take_move(position);
-        return false
+        return false;
     }
 
     true
 }
 
 pub fn take_move(position: &mut Board) {
-    check_board(position);
+    if DEBUG { check_board(position); }
 
     position.history_ply -= 1;
     position.ply -= 1;
@@ -279,8 +284,10 @@ pub fn take_move(position: &mut Board) {
     let from = from_square(the_move as u64);
     let to = to_square(the_move as u64);
 
-    if !square_on_board(from as usize) { eprintln!("{}", "take_move: [from] square not on board".red()); }
-    if !square_on_board(to as usize) { eprintln!("{}", "take_move: [to] square not on board".red()); }
+    if DEBUG {
+        if !square_on_board(from as usize) { eprintln!("{}", "take_move: [from] square not on board".red()); }
+        if !square_on_board(to as usize) { eprintln!("{}", "take_move: [to] square not on board".red()); }
+    }
 
     if position.en_passent != NoSq as u8 {
         hash_en_passant(position); }
@@ -327,7 +334,7 @@ pub fn take_move(position: &mut Board) {
 
     let captured = captured(the_move);
     if captured != Empty as u64 {
-        if !piece_valid(captured as usize) { eprintln!("take_move: [captured] piece not valid"); }
+        if DEBUG && !piece_valid(captured as usize) { eprintln!("take_move: [captured] piece not valid"); }
         add_piece(to as usize, position, captured as usize);
     }
 
@@ -340,9 +347,9 @@ pub fn take_move(position: &mut Board) {
         pawn_type = BlackPawn as u8;
     }
     if promote_piece != Empty as u64 {
-        if !piece_valid(promote_piece as usize) && !IS_PAWN[promote_piece as usize] { eprintln!("{}", "take_move: [promote_piece] piece not valid".red()); }
+        if DEBUG && !piece_valid(promote_piece as usize) && !IS_PAWN[promote_piece as usize] { eprintln!("{}", "take_move: [promote_piece] piece not valid".red()); }
         clear_piece(from as usize, position);
         add_piece(from as usize, position, pawn_type as usize);
     }
-    check_board(position);
+    if DEBUG { check_board(position); }
 }

@@ -22,9 +22,10 @@ use defs::{captured, clear_bit, fr2sq, from_square, print_binary, promoted, set_
 use io::{print_move, print_move_list, print_square};
 use makemove::{make_move, take_move};
 use movegen::generate_all_moves;
+use perft::perft_test;
 use crate::defs::{Squares::*, Pieces::*};
 
-use std::io as std_io; // Import std::io as std_io
+// use std::io as std_io; // Import std::io as std_io
 
 const FEN_START: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const FEN_WHITE_PAWNS: &str = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1";
@@ -39,30 +40,12 @@ const FEN_TRICKY: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2
 
 fn main() {
     let position: &mut Board = &mut Board::default();
-    match parse_fen(&FEN_START, position) {
-        Ok(_) => print!(""),
-        Err(e) => eprintln!("{}", e),
-    }
-    println!();
+    parse_fen(&FEN_START, position);
 
     let move_list = &mut MoveList::default();
     generate_all_moves(position, move_list);
 
-    let mut test = String::new();
-    for move_number in 0..move_list.count {
-        let the_move = move_list.moves[move_number].el_move;
-        println!("move_number: {}", move_number);
-
-        if !make_move(position, the_move) { continue; }
-
-        println!("MADE: {}", print_move(the_move));
-        print_board(position);
-
-        take_move(position);
-        println!("TAKEN: {}", print_move(the_move));
-        print_board(position);
-        std_io::stdin().read_line(&mut test).expect("Failed to read");
-    }
+    perft_test(5, position);
 }
 /*
 -----------------------------
@@ -223,4 +206,31 @@ println!("algebraic from: {}\nalgebraic to: {}\nalgebraic move: {}",
     print_square(to as u8),
     print_move(el_move)
 );
+
+-----------------------------
+See moves generated:
+let position: &mut Board = &mut Board::default();
+    match parse_fen(&FEN_START, position) {
+        Ok(_) => print!(""),
+        Err(e) => eprintln!("{}", e),
+    }
+    println!();
+
+    let move_list = &mut MoveList::default();
+    generate_all_moves(position, move_list);
+
+    let mut test = String::new();
+    for move_number in 0..move_list.count {
+        let the_move = move_list.moves[move_number].el_move;
+        println!("move_number: {}", move_number);
+
+        if !make_move(position, the_move) { continue; }
+
+        println!("MADE: {}", print_move(the_move));
+        print_board(position);
+
+        take_move(position);
+        println!("TAKEN: {}", print_move(the_move));
+        print_board(position);
+        std_io::stdin().read_line(&mut test).expect("Failed to read");
 */

@@ -8,6 +8,7 @@ pub const MAX_POSITION_MOVES: usize = 256;
 pub const WHITE: usize = 0;
 pub const BLACK: usize = 1;
 pub const BOTH: usize = 2;
+pub const DEBUG: bool = false;
 
 /*
 A8 B8 C8 D8 E8 F8 G8 H8

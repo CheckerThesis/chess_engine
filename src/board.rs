@@ -182,7 +182,7 @@ pub fn update_lists_material(position: &mut Board) {
 }
 
 // Result<(), &'static str> means returns nothing: (), or error in string: &'static str
-pub fn parse_fen(fen: &str, position: &mut Board) -> Result<(), &'static str> {
+pub fn parse_fen(fen: &str, position: &mut Board) {
     reset_board(position);
 
     let piece_map: HashMap<char, Pieces> = HashMap::from([
@@ -195,10 +195,10 @@ pub fn parse_fen(fen: &str, position: &mut Board) -> Result<(), &'static str> {
     // vector is a linkedlist but back-to-back (essentially an expandable array)
     let fen_split: Vec<&str> = fen.split_whitespace().collect();
     if fen_split.len() < 4 {
-        // return Err("Invalid FEN string")
+        eprintln!("{}", "parse_fen: FEN string is invalid".red());
     }
 
-    let mut rank = Rank8 as usize;
+    let mut rank: isize = Rank8 as isize;
     let mut file = FileA as usize;
 
     // assign board all fen attributes
@@ -219,25 +219,29 @@ pub fn parse_fen(fen: &str, position: &mut Board) -> Result<(), &'static str> {
         // if new rank/'/'
         } else if c == '/' {
             if file != 8 {
-                return Err("Incorrect amount of char in file");
+                eprintln!("{}", "parse_fen: incorrect amount of char in file".red());
             }
             // .checked_sub(1) checks if the subtraction (sub) of 1 is ok on rank,
             // if so it assigns rank - 1 to rank else it throws
             // ? unwraps (it was an Option(usize, err)) if not error, else propogates error
-            rank = rank.checked_sub(1).ok_or("Rank underflow")?;
+            // rank = rank.checked_sub(1).ok_or("Rank underflow")?;
+            rank -= 1;
+            if rank < 0 { eprintln!("{}", "parse_fen: Rank underflow".red()) }
             file = FileA as usize;
         } else {
-            return Err("Invalid character in FEN");
+            eprintln!("{}", "parse_fen: incorrect char in FEN".red());
         }
     }
 
     position.side = match fen_split[1] {
         "w" => WHITE as u8,
         "b" => BLACK as u8,
-        _ => return Err("Invalid FEN part 2")
+        _ => 10,
     };
+    if position.side == 10 { eprintln!("{}", "parse_fen: incorrect side in FEN".red()); }
 
     // 00000000 |= 4 == 00000100
+    let mut z = 0;
     for i in fen_split[2].chars() {
         match i {
             'K' => position.castle_permission |= WhiteKingCastle as u8,
@@ -245,9 +249,13 @@ pub fn parse_fen(fen: &str, position: &mut Board) -> Result<(), &'static str> {
             'k' => position.castle_permission |= BlackKingCastle as u8,
             'q' => position.castle_permission |= BlackQueenCastle as u8,
             '-' => break,
-            _ => return Err("Invalid castling permission in FEN"),
+            _ => z = 1,
         }
     }
+
+    if z == 1 { eprintln!("{}", "parse_fen: invalid castling permission".red()); }
+
+
 
     if fen_split[3] != "-" {
         // .chars() converts String into char iterator
@@ -261,7 +269,6 @@ pub fn parse_fen(fen: &str, position: &mut Board) -> Result<(), &'static str> {
 
     position.position_key = generate_position_key(position);
     update_lists_material(position);
-    Ok(())
 }
 
 pub fn reset_board(position: &mut Board) {
@@ -303,32 +310,6 @@ pub fn reset_board(position: &mut Board) {
     position.position_key = 0;
 }
 
-// pub fn debug_board(position: &mut Board) {
-//     print!("Debug board:");
-
-//     for i in 0..BOARD_SQUARE_NUMBER {
-//         if i % 10 == 0 {
-//             println!();
-//         }
-//         // {:>3} is a format specifier that assuers whatever printed has a width of 3
-//         // and is right side aligned
-//         print!("{:>3} ", position.pieces[i]);
-//     }
-//     println!();
-
-//     let mut count = 0;
-//     for i in 0..BOARD_SQUARE_NUMBER {
-//         if i % 10 == 0 {
-//             println!();
-//         }
-//         // {:>3} is a format specifier that assuers whatever printed has a width of 3
-//         // and is right side aligned
-//         print!("{:>3} ", count);
-//         count += 1;
-//     }
-//     println!("\n");
-// }
-
 pub fn debug_board(position: &mut Board) {
     println!("Debug board:");
 
@@ -349,7 +330,6 @@ pub fn debug_board(position: &mut Board) {
     }
     println!();
 }
-
 
 pub fn print_board(position: &mut Board) {
     println!("Game board:");
