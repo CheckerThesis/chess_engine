@@ -11,6 +11,7 @@ mod movegen;
 mod validate;
 mod makemove;
 mod perft;
+mod search;
 
 use std::sync::Mutex;
 
@@ -18,14 +19,16 @@ use attack::{square_attacked, test_square_attacked};
 use bitboards::{print_bitboard, pop_bit, count_bits};
 
 use board::{check_board, debug_board, parse_fen, print_board};
-use defs::{captured, clear_bit, fr2sq, from_square, print_binary, promoted, set_bit, sq64, to_square, Board, Files::*, MoveList, Ranks::*, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, MOVE_FLAG_PAWN_START, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, WHITE};
-use io::{print_move, print_move_list, print_square};
+use colored::Colorize;
+use defs::{captured, clear_bit, fr2sq, from_square, print_binary, promoted, set_bit, sq64, to_square, Board, Files::*, MoveList, Ranks::*, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, MOVE_FLAG_PAWN_START, NO_MOVE, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, WHITE};
+use io::{parse_move, print_move, print_move_list, print_square};
 use makemove::{make_move, take_move};
 use movegen::generate_all_moves;
 use perft::perft_test;
+use search::is_repetition;
 use crate::defs::{Squares::*, Pieces::*};
 
-// use std::io as std_io; // Import std::io as std_io
+use std::io as std_io; // Import std::io as std_io
 
 const FEN_START: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const FEN_WHITE_PAWNS: &str = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1";
@@ -37,15 +40,54 @@ const FEN_BISHOPS: &str = "6k1/1b6/4n3/8/1n4B1/1B3N2/1N6/2b3K1 b - - 0 1";
 const FEN_CASTLE1: &str = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
 const FEN_CASTLE2: &str = "3rk2r/8/8/8/8/8/6p1/R3K2R b KQk - 0 1";
 const FEN_TRICKY: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+const FEN_48: &str = "n1n5/PPPk4/8/8/8/8/4Kppp/5N1N w - - 0 1";
 
 fn main() {
     let position: &mut Board = &mut Board::default();
     parse_fen(&FEN_START, position);
 
-    let move_list = &mut MoveList::default();
-    generate_all_moves(position, move_list);
+    // perft_test(3, position);
 
-    perft_test(5, position);
+    let mut user_input = String::new();
+
+    // while true {
+    //     print_board(position);
+    //     user_input.clear();
+    //     println!("Enter a move: ");
+
+    //     std_io::stdin().read_line(&mut user_input).expect("Error");
+
+    //     user_input = user_input.trim().to_string();
+
+    //     // println!("user_input: {}", user_input);
+    //     if user_input == "q" {
+    //         break;
+    //     } else if user_input == "t" {
+    //         take_move(position);
+    //         continue;
+    //     } else {
+    //         let the_move = parse_move(&user_input, position);
+    //         if the_move != NO_MOVE {
+    //             make_move(position, the_move);
+
+    //             if is_repetition(position) { println!("{}", "REPETITION SEEN".green()); }
+    //         } else {
+    //             println!("Move not parsed");
+    //         }
+    //     }
+    // }
+
+    let test_input = ["b1c3".to_string(), "b8c6".to_string(), "c3b1".to_string(), "c6b8".to_string()];
+
+    print_board(position);
+    for i in 0..4 {
+        let the_move = parse_move(&test_input[i], position);
+        make_move(position, the_move);
+        print_board(position);
+        if is_repetition(position) { println!("{}", "REPETITION SEEN".green()); }
+    }
+
+
 }
 /*
 -----------------------------

@@ -332,7 +332,7 @@ pub fn debug_board(position: &mut Board) {
 }
 
 pub fn print_board(position: &mut Board) {
-    println!("Game board:");
+    println!("\nGame board:");
 
     for rank in (Rank1 as u8..=Rank8 as u8).rev() {
         print!("{}  ", (rank + 1));
@@ -356,5 +356,5 @@ pub fn print_board(position: &mut Board) {
     let bkc = if position.castle_permission & BlackKingCastle as u8 != 0 {"k"} else {"-"};
     let bqc = if position.castle_permission & BlackQueenCastle as u8 != 0 {"q"} else {"-"};
 
-    println!("Castle permission: {}{}{}{}\nPosition key: {:X}", wkc, wqc, bkc, bqc, position.position_key);
+    println!("Castle permission: {}{}{}{}\nPosition key: {:X}\n", wkc, wqc, bkc, bqc, position.position_key);
 }

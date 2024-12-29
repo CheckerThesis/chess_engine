@@ -5,10 +5,14 @@ pub const NAME: &str = "Unknown";
 pub const BOARD_SQUARE_NUMBER: usize = 120;
 pub const MAX_GAME_MOVES: usize = 2048;
 pub const MAX_POSITION_MOVES: usize = 256;
+
 pub const WHITE: usize = 0;
 pub const BLACK: usize = 1;
 pub const BOTH: usize = 2;
-pub const DEBUG: bool = false;
+
+pub const DEBUG: bool = true;
+
+pub const NO_MOVE: u64 = 0;
 
 /*
 A8 B8 C8 D8 E8 F8 G8 H8
@@ -297,7 +301,15 @@ lazy_static! {
 
     pub static ref PIECE_KEYS: [[u64; 120]; 13] = {
         let mut rng = thread_rng();
-        [[rng.gen(); 120]; 13]
+        // 0u64 is a u64 integer with 0 as its value
+        let mut keys = [[0u64; 120]; 13];
+
+        for piece in 0..13 {
+            for square in 0..120 {
+                keys[piece][square] = rng.gen();
+            }
+        }
+        keys
     };
     pub static ref SIDE_KEY: u64 = {
         let mut rng = thread_rng();
@@ -305,7 +317,11 @@ lazy_static! {
     };
     pub static ref CASTLE_KEYS: [u64; 16] = {
         let mut rng = thread_rng();
-        [rng.gen(); 16]
+        let mut keys = [0u64; 16];
+        for i in 0..16 {
+            keys[i] = rng.gen();
+        }
+        keys
     };
 
     /*

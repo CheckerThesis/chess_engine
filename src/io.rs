@@ -1,5 +1,6 @@
-use crate::{data::{IS_BISHOP_QUEEN, IS_KNIGHT, IS_ROOK_QUEEN}, defs::{from_square, promoted, to_square, MoveList, FILES_BOARD, RANKS_BOARD}};
+use crate::{data::{IS_BISHOP_QUEEN, IS_KNIGHT, IS_ROOK_QUEEN}, defs::{Pieces::Empty, fr2sq, from_square, promoted, to_square, Board, MoveList, DEBUG, FILES_BOARD, NO_MOVE, RANKS_BOARD}, movegen::generate_all_moves, validate::square_on_board};
 
+use colored::Colorize;
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
 
@@ -58,6 +59,50 @@ pub fn print_move(the_move: u64) -> String {
     let mut global_move_string = MOVE_STRING.lock().unwrap();
     *global_move_string = move_string;
     global_move_string.clone()
+}
+
+// a2a4, find this move and return as integer, match from and to squares to user input
+pub fn parse_move(s: &String, position: &mut Board) -> u64 {
+    let char_vec: Vec<char> = s.chars().collect();
+    // println!("0: {}    1: {}    2: {}    3: {}    4: {}", char_vec[0], char_vec[1], char_vec[2], char_vec[3], char_vec[4]);
+
+    if char_vec[1] > '8' || char_vec[1] < '1' { return NO_MOVE }
+    if char_vec[3] > '8' || char_vec[3] < '1' { return NO_MOVE }
+    if char_vec[0] > 'h' || char_vec[0] < 'a' { return NO_MOVE }
+    if char_vec[2] > 'h' || char_vec[2] < 'a' { return NO_MOVE }
+
+    let from = fr2sq(char_vec[0] as u8 - 'a' as u8, char_vec[1] as u8 - '1' as u8);
+    let to = fr2sq(char_vec[2] as u8 - 'a' as u8, char_vec[3] as u8 - '1' as u8);
+    // println!("char_vec: {}    from: {}    to: {}", s, from, to);
+
+    if DEBUG && !square_on_board(from as usize) && !square_on_board(to as usize) { eprintln!("{}", "parse_move: [from/to] square not on board".red()); }
+
+    let move_list = &mut MoveList::default();
+    generate_all_moves(position, move_list);
+
+    for move_number in 0..move_list.count {
+        let the_move = move_list.moves[move_number].el_move;
+
+        if from_square(the_move) == from as u64 && to_square(the_move) == to as u64 {
+            let promotion_piece = promoted(the_move);
+
+            if promotion_piece != Empty as u64 {
+                if IS_ROOK_QUEEN[promotion_piece as usize] && !IS_BISHOP_QUEEN[promotion_piece as usize] && char_vec[4] == 'r' {
+                    return the_move
+                } else if !IS_ROOK_QUEEN[promotion_piece as usize] && IS_BISHOP_QUEEN[promotion_piece as usize] && char_vec[4] == 'b' {
+                    return the_move
+                } else if IS_ROOK_QUEEN[promotion_piece as usize] && IS_BISHOP_QUEEN[promotion_piece as usize] && char_vec[4] == 'q' {
+                    return the_move
+                } else if IS_KNIGHT[promotion_piece as usize] && char_vec[4] == 'n' {
+                    return the_move
+                }
+                continue;
+            }
+            return the_move
+        }
+    }
+
+    return NO_MOVE
 }
 
 pub fn print_move_list(move_list: &mut MoveList) {

@@ -140,8 +140,6 @@ pub fn move_piece(from: u8, to: u8, position: &mut Board) {
     let piece = position.pieces[from as usize] as usize;
     let color = PIECE_COLOR[piece] as usize;
 
-    position.pieces[from as usize] = Empty as u8;
-
     // hash out
     hash_piece(position, piece, from as usize);
     position.pieces[from as usize] = Empty as u8;
@@ -221,6 +219,8 @@ pub fn make_move(position: &mut Board, the_move: u64) -> bool {
     position.en_passent = NoSq as u8;
 
     hash_castle(position);
+
+    position.fifty_move += 1;
 
     let captured = captured(the_move);
     if captured != Empty as u64 {
