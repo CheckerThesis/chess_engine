@@ -1,4 +1,6 @@
-use crate::defs::Board;
+use colored::Colorize;
+
+use crate::defs::{Board, DEBUG, MAX_GAME_MOVES};
 
 //position.history_ply - position.fifty_move as usize
 pub fn is_repetition(position: &Board) -> bool {
@@ -12,6 +14,8 @@ pub fn is_repetition(position: &Board) -> bool {
     // );
 
     for i in start..position.history_ply - 1 {
+        if DEBUG && i > MAX_GAME_MOVES { eprintln!("{}", "is_repetition: [i] is greater than MAX_GAME_MOVES ".red()) }
+
         if position.position_key == position.history[i].position_key {
             return true;
         }

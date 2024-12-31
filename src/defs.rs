@@ -1,5 +1,9 @@
+use std::collections::HashMap;
+
 use lazy_static::lazy_static;
 use rand::{seq::index, thread_rng, Rng};
+
+use crate::zobristhasher::ZobristHasherBuilder;
 
 pub const NAME: &str = "Unknown";
 pub const BOARD_SQUARE_NUMBER: usize = 120;
@@ -14,6 +18,7 @@ pub const DEBUG: bool = true;
 
 pub const NO_MOVE: u64 = 0;
 
+pub const MAX_DEPTH: usize = 64;
 /*
 A8 B8 C8 D8 E8 F8 G8 H8
 A7 B7 C7 D7 E7 F7 G7 H7
@@ -149,6 +154,12 @@ pub struct Board {
 
     // piece_list [WhiteKnight][0] = E1 | for looping through only pieces for move generation
     pub piece_list: [[u8; 10]; 13],
+
+    pub pv_table: HashMap<u64, u64, ZobristHasherBuilder>,
+    pub pv_array: [u64; MAX_DEPTH],
+
+    pub search_history: [[u8; 13]; BOARD_SQUARE_NUMBER],
+    pub search_killers: [[u8; MAX_DEPTH]; 2],
 }
 impl Default for Board {
     fn default() -> Self {
@@ -170,19 +181,46 @@ impl Default for Board {
             material: [0; 2],
             history: [Undo::default(); MAX_GAME_MOVES],
             piece_list: [[0; 10]; 13],
+            pv_table: HashMap::with_hasher(ZobristHasherBuilder),
+            pv_array: [0; MAX_DEPTH],
+            search_history: [[0; 13]; BOARD_SQUARE_NUMBER],
+            search_killers: [[0; MAX_DEPTH]; 2],
         }
     }
+}
+impl Board {
+    pub fn store_pv_move(&mut self, the_move: u64) {
+        self.pv_table.insert(self.position_key, the_move);
+    }
+
+    // what the engine thinks is the best move for a certain position
+    pub fn probe_pv_table(&self, position_key: u64) -> Option<u64> {
+        self.pv_table.get(&position_key).copied()
+    }
+}
+
+pub struct SearchInfo {
+    pub start_time: u8,
+    pub stop_time: u8,
+    pub depth: u8,
+    pub depth_set: u8,
+    pub time_set: u8,
+
+    pub moves_to_go: u8,
+    pub infinite: u8,
+
+    pub nodes: u64,
+
+    pub quit: bool,
+    pub stopped: bool,
 }
 
 // small board to big board
 pub fn fr2sq(file: u8, rank: u8) -> u8 { 21 + file + rank * 10 }
-
 pub fn sq64(sq120: u8) -> u8 { SQ120_TO_SQ64[sq120 as usize] }
-
 pub fn sq120(sq64: u8) -> u8 { SQ64_TO_SQ120[sq64 as usize] }
 
 pub fn clear_bit(bitboard: &mut u64, square: u8) { *bitboard &= CLEAR_MASK[sq64(square) as usize]; }
-
 pub fn set_bit(bitboard: &mut u64, square: u8) { *bitboard |= SET_MASK[sq64(square) as usize]; }
 
 /*

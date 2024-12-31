@@ -12,12 +12,13 @@ mod validate;
 mod makemove;
 mod perft;
 mod search;
+mod pvtable;
+mod zobristhasher;
 
-use std::sync::Mutex;
+use std::{sync::Mutex, vec};
 
 use attack::{square_attacked, test_square_attacked};
 use bitboards::{print_bitboard, pop_bit, count_bits};
-
 use board::{check_board, debug_board, parse_fen, print_board};
 use colored::Colorize;
 use defs::{captured, clear_bit, fr2sq, from_square, print_binary, promoted, set_bit, sq64, to_square, Board, Files::*, MoveList, Ranks::*, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, MOVE_FLAG_PAWN_START, NO_MOVE, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, WHITE};
@@ -25,6 +26,7 @@ use io::{parse_move, print_move, print_move_list, print_square};
 use makemove::{make_move, take_move};
 use movegen::generate_all_moves;
 use perft::perft_test;
+use pvtable::get_pv_line;
 use search::is_repetition;
 use crate::defs::{Squares::*, Pieces::*};
 
@@ -46,48 +48,57 @@ fn main() {
     let position: &mut Board = &mut Board::default();
     parse_fen(&FEN_START, position);
 
-    // perft_test(3, position);
-
     let mut user_input = String::new();
 
-    // while true {
-    //     print_board(position);
-    //     user_input.clear();
-    //     println!("Enter a move: ");
-
-    //     std_io::stdin().read_line(&mut user_input).expect("Error");
-
-    //     user_input = user_input.trim().to_string();
-
-    //     // println!("user_input: {}", user_input);
-    //     if user_input == "q" {
-    //         break;
-    //     } else if user_input == "t" {
-    //         take_move(position);
-    //         continue;
-    //     } else {
-    //         let the_move = parse_move(&user_input, position);
-    //         if the_move != NO_MOVE {
-    //             make_move(position, the_move);
-
-    //             if is_repetition(position) { println!("{}", "REPETITION SEEN".green()); }
-    //         } else {
-    //             println!("Move not parsed");
-    //         }
-    //     }
-    // }
-
-    let test_input = ["b1c3".to_string(), "b8c6".to_string(), "c3b1".to_string(), "c6b8".to_string()];
-
-    print_board(position);
-    for i in 0..4 {
-        let the_move = parse_move(&test_input[i], position);
-        make_move(position, the_move);
+    let test = [[1; 120]; 13];
+println!("test outer length: {}\ntest inner length: {}", test.len(), test[0].len());
+    loop {
+        break;
         print_board(position);
-        if is_repetition(position) { println!("{}", "REPETITION SEEN".green()); }
+        user_input.clear();
+        println!("Enter a move: ");
+
+        std_io::stdin().read_line(&mut user_input).expect("Error");
+
+        user_input = user_input.trim().to_string();
+
+        if user_input == "q" {
+            break;
+        } else if user_input == "t" {
+            take_move(position);
+        } else if user_input == "p" {
+            // perft_test(4, position);
+            let maximum = get_pv_line(4, position);
+            print!("\nPvLine of {} moves: ", maximum);
+
+            for pv_number in 0..maximum {
+                let el_move = position.pv_array[pv_number];
+                print!(" {}", print_move(el_move));
+            }
+
+            println!();
+        } else {
+            let the_move = parse_move(&user_input, position);
+            if the_move != NO_MOVE {
+                position.store_pv_move(the_move);
+                make_move(position, the_move);
+
+                // if is_repetition(position) { println!("{}", "REPETITION SEEN".green()); }
+            } else {
+                println!("Move not parsed");
+            }
+        }
     }
 
+    // let test_input = ["b1c3".to_string(), "b8c6".to_string(), "c3b1".to_string(), "c6b8".to_string()];
 
+    // print_board(position);
+    // for i in 0..4 {
+    //     let the_move = parse_move(&test_input[i], position);
+    //     make_move(position, the_move);
+    //     print_board(position);
+    //     if is_repetition(position) { println!("{}", "REPETITION SEEN".green()); }
+    // }
 }
 /*
 -----------------------------

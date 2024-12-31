@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::{board::{check_board, print_board}, defs::{Board, MoveList, DEBUG}, io::print_move, makemove::{make_move, take_move}, movegen::generate_all_moves};
 
 pub fn perft(depth: u8, position: &mut Board, leaf_nodes: &mut u64) {
@@ -27,6 +29,7 @@ pub fn perft_test(depth: u8, position: &mut Board) {
     print_board(position);
     println!("\nStart test to depth: {}", depth);
     let mut leaf_nodes = 0;
+    let now = Instant::now();
 
     let move_list = &mut MoveList::default();
     generate_all_moves(position, move_list);
@@ -43,5 +46,5 @@ pub fn perft_test(depth: u8, position: &mut Board) {
         println!("move {} : {} : {}", move_number + 1, print_move(the_move), nodes);
     }
 
-    println!("Test complete: {} leaf nodes visited", leaf_nodes);
+    println!("Test complete: {} leaf nodes visited. Took {} seconds.", leaf_nodes, now.elapsed().as_secs());
 }

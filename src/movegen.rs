@@ -9,9 +9,28 @@ fn move_gen(board, moveList)
 
 use colored::Colorize;
 
-use crate::{attack::square_attacked, board::check_board, data::{PIECE_CHAR, PIECE_COLOR}, defs::{Board, Castling::*, MoveList, Pieces::{self, *}, Ranks::*, Squares::*, DEBUG, FILES_BOARD, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, RANKS_BOARD}, io::print_square, validate::{piece_valid, piece_valid_empty, square_on_board}, BLACK, WHITE};
+use crate::{attack::square_attacked, board::check_board, data::{PIECE_CHAR, PIECE_COLOR}, defs::{Board, Castling::*, MoveList, Pieces::{self, *}, Ranks::*, Squares::*, DEBUG, FILES_BOARD, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, RANKS_BOARD}, io::print_square, makemove::{make_move, take_move}, validate::{piece_valid, piece_valid_empty, square_on_board}, BLACK, WHITE};
 
 pub fn move_builder(from: u64, to: u64, capture: u64, promote: u64, flag: u64) -> u64 { from | (to << 7) | (capture << 14) | (promote << 20) | flag }
+
+pub fn move_exists(position: &mut Board, the_move: u64) -> bool {
+    let move_list = &mut MoveList::default();
+    generate_all_moves(position, move_list);
+
+    for move_number in 0..move_list.count {
+        if !make_move(position, move_list.moves[move_number].el_move) {
+            continue;
+        }
+
+        take_move(position);
+
+        if move_list.moves[move_number].el_move == the_move {
+            return true;
+        }
+    }
+
+    return false
+}
 
 // add move to array and increment
 pub fn add_quiet_move(_position: &mut Board, the_move: u64, move_list: &mut MoveList) {
