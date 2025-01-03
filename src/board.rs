@@ -11,7 +11,7 @@ pub fn check_board(position: &mut Board) {
     let mut temp_big_piece: [u8; 2] = [0; 2];
     let mut temp_major_piece: [u8; 2] = [0; 2];
     let mut temp_minor_piece: [u8; 2] = [0; 2];
-    let mut temp_material: [u16; 2] = [0; 2];
+    let mut temp_material: [i32; 2] = [0; 2];
 
     let mut temp_pawns: [u64; 3] = [0; 3];
     temp_pawns[WHITE] = position.pawns[WHITE];

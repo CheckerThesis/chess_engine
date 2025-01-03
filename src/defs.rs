@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Instant};
 
 use lazy_static::lazy_static;
 use rand::{seq::index, thread_rng, Rng};
@@ -14,11 +14,13 @@ pub const WHITE: usize = 0;
 pub const BLACK: usize = 1;
 pub const BOTH: usize = 2;
 
-pub const DEBUG: bool = true;
+pub const DEBUG: bool = false;
 
 pub const NO_MOVE: u64 = 0;
 
 pub const MAX_DEPTH: usize = 64;
+pub const INFINITE: i32 = 30000;
+pub const IS_MATE: i32 = INFINITE - MAX_DEPTH as i32;
 /*
 A8 B8 C8 D8 E8 F8 G8 H8
 A7 B7 C7 D7 E7 F7 G7 H7
@@ -105,7 +107,7 @@ pub struct Undo {
 #[derive(Copy, Clone)]
 pub struct Move {
     pub el_move: u64,
-    pub score: u8,
+    pub score: u32,
 }
 
 pub struct MoveList {
@@ -148,7 +150,7 @@ pub struct Board {
     // bishops and knights
     pub minor_piece: [u8; 2],
     // value of each side
-    pub material: [u16; 2],
+    pub material: [i32; 2],
 
     pub history: [Undo; MAX_GAME_MOVES],
 
@@ -158,8 +160,9 @@ pub struct Board {
     pub pv_table: HashMap<u64, u64, ZobristHasherBuilder>,
     pub pv_array: [u64; MAX_DEPTH],
 
-    pub search_history: [[u8; 13]; BOARD_SQUARE_NUMBER],
-    pub search_killers: [[u8; MAX_DEPTH]; 2],
+    // for move ordering, rough way to record non-capture moves that are good enough to cause beta cut-off or good alpha
+    pub search_history: [[u32; BOARD_SQUARE_NUMBER]; 13], // stores when a score has beaten alpha
+    pub search_killers: [[u64; MAX_DEPTH]; 2], // stores when a score has beaten beta but is not a capture
 }
 impl Default for Board {
     fn default() -> Self {
@@ -183,7 +186,7 @@ impl Default for Board {
             piece_list: [[0; 10]; 13],
             pv_table: HashMap::with_hasher(ZobristHasherBuilder),
             pv_array: [0; MAX_DEPTH],
-            search_history: [[0; 13]; BOARD_SQUARE_NUMBER],
+            search_history: [[0; BOARD_SQUARE_NUMBER]; 13],
             search_killers: [[0; MAX_DEPTH]; 2],
         }
     }
@@ -200,11 +203,11 @@ impl Board {
 }
 
 pub struct SearchInfo {
-    pub start_time: u8,
-    pub stop_time: u8,
+    pub time: Instant,
+    pub stop_time: u64,
     pub depth: u8,
     pub depth_set: u8,
-    pub time_set: u8,
+    pub time_set: bool,
 
     pub moves_to_go: u8,
     pub infinite: u8,
@@ -213,6 +216,28 @@ pub struct SearchInfo {
 
     pub quit: bool,
     pub stopped: bool,
+
+    // gives an idea of how good move ordering is, should be greater than 90%
+    pub fail_high: f32, // number of times alpha > beta on the first move
+    pub fail_high_first: f32, // number of times alpha > beta total
+}
+impl Default for SearchInfo {
+    fn default() -> Self {
+        SearchInfo {
+            time: Instant::now(),
+            stop_time: 0,
+            depth: 0,
+            depth_set: 0,
+            time_set: false,
+            moves_to_go: 0,
+            infinite: 0,
+            nodes: 0,
+            quit: false,
+            stopped: false,
+            fail_high: 0.0,
+            fail_high_first: 0.0,
+        }
+    }
 }
 
 // small board to big board
@@ -410,5 +435,35 @@ lazy_static! {
         }
 
         ranks_board
+    };
+
+    /*
+    When ordering moves, you search for them in this order:
+    1. PV Move
+    2. Capture -> most valuable victim, least valuable attacker
+    3. Killers (beta cutoffs)
+    4. History score
+
+        P takes Q
+        N takes Q
+        ..
+        P takes R
+        N takes R
+        ..
+
+        vic Q -> 500, P(505), N(504)
+        vic R -> 400
+    */
+    pub static ref MVV_LVA_SCORES: [[u32; 13]; 13] = {
+        let victim_score: [u32; 13] = [0, 100, 200, 300, 400, 500, 600, 100, 200 ,300 ,400, 500, 600];
+        let mut mvv_lva_scores: [[u32; 13]; 13] = [[0; 13]; 13];
+
+        for attacker in Pieces::WhitePawn as usize..Pieces::BlackKing as usize {
+            for victim in Pieces::WhitePawn as usize..Pieces::BlackKing as usize {
+                mvv_lva_scores[victim][attacker] = victim_score[victim] + 6 - (victim_score[attacker] / 100);
+            }
+        }
+
+        mvv_lva_scores
     };
 }

@@ -14,20 +14,23 @@ mod perft;
 mod search;
 mod pvtable;
 mod zobristhasher;
+mod evaluate;
 
-use std::{sync::Mutex, vec};
+use std::{sync::Mutex, time::Instant, vec};
 
 use attack::{square_attacked, test_square_attacked};
 use bitboards::{print_bitboard, pop_bit, count_bits};
 use board::{check_board, debug_board, parse_fen, print_board};
 use colored::Colorize;
-use defs::{captured, clear_bit, fr2sq, from_square, print_binary, promoted, set_bit, sq64, to_square, Board, Files::*, MoveList, Ranks::*, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, MOVE_FLAG_PAWN_START, NO_MOVE, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, WHITE};
+use data::PIECE_CHAR;
+use defs::{captured, clear_bit, fr2sq, from_square, print_binary, promoted, set_bit, sq64, to_square, Board, Files::*, MoveList, Ranks::*, SearchInfo, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, MOVE_FLAG_PAWN_START, MVV_LVA_SCORES, NO_MOVE, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, WHITE};
+use evaluate::evaluate_position;
 use io::{parse_move, print_move, print_move_list, print_square};
 use makemove::{make_move, take_move};
 use movegen::generate_all_moves;
 use perft::perft_test;
 use pvtable::get_pv_line;
-use search::is_repetition;
+use search::{is_repetition, search_position};
 use crate::defs::{Squares::*, Pieces::*};
 
 use std::io as std_io; // Import std::io as std_io
@@ -43,17 +46,23 @@ const FEN_CASTLE1: &str = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
 const FEN_CASTLE2: &str = "3rk2r/8/8/8/8/8/6p1/R3K2R b KQk - 0 1";
 const FEN_TRICKY: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
 const FEN_48: &str = "n1n5/PPPk4/8/8/8/8/4Kppp/5N1N w - - 0 1";
+const FEN_60: &str = "2rr3k/pp3pp1/1nnqbN1p/3pN3/2pP4/2P3Q1/PPB4P/R4RK1 w - - 0 1";
+const FEN_61: &str = "r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1";
+
+const FEN_WIKI3: &str = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
+const FEN_WIKI4: &str = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
+const FEN_WIKI4R: &str = "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1";
+const FEN_WIKI5: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
+const FEN_WIKI6: &str = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
 
 fn main() {
     let position: &mut Board = &mut Board::default();
-    parse_fen(&FEN_START, position);
-
+    parse_fen(&FEN_61, position);
+    let info = &mut SearchInfo::default();
     let mut user_input = String::new();
 
-    let test = [[1; 120]; 13];
-println!("test outer length: {}\ntest inner length: {}", test.len(), test[0].len());
     loop {
-        break;
+        // break;
         print_board(position);
         user_input.clear();
         println!("Enter a move: ");
@@ -67,16 +76,22 @@ println!("test outer length: {}\ntest inner length: {}", test.len(), test[0].len
         } else if user_input == "t" {
             take_move(position);
         } else if user_input == "p" {
-            // perft_test(4, position);
-            let maximum = get_pv_line(4, position);
-            print!("\nPvLine of {} moves: ", maximum);
+            perft_test(5, position);
+            // let maximum = get_pv_line(4, position);
+            // print!("\nPvLine of {} moves: ", maximum);
 
-            for pv_number in 0..maximum {
-                let el_move = position.pv_array[pv_number];
-                print!(" {}", print_move(el_move));
-            }
+            // for pv_number in 0..maximum {
+            //     let el_move = position.pv_array[pv_number];
+            //     print!(" {}", print_move(el_move));
+            // }
+            // println!();
 
-            println!();
+        } else if user_input == "s" {
+            info.depth = 7;
+            info.time = Instant::now();
+            info.time_set = true;
+            info.stop_time = 3;
+            search_position(position, info);
         } else {
             let the_move = parse_move(&user_input, position);
             if the_move != NO_MOVE {
@@ -89,16 +104,6 @@ println!("test outer length: {}\ntest inner length: {}", test.len(), test[0].len
             }
         }
     }
-
-    // let test_input = ["b1c3".to_string(), "b8c6".to_string(), "c3b1".to_string(), "c6b8".to_string()];
-
-    // print_board(position);
-    // for i in 0..4 {
-    //     let the_move = parse_move(&test_input[i], position);
-    //     make_move(position, the_move);
-    //     print_board(position);
-    //     if is_repetition(position) { println!("{}", "REPETITION SEEN".green()); }
-    // }
 }
 /*
 -----------------------------
@@ -286,4 +291,11 @@ let position: &mut Board = &mut Board::default();
         println!("TAKEN: {}", print_move(the_move));
         print_board(position);
         std_io::stdin().read_line(&mut test).expect("Failed to read");
+-----------------------------
+MVVLVA:
+for attacker in WhitePawn as usize..BlackKing as usize {
+        for victim in WhitePawn as usize..BlackKing as usize {
+            println!("{} x {} = {}", PIECE_CHAR.chars().nth(attacker as usize).unwrap_or(' '), PIECE_CHAR.chars().nth(victim as usize).unwrap_or(' '), MVV_LVA_SCORES[victim][attacker]);
+        }
+    }
 */
