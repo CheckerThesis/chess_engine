@@ -26,3 +26,4 @@ impl BuildHasher for ZobristHasherBuilder {
         ZobristHasher::default()
     }
 }
+// TODO make manual hash table

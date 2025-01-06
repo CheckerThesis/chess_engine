@@ -5,7 +5,12 @@ use colored::Colorize;
 use crate::{attack::square_attacked, board::check_board, defs::{from_square, to_square, Board, MoveList, SearchInfo, BOARD_SQUARE_NUMBER, DEBUG, INFINITE, IS_MATE, MAX_DEPTH, MAX_GAME_MOVES, MOVE_FLAG_CAPTURE, NO_MOVE}, evaluate::evaluate_position, io::print_move, makemove::{make_move, take_move}, movegen::{generate_all_capture_moves, generate_all_moves}, pvtable::get_pv_line};
 
 // check if time up, or interrupt from GUI
-pub fn check_up(info: &mut SearchInfo) { if info.time_set && info.time.elapsed().as_secs() > info.stop_time  { info.stopped = true; } }
+pub fn check_up(info: &mut SearchInfo) {
+    if info.time_set &&
+    (Instant::now() >= info.stop_time) {
+        info.stopped = true;
+    }
+}
 
 // from move_number through the remaining moves, find the best score and put it in front
 pub fn pick_next_move(move_number: usize, move_list: &mut MoveList) {
@@ -63,7 +68,6 @@ pub fn clear_for_search(position: &mut Board, info: &mut SearchInfo) {
 
     position.ply = 0; // half moves for current search
 
-    info.time = Instant::now();
     info.nodes = 0;
     info.fail_high = 0.0;
     info.fail_high_first = 0.0;
@@ -165,7 +169,7 @@ pub fn alpha_beta(alpha: i32, beta: i32, depth: u8, position: &mut Board, info: 
         score = -alpha_beta(-beta, -internal_alpha, depth - 1, position, info, true); // negamax
         take_move(position);
 
-        if info.stopped { return 0 }
+        if info.stopped == true { return 0 }
 
         if score > internal_alpha {
             // beta cutoff
@@ -218,22 +222,22 @@ pub fn search_position(position: &mut Board, info: &mut SearchInfo) {
 
     // iterative deepening search best move for each depth
     for current_depth in 0..info.depth {
-        let best_score = alpha_beta(-INFINITE, INFINITE, current_depth + 1, position, info, true);
+        let best_score = alpha_beta(-INFINITE, INFINITE, (current_depth + 1) as u8, position, info, true);
 
         if info.stopped { break; }
 
-        let pv_moves = get_pv_line(current_depth, position);
         best_move = position.pv_array[0];
 
         print!("info score cp {} depth {} nodes {} time {}",
-            best_score, current_depth + 1, info.nodes, info.time.elapsed().as_secs()
+            best_score, current_depth + 1, info.nodes, info.start_time.elapsed().as_secs()
         );
 
+        let pv_moves: usize = get_pv_line(current_depth as u8, position);
         print!(" pv");
         for pv_number in 0..pv_moves { print!(" {}", print_move(position.pv_array[pv_number])); }
         println!();
 
-        println!("Ordering: {}", info.fail_high_first/info.fail_high);
+        // println!("Ordering: {}", info.fail_high_first/info.fail_high);
     }
 
     println!("bestmove {}", print_move(best_move));

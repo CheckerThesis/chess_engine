@@ -15,6 +15,7 @@ mod search;
 mod pvtable;
 mod zobristhasher;
 mod evaluate;
+mod uci;
 
 use std::{sync::Mutex, time::Instant, vec};
 
@@ -31,6 +32,7 @@ use movegen::generate_all_moves;
 use perft::perft_test;
 use pvtable::get_pv_line;
 use search::{is_repetition, search_position};
+use uci::uci_loop;
 use crate::defs::{Squares::*, Pieces::*};
 
 use std::io as std_io; // Import std::io as std_io
@@ -56,54 +58,7 @@ const FEN_WIKI5: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1
 const FEN_WIKI6: &str = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
 
 fn main() {
-    let position: &mut Board = &mut Board::default();
-    parse_fen(&FEN_61, position);
-    let info = &mut SearchInfo::default();
-    let mut user_input = String::new();
-
-    loop {
-        // break;
-        print_board(position);
-        user_input.clear();
-        println!("Enter a move: ");
-
-        std_io::stdin().read_line(&mut user_input).expect("Error");
-
-        user_input = user_input.trim().to_string();
-
-        if user_input == "q" {
-            break;
-        } else if user_input == "t" {
-            take_move(position);
-        } else if user_input == "p" {
-            perft_test(5, position);
-            // let maximum = get_pv_line(4, position);
-            // print!("\nPvLine of {} moves: ", maximum);
-
-            // for pv_number in 0..maximum {
-            //     let el_move = position.pv_array[pv_number];
-            //     print!(" {}", print_move(el_move));
-            // }
-            // println!();
-
-        } else if user_input == "s" {
-            info.depth = 7;
-            info.time = Instant::now();
-            info.time_set = true;
-            info.stop_time = 3;
-            search_position(position, info);
-        } else {
-            let the_move = parse_move(&user_input, position);
-            if the_move != NO_MOVE {
-                position.store_pv_move(the_move);
-                make_move(position, the_move);
-
-                // if is_repetition(position) { println!("{}", "REPETITION SEEN".green()); }
-            } else {
-                println!("Move not parsed");
-            }
-        }
-    }
+    uci_loop();
 }
 /*
 -----------------------------
@@ -296,6 +251,56 @@ MVVLVA:
 for attacker in WhitePawn as usize..BlackKing as usize {
         for victim in WhitePawn as usize..BlackKing as usize {
             println!("{} x {} = {}", PIECE_CHAR.chars().nth(attacker as usize).unwrap_or(' '), PIECE_CHAR.chars().nth(victim as usize).unwrap_or(' '), MVV_LVA_SCORES[victim][attacker]);
+        }
+    }
+-----------------------------
+Manual UCI:
+let position: &mut Board = &mut Board::default();
+    parse_fen(&FEN_61, position);
+    let info = &mut SearchInfo::default();
+    let mut user_input = String::new();
+
+    loop {
+        // break;
+        print_board(position);
+        user_input.clear();
+        println!("Enter a move: ");
+
+        std_io::stdin().read_line(&mut user_input).expect("Error");
+
+        user_input = user_input.trim().to_string();
+
+        if user_input == "q" {
+            break;
+        } else if user_input == "t" {
+            take_move(position);
+        } else if user_input == "p" {
+            perft_test(5, position);
+            // let maximum = get_pv_line(4, position);
+            // print!("\nPvLine of {} moves: ", maximum);
+
+            // for pv_number in 0..maximum {
+            //     let el_move = position.pv_array[pv_number];
+            //     print!(" {}", print_move(el_move));
+            // }
+            // println!();
+
+        } else if user_input == "s" {
+            info.depth = 7;
+            info.time = Instant::now();
+            info.time_set = true;
+            info.stop_time = 3;
+            search_position(position, info);
+        } else {
+            let the_move = parse_move(&user_input, position);
+            if the_move != NO_MOVE {
+                position.store_pv_move(the_move);
+                make_move(position, the_move);
+
+                // if is_repetition(position) { println!("{}", "REPETITION SEEN".green()); }
+            } else {
+                println!("Move not parsed");
+            }
         }
     }
 */

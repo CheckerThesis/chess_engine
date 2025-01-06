@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Instant};
+use std::{collections::HashMap, time::{Duration, Instant}};
 
 use lazy_static::lazy_static;
 use rand::{seq::index, thread_rng, Rng};
@@ -202,15 +202,14 @@ impl Board {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct SearchInfo {
-    pub time: Instant,
-    pub stop_time: u64,
+    pub start_time: Instant,
+    pub stop_time: Instant,
     pub depth: u8,
-    pub depth_set: u8,
     pub time_set: bool,
 
     pub moves_to_go: u8,
-    pub infinite: u8,
 
     pub nodes: u64,
 
@@ -224,13 +223,11 @@ pub struct SearchInfo {
 impl Default for SearchInfo {
     fn default() -> Self {
         SearchInfo {
-            time: Instant::now(),
-            stop_time: 0,
+            start_time: Instant::now(),
+            stop_time: Instant::now(),
             depth: 0,
-            depth_set: 0,
             time_set: false,
             moves_to_go: 0,
-            infinite: 0,
             nodes: 0,
             quit: false,
             stopped: false,
