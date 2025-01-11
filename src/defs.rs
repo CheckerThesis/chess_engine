@@ -1,9 +1,10 @@
-use std::{collections::HashMap, time::{Duration, Instant}};
+use std::{char::MAX, collections::HashMap, hash::Hash, time::{Duration, Instant}};
 
+use colored::Colorize;
 use lazy_static::lazy_static;
 use rand::{seq::index, thread_rng, Rng};
 
-use crate::zobristhasher::ZobristHasherBuilder;
+use crate::bitboards::print_bitboard;
 
 pub const NAME: &str = "Unknown";
 pub const BOARD_SQUARE_NUMBER: usize = 120;
@@ -123,6 +124,43 @@ impl Default for MoveList {
     }
 }
 
+#[derive(Default)]
+#[derive(Copy, Clone)]
+pub struct HashEntry {
+    pub position_key: u64,
+    pub the_move: u64,
+    pub score: i32,
+    pub flags: u8,
+    pub depth: i32,
+}
+
+pub struct HashTable {
+    pub pv_table: Vec<HashEntry>,
+    pub new_write: u64,
+    pub over_write: u64,
+    pub hit: u64,
+    pub cut: u64,
+}
+impl Default for HashTable {
+    fn default() -> Self {
+        HashTable {
+            pv_table: vec![HashEntry::default(); 131070],
+            new_write: 0,
+            over_write: 0,
+            hit: 0,
+            cut: 0,
+        }
+    }
+}
+
+#[repr(u8)]
+pub enum HashFlag {
+    HashFlagNone,
+    HashFlagAlpha,
+    HashFlagBeta,
+    HashFlagExact,
+}
+
 pub struct Board {
     pub pieces: [u8; BOARD_SQUARE_NUMBER],
     // pawn bitboard
@@ -157,7 +195,10 @@ pub struct Board {
     // piece_list [WhiteKnight][0] = E1 | for looping through only pieces for move generation
     pub piece_list: [[u8; 10]; 13],
 
-    pub pv_table: HashMap<u64, u64, ZobristHasherBuilder>,
+    // principal variation is the best sequence of moves,
+    // ie. the best according to the engine
+    // ie. expected moves played
+    pub hash_table: HashTable,
     pub pv_array: [u64; MAX_DEPTH],
 
     // for move ordering, rough way to record non-capture moves that are good enough to cause beta cut-off or good alpha
@@ -184,7 +225,7 @@ impl Default for Board {
             material: [0; 2],
             history: [Undo::default(); MAX_GAME_MOVES],
             piece_list: [[0; 10]; 13],
-            pv_table: HashMap::with_hasher(ZobristHasherBuilder),
+            hash_table: HashTable::default(),
             pv_array: [0; MAX_DEPTH],
             search_history: [[0; BOARD_SQUARE_NUMBER]; 13],
             search_killers: [[0; MAX_DEPTH]; 2],
@@ -192,13 +233,90 @@ impl Default for Board {
     }
 }
 impl Board {
-    pub fn store_pv_move(&mut self, the_move: u64) {
-        self.pv_table.insert(self.position_key, the_move);
+    pub fn probe_hash_table(&mut self, the_move: &mut u64, score: &mut i32, alpha: i32, beta: i32, depth: i32) -> bool {
+        let i = self.position_key as usize % self.hash_table.pv_table.capacity();
+
+        if DEBUG {
+            // if i < 0 || i > self.hash_table.pv_table.capacity() - 1 { eprintln!("{}", "probe_hash_table: [i] out of bounds".red()); }
+            if depth > MAX_DEPTH as i32 || depth < 1 { eprintln!("{}", "probe_hash_table: [depth] out of bounds".red()); }
+            if alpha >= beta { eprintln!("{}", "probe_hash_table: [alpha] greater than beta".red()); }
+            if alpha > INFINITE || alpha < -INFINITE { eprintln!("{}", "probe_hash_table: [alpha] out of bounds".red()); }
+            if beta > INFINITE || beta < -INFINITE { eprintln!("{}", "probe_hash_table: [beta] out of bounds".red()); }
+            // if self.ply < 0 || self.ply >= MAX_DEPTH as u8 { eprintln!("{}", "probe_hash_table: [ply] out of bounds".red()); }
+        }
+
+        if self.hash_table.pv_table[i].position_key == self.position_key {
+            *the_move = self.hash_table.pv_table[i as usize].the_move;
+
+            if self.hash_table.pv_table[i].depth >= depth {
+                self.hash_table.hit += 1;
+
+                *score = self.hash_table.pv_table[i].score;
+                if *score > IS_MATE {
+                    *score -= self.ply as i32;
+                } else if *score < -IS_MATE {
+                    *score += self.ply as i32;
+                }
+
+                match self.hash_table.pv_table[i].flags {
+                    x if x == HashFlag::HashFlagAlpha as u8 => {
+                        if *score <= alpha {
+                            *score = alpha;
+                            return true
+                        }
+                    }
+                    x if x == HashFlag::HashFlagBeta as u8 => {
+                        if *score >= beta {
+                            *score = beta;
+                            return true
+                        }
+                    }
+                    x if x == HashFlag::HashFlagExact as u8 => {
+                        return true
+                    }
+                    _ => return false
+                }
+            }
+        }
+
+        false
     }
 
-    // what the engine thinks is the best move for a certain position
-    pub fn probe_pv_table(&self, position_key: u64) -> Option<u64> {
-        self.pv_table.get(&position_key).copied()
+    pub fn store_hash_entry(&mut self, the_move: u64, score: &mut i32, flags: u8, depth: i32) {
+        let i = self.position_key as usize % self.hash_table.pv_table.capacity();
+
+        if DEBUG {
+            // if i < 0 || i > self.hash_table.pv_table.capacity() - 1 { eprintln!("{}", "store_hash_entry: [i] out of bounds".red()); }
+            if depth > MAX_DEPTH as i32 || depth < 1 { eprintln!("{}", "store_hash_entry: [depth] out of bounds".red()); }
+            // if self.ply < 0 || self.ply >= MAX_DEPTH as u8 { eprintln!("{}", "store_hash_entry: [ply] out of bounds".red()); }
+        }
+
+        if self.hash_table.pv_table[i].position_key == 0 {
+            self.hash_table.new_write += 1;
+        } else {
+            self.hash_table.over_write += 1;
+        }
+
+        if *score > IS_MATE {
+            *score += self.ply as i32
+        } else if *score < -IS_MATE {
+            *score -= self.ply as i32;
+        }
+
+        self.hash_table.pv_table[i].the_move = the_move;
+        self.hash_table.pv_table[i].position_key = self.position_key;
+        self.hash_table.pv_table[i].flags = flags;
+        self.hash_table.pv_table[i].score = *score;
+        self.hash_table.pv_table[i].depth = depth;
+    }
+
+    pub fn probe_pv_move(&mut self) -> u64 {
+        let i = self.position_key as usize % self.hash_table.pv_table.capacity();
+
+        // if DEBUG && i < 0 || i > self.hash_table.pv_table.capacity() - 1 { eprintln!("{}", "probe_pv_move: [i] out of bounds".red()); }
+
+        if self.hash_table.pv_table[i].position_key == self.position_key { return self.hash_table.pv_table[i].the_move }
+        return NO_MOVE
     }
 }
 
@@ -206,7 +324,7 @@ impl Board {
 pub struct SearchInfo {
     pub start_time: Instant,
     pub stop_time: Instant,
-    pub depth: u8,
+    pub depth: i32,
     pub time_set: bool,
 
     pub moves_to_go: u8,
@@ -219,6 +337,7 @@ pub struct SearchInfo {
     // gives an idea of how good move ordering is, should be greater than 90%
     pub fail_high: f32, // number of times alpha > beta on the first move
     pub fail_high_first: f32, // number of times alpha > beta total
+    pub null_cut: u32,
 }
 impl Default for SearchInfo {
     fn default() -> Self {
@@ -233,6 +352,7 @@ impl Default for SearchInfo {
             stopped: false,
             fail_high: 0.0,
             fail_high_first: 0.0,
+            null_cut: 0,
         }
     }
 }
@@ -462,5 +582,125 @@ lazy_static! {
         }
 
         mvv_lva_scores
+    };
+
+    pub static ref FILE_BB_MASK: [u64; 8] = {
+        let mut file_bb_mask: [u64; 8] = [0; 8];
+
+        for rank in (Ranks::Rank1 as u64..=Ranks::Rank8 as u64).rev() {
+            for file in Files::FileA as u64..=Files::FileH as u64 {
+                let square = rank * 8 + file;
+                file_bb_mask[file as usize] |= 1 << square;
+            }
+        }
+
+        file_bb_mask
+    };
+    pub static ref RANK_BB_MASK: [u64; 8] = {
+        let mut rank_bb_mask: [u64; 8] = [0; 8];
+
+        for rank in (Ranks::Rank1 as u64..=Ranks::Rank8 as u64).rev() {
+            for file in Files::FileA as u64..=Files::FileH as u64 {
+                let square = rank * 8 + file;
+                rank_bb_mask[rank as usize] |= 1 << square;
+            }
+        }
+
+        rank_bb_mask
+    };
+
+    /*
+    when & if it ends up 0, the pawn will be passed
+    0 0 0 1 1 1 0 0
+    0 0 0 1 1 1 0 0
+    0 0 0 1 1 1 0 0
+    0 0 0 1 1 1 0 0
+    0 0 0 1 1 1 0 0
+    0 0 0 0 x 0 0 0
+    0 0 0 0 0 0 0 0
+    0 0 0 0 0 0 0 0
+
+    for i in 0..64 {
+        print_bitboard(ISOLATED_MASK[i]);
+    }
+    */
+    pub static ref ISOLATED_MASK: [u64; 64] = {
+        let mut masks = [0u64; 64];
+        for sq in 0..64 {
+            let file = FILES_BOARD[sq120(sq) as usize];
+            if file > Files::FileA as u8 {
+                masks[sq as usize] |= FILE_BB_MASK[(file - 1) as usize];
+            }
+            if file < Files::FileH as u8 {
+                masks[sq as usize] |= FILE_BB_MASK[(file + 1) as usize];
+            }
+        }
+        masks
+    };
+    // White passed pawn masks
+    pub static ref WHITE_PASSED_MASK: [u64; 64] = {
+        let mut masks = [0u64; 64];
+        for sq in 0..64 {
+            let file = FILES_BOARD[sq120(sq) as usize];
+
+            // Forward
+            let mut tsq = sq + 8;
+            while tsq < 64 {
+                masks[sq as usize] |= 1u64 << tsq;
+                tsq += 8;
+            }
+
+            // Forward-left
+            if file > Files::FileA as u8 {
+                let mut tsq = sq + 7;
+                while tsq < 64 {
+                    masks[sq as usize] |= 1u64 << tsq;
+                    tsq += 8;
+                }
+            }
+
+            // Forward-right
+            if file < Files::FileH as u8 {
+                let mut tsq = sq + 9;
+                while tsq < 64 {
+                    masks[sq as usize] |= 1u64 << tsq;
+                    tsq += 8;
+                }
+            }
+        }
+        masks
+    };
+    // Black passed pawn masks
+    pub static ref BLACK_PASSED_MASK: [u64; 64] = {
+        let mut masks = [0u64; 64];
+        for sq in 0..64 {
+            let file = FILES_BOARD[sq120(sq) as usize];
+
+            // Backward
+            let mut tsq = sq as i32 - 8;
+            while tsq >= 0 {
+                masks[sq as usize] |= 1u64 << tsq;
+                tsq -= 8;
+            }
+
+            // Backward-left
+            if file > Files::FileA as u8 {
+                let mut tsq = sq as i32 - 9;
+                while tsq >= 0 {
+                    masks[sq as usize] |= 1u64 << tsq;
+                    tsq -= 8;
+                }
+            }
+
+            // Backward-right
+            if file < Files::FileH as u8 {
+                let mut tsq = sq as i32 - 7;
+                while tsq >= 0 {
+                    masks[sq as usize] |= 1u64 << tsq;
+                    tsq -= 8;
+                }
+            }
+        }
+        masks
     };
 }

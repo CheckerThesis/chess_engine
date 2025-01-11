@@ -11,3 +11,6 @@ colored = "2.2.0"
 
 [lints.rust]
 unused_imports = "allow"
+
+[profile.release]
+debug = false

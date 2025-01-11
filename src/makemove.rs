@@ -2,7 +2,7 @@ use std::mem::take;
 
 use colored::*;
 
-use crate::{attack::square_attacked, board::{check_board, debug_board}, data::{IS_KING, IS_PAWN, PIECE_BIG, PIECE_COLOR, PIECE_MAJOR, PIECE_VALUE}, defs::{captured, clear_bit, from_square, print_binary, promoted, set_bit, to_square, Board, Pieces::*, Ranks::*, Squares::*, BOTH, CASTLE_KEYS, DEBUG, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, PIECE_KEYS, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, WHITE}, hashkeys::generate_position_key, validate::{piece_valid, side_valid, square_on_board}};
+use crate::{attack::square_attacked, board::{check_board, debug_board}, data::{IS_KING, IS_PAWN, PIECE_BIG, PIECE_COLOR, PIECE_MAJOR, PIECE_VALUE}, defs::{captured, clear_bit, from_square, print_binary, promoted, set_bit, to_square, Board, Pieces::*, Ranks::*, Squares::*, BOTH, CASTLE_KEYS, DEBUG, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, NO_MOVE, PIECE_KEYS, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, WHITE}, hashkeys::generate_position_key, validate::{piece_valid, side_valid, square_on_board}};
 
 /*
 1. make move
@@ -351,5 +351,47 @@ pub fn take_move(position: &mut Board) {
         clear_piece(from as usize, position);
         add_piece(from as usize, position, pawn_type as usize);
     }
+    if DEBUG { check_board(position); }
+}
+
+pub fn make_null_move(position: &mut Board) {
+    if DEBUG { check_board(position); }
+    let in_check = square_attacked(position.king_square[position.side as usize] as usize, (position.side ^ 1) as usize, position);
+    if in_check { return }
+
+    position.ply += 1;
+    position.history[position.history_ply].position_key = position.position_key;
+
+    if position.en_passent != NoSq as u8 { hash_en_passant(position); }
+
+    position.history[position.history_ply].the_move = NO_MOVE;
+    position.history[position.history_ply].fifty_move = position.fifty_move;
+    position.history[position.history_ply].en_passent = position.en_passent;
+    position.history[position.history_ply].castle_permission = position.castle_permission;
+    position.en_passent = NoSq as u8;
+
+    position.side ^= 1;
+    position.history_ply += 1;
+    hash_side(position);
+
+    if DEBUG { check_board(position); }
+}
+
+pub fn take_null_move(position: &mut Board) {
+    if DEBUG { check_board(position); }
+
+    position.history_ply -= 1;
+    position.ply -= 1;
+
+    if position.en_passent != NoSq as u8 { hash_en_passant(position); }
+
+    position.castle_permission = position.history[position.history_ply].castle_permission;
+    position.fifty_move = position.history[position.history_ply].fifty_move;
+    position.en_passent = position.history[position.history_ply].en_passent;
+
+    if position.en_passent != NoSq as u8 { hash_en_passant(position); }
+    position.side ^= 1;
+    hash_side(position);
+
     if DEBUG { check_board(position); }
 }

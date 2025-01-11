@@ -13,7 +13,6 @@ mod makemove;
 mod perft;
 mod search;
 mod pvtable;
-mod zobristhasher;
 mod evaluate;
 mod uci;
 
@@ -24,7 +23,7 @@ use bitboards::{print_bitboard, pop_bit, count_bits};
 use board::{check_board, debug_board, parse_fen, print_board};
 use colored::Colorize;
 use data::PIECE_CHAR;
-use defs::{captured, clear_bit, fr2sq, from_square, print_binary, promoted, set_bit, sq64, to_square, Board, Files::*, MoveList, Ranks::*, SearchInfo, BLACK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, MOVE_FLAG_PAWN_START, MVV_LVA_SCORES, NO_MOVE, RANKS_BOARD, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, WHITE};
+use defs::{captured, clear_bit, fr2sq, from_square, print_binary, promoted, set_bit, sq64, to_square, Board, Files::*, MoveList, Ranks::*, SearchInfo, BLACK, BLACK_PASSED_MASK, BOARD_SQUARE_NUMBER, BOTH, FILES_BOARD, FILE_BB_MASK, ISOLATED_MASK, MOVE_FLAG_PAWN_START, MVV_LVA_SCORES, NO_MOVE, RANKS_BOARD, RANK_BB_MASK, SIDE_KEY, SQ120_TO_SQ64, SQ64_TO_SQ120, WHITE, WHITE_PASSED_MASK};
 use evaluate::evaluate_position;
 use io::{parse_move, print_move, print_move_list, print_square};
 use makemove::{make_move, take_move};

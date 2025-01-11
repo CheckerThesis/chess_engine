@@ -1,4 +1,4 @@
-use crate::{board::{parse_fen, print_board}, defs::{Board, SearchInfo, BLACK, MAX_DEPTH, NO_MOVE, WHITE}, io::parse_move, makemove::make_move, search::search_position, FEN_START};
+use crate::{board::{parse_fen, print_board}, defs::{Board, SearchInfo, BLACK, MAX_DEPTH, NO_MOVE, WHITE}, evaluate::{evaluate_position, mirror_board}, io::parse_move, makemove::make_move, search::search_position, FEN_START};
 use std::{io::{self, stdin, BufRead}, time::{Duration, Instant}};
 
 // go depth 6 wtime 1000 btime 1000 binc 1000 winc 1000 movetime 1000 movestogo 40
@@ -13,6 +13,7 @@ pub fn parse_go(input: &String, info: &mut SearchInfo, position: &mut Board) {
     let mut increment = Duration::from_millis(0);
 
     info.time_set = false;
+    // info.stopped = false;
 
     while i < tokens.len() {
         match tokens[i] {
@@ -45,7 +46,7 @@ pub fn parse_go(input: &String, info: &mut SearchInfo, position: &mut Board) {
                 i += 2;
             }
             "depth" => {
-                depth = Some(tokens[i + 1].parse::<u8>().unwrap());
+                depth = Some(tokens[i + 1].parse::<i32>().unwrap());
                 i += 2;
             }
             "movetime" => {
@@ -74,12 +75,13 @@ pub fn parse_go(input: &String, info: &mut SearchInfo, position: &mut Board) {
     if let Some(d) = depth {
         info.depth = d;
     } else {
-        info.depth = MAX_DEPTH as u8;
+        info.depth = MAX_DEPTH as i32;
     }
 
     // TODO go movetime not working
 
-    println!("time: {:?}    start: {:?}    stop: {:?}    depth: {}    timeset: {}", time, info.start_time, info.stop_time, info.depth, info.time_set);
+    println!("time: {:?}    start: {:?}    stop: {:?}    depth: {}\ntimeset: {}    info.stopped: {}",
+    time, info.start_time, info.stop_time, info.depth, info.time_set, info.stopped);
     search_position(position, info);
 }
 
@@ -113,7 +115,7 @@ pub fn parse_position(input: &String, position: &mut Board) {
 }
 
 pub fn uci_loop() {
-    let name = "Tien Cao";
+    let name = "Vault";
 
     // set in and out buffer to 0?
 
@@ -132,13 +134,21 @@ pub fn uci_loop() {
 
         user_input.clear();
 
-        if test_i == 1 {
-            user_input = "position startpos".to_string();
-        } else if test_i == 2 {
-            user_input = "go wtime 180000 btime 180000".to_string();
-        } else {
-            io::stdin().lock().read_line(&mut user_input).unwrap();
-        }
+        // if test_i == 1 {
+        //     user_input = "position startpos".to_string();
+        //     // user_input = "position fen 2k1r2r/Bpq3pp/3b4/3Bp3/8/7b/PPP1QP2/R3R1K1 w - - 1 1".to_string();
+        // } else if test_i == 2 {
+        //     user_input = "go depth 8".to_string();
+        // } else if test_i == 3 {
+        //     user_input = "go depth 8".to_string();
+        // } else if test_i == 4 {
+        //     // user_input = "go depth 7".to_string();
+        // } else if test_i == 5{
+        //     // user_input = "go depth 9".to_string();
+        // } else {
+        //     io::stdin().lock().read_line(&mut user_input).unwrap();
+        // }
+        io::stdin().lock().read_line(&mut user_input).unwrap();
 
         user_input = user_input.trim().to_string();
 

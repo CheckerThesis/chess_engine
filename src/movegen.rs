@@ -61,7 +61,7 @@ pub fn add_capture_move(position: &mut Board, the_move: u64, move_list: &mut Mov
     }
 
     move_list.moves[move_list.count].el_move = the_move;
-    // add 1 million so they are above killer moves and history heuristics and pv_moves for move ordering
+    // add 1 million so they are above killer moves (8/900000), history heuristics, pv_moves for move ordering
     move_list.moves[move_list.count].score = MVV_LVA_SCORES[captured(the_move) as usize][position.pieces[from_square(the_move) as usize] as usize] + 1000000;
     move_list.count += 1;
 }
