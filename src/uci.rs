@@ -1,8 +1,8 @@
-use crate::{board::{parse_fen, print_board}, defs::{Board, SearchInfo, BLACK, MAX_DEPTH, WHITE}, io::parse_move, makemove::make_move, search::search_position, ENGINE_OPTIONS, FEN_START};
+use crate::{board::{parse_fen, print_board}, defs::{Board, HashTable, SearchInfo, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, WHITE}, io::parse_move, makemove::make_move, polybook::{self, POLY_BOOK}, search::search_position, FEN_START};
 use std::{io::{self, BufRead}, time::{Duration, Instant}};
 
 // go depth 6 wtime 1000 btime 1000 binc 1000 winc 1000 movetime 1000 movestogo 40
-pub fn parse_go(input: &String, info: &mut SearchInfo, position: &mut Board) {
+pub fn parse_go(input: &String, info: &mut SearchInfo, position: &mut Board, hash_table: &mut HashTable) {
     let tokens: Vec<&str> = input.split_whitespace().collect();
     let mut i = 0;
 
@@ -90,9 +90,8 @@ pub fn parse_go(input: &String, info: &mut SearchInfo, position: &mut Board) {
 
     println!("time: {:?}    start: {:?}    stop: {:?}    depth: {}\ntimeset: {}    info.stopped: {}",
     time, info.start_time, info.stop_time, info.depth, info.time_set, info.stopped);
-    search_position(position, info);
+    search_position(position, info, hash_table);
 }
-
 
 // position fen fenstr
 // position startpos
@@ -124,6 +123,7 @@ pub fn parse_position(input: &String, position: &mut Board) {
 
 pub fn uci_loop() {
     let name = "Vault";
+    let z = true;
 
     let mut user_input = String::new();
     println!("id name {}", name.to_string());
@@ -133,29 +133,30 @@ pub fn uci_loop() {
     let position: &mut Board = &mut Board::default();
     let info: &mut SearchInfo = &mut SearchInfo::default();
 
-    // let mut test_i = 0;
+    let mut test_i = 0;
 
     loop {
         user_input.clear();
 
-        // test_i += 1;
-        // if test_i == 1 {
-        //     // user_input = "position startpos".to_string();
-        //     user_input = "position fen rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3".to_string();
-        // } else if test_i == 2 {
-
-        //     user_input = "go depth 4".to_string();
-        // } else if test_i == 3 {
-        //     // user_input = "go depth 2".to_string();
-        // } else if test_i == 4 {
-        //     // user_input = "go depth 3".to_string();
-        // } else if test_i == 5{
-        //     // user_input = "go depth 9".to_string();
-        // } else {
-        //     io::stdin().lock().read_line(&mut user_input).unwrap();
-        // }
-        io::stdin().lock().read_line(&mut user_input).unwrap();
-
+        if z {
+            test_i += 1;
+            if test_i == 1 {
+                user_input = "position startpos".to_string();
+                // user_input = "position fen r3kb1r/3n1pp1/p6p/2pPp2q/Pp2N3/3B2PP/1PQ2P2/R3K2R w KQkq - 0 1".to_string();
+            } else if test_i == 2 {
+                user_input = "setoption name Book value false".to_string();
+            } else if test_i == 3 {
+                user_input = "go depth 8".to_string();
+            } else if test_i == 4 {
+                // user_input = "go depth 3".to_string();
+            } else if test_i == 5{
+                // user_input = "go depth 9".to_string();
+            } else {
+                io::stdin().lock().read_line(&mut user_input).unwrap();
+            }
+        } else {
+            io::stdin().lock().read_line(&mut user_input).unwrap();
+        }
         user_input = user_input.trim().to_string();
 
         if user_input == "" { continue; }
@@ -168,7 +169,8 @@ pub fn uci_loop() {
         } else if user_input == "ucinewgame" {
             parse_position(&"position startpos".to_string(), position);
         } else if user_input.contains("go") {
-            parse_go(&user_input, info, position);
+            // where the global HASH_TABLE gets dropped in
+            parse_go(&user_input, info, position, &mut HASH_TABLE.lock().unwrap());
         } else if user_input == "quit" {
             info.quit = true;
             break;
@@ -177,6 +179,8 @@ pub fn uci_loop() {
             println!("id author Tien Cow");
             println!("uciok");
         } else if user_input.contains("setoption name Book value ") {
+            // let init: &Vec<polybook::PolyBookEntry> = &*POLY_BOOK;
+
             let mut options = ENGINE_OPTIONS.lock().unwrap();
 
             if user_input.contains("true") {

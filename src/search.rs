@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use colored::Colorize;
 
-use crate::{attack::square_attacked, board::check_board, defs::{from_square, to_square, Board, HashFlag::*, MoveList, SearchInfo, BOARD_SQUARE_NUMBER, DEBUG, INF_BOUND, IS_MATE, MAX_DEPTH, MAX_GAME_MOVES, MOVE_FLAG_CAPTURE, NO_MOVE}, evaluate::evaluate_position, io::print_move, makemove::{make_move, make_null_move, take_move, take_null_move}, movegen::{generate_all_capture_moves, generate_all_moves}, polybook::get_book_move, pvtable::get_pv_line, ENGINE_OPTIONS};
+use crate::{attack::square_attacked, board::check_board, defs::{from_square, to_square, Board, HashFlag::*, HashTable, MoveList, SearchInfo, BOARD_SQUARE_NUMBER, DEBUG, ENGINE_OPTIONS, INF_BOUND, IS_MATE, MAX_DEPTH, MAX_GAME_MOVES, MOVE_FLAG_CAPTURE, NO_MOVE}, evaluate::evaluate_position, io::print_move, makemove::{make_move, make_null_move, take_move, take_null_move}, movegen::{generate_all_capture_moves, generate_all_moves}, polybook::{self, get_book_move, POLY_BOOK}, pvtable::{get_pv_line, probe_hash_table, store_hash_entry}};
 
 // check if time up, or interrupt from GUI
 pub fn check_up(info: &mut SearchInfo) { if info.time_set && (Instant::now() >= info.stop_time) { info.stopped = true; } }
@@ -46,7 +46,7 @@ pub fn is_repetition(position: &Board) -> bool {
     false
 }
 
-pub fn clear_for_search(position: &mut Board, info: &mut SearchInfo) {
+pub fn clear_for_search(position: &mut Board, info: &mut SearchInfo, hash_table: &mut HashTable) {
     for i in 0..13 {
         for j in 0..BOARD_SQUARE_NUMBER {
             position.search_history[i][j] = 0;
@@ -59,6 +59,9 @@ pub fn clear_for_search(position: &mut Board, info: &mut SearchInfo) {
         }
     }
 
+    hash_table.over_write = 0;
+    hash_table.hit = 0;
+    hash_table.cut = 0;
     position.ply = 0; // half moves for current search
 
     info.stopped = false;
@@ -123,7 +126,7 @@ pub fn quiescence(alpha: i32, beta: i32, position: &mut Board, info: &mut Search
     internal_alpha
 }
 
-pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mut Board, info: &mut SearchInfo, do_null: bool) -> i32 {
+pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mut Board, info: &mut SearchInfo, hash_table: &mut HashTable, do_null: bool) -> i32 {
     if DEBUG { check_board(position); }
 
     if depth <= 0 { return quiescence(*alpha, *beta, position, info) }
@@ -147,15 +150,15 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
     let mut best_score: i32 = -INF_BOUND;
 
     // transposition table
-    if position.probe_hash_table(&mut pv_move, &mut score, *alpha, *beta, depth) {
-        position.hash_table.cut += 1;
+    if probe_hash_table(position, hash_table,&mut pv_move, &mut score, *alpha, *beta, depth) {
+        hash_table.cut += 1;
         return score
     }
 
     // null move pruning, give an opponent free move, if still beta cutoff, just return beta (move would be the move at depth 4 in this case)
     if do_null && !in_check && position.ply > 0 && position.big_piece[position.side as usize] > 1 && depth > 4 {
         make_null_move(position);
-        score = -alpha_beta(&mut (-*beta), &mut (-*beta + 1), depth - 4, position, info, false);
+        score = -alpha_beta(&mut (-*beta), &mut (-*beta + 1), depth - 4, position, info, hash_table,false);
         take_null_move(position);
         if info.stopped { return 0 }
         if score >= *beta && score.abs() < IS_MATE {
@@ -184,7 +187,7 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
         if !make_move(position, move_list.moves[move_number].el_move) { continue; }
 
         legal += 1;
-        score = -alpha_beta(&mut -*beta, &mut -internal_alpha, depth - 1, position, info, false); // negamax
+        score = -alpha_beta(&mut -*beta, &mut -internal_alpha, depth - 1, position, info, hash_table,false); // negamax
         take_move(position);
 
         if info.stopped == true { return 0 }
@@ -209,7 +212,7 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
                         position.search_killers[0][position.ply as usize] = move_list.moves[move_number].el_move;
                     }
 
-                    position.store_hash_entry(best_move, &mut *beta, HashFlagBeta as u8, depth);
+                    store_hash_entry(position, hash_table,best_move, &mut *beta, HashFlagBeta as u8, depth);
 
                     return *beta
                 }
@@ -235,31 +238,31 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
 
     // if this, then we've improved alpha and found the best move so we store it in the pv_array
     if internal_alpha != *alpha {
-        position.store_hash_entry(best_move, &mut best_score, HashFlagExact as u8, depth);
+        store_hash_entry(position, hash_table,best_move, &mut best_score, HashFlagExact as u8, depth);
     } else {
-        position.store_hash_entry(best_move, &mut internal_alpha, HashFlagAlpha as u8, depth);
+        store_hash_entry(position, hash_table,best_move, &mut internal_alpha, HashFlagAlpha as u8, depth);
     }
 
     internal_alpha
 }
 
-pub fn search_position(position: &mut Board, info: &mut SearchInfo) {
+pub fn search_position(position: &mut Board, info: &mut SearchInfo, hash_table: &mut HashTable) {
     let mut best_move = NO_MOVE;
     let mut best_score: i32;
 
-    clear_for_search(position, info);
+    clear_for_search(position, info, hash_table);
+    // let init: &Vec<polybook::PolyBookEntry> = &*POLY_BOOK;
 
-    let options = ENGINE_OPTIONS.lock().unwrap();
-    if options.book { best_move = get_book_move(position); }
+    if ENGINE_OPTIONS.lock().unwrap().book { best_move = get_book_move(position); }
 
     if best_move == NO_MOVE {
         // iterative deepening search best move for each depth
         for current_depth in 0..info.depth {                // infinite
-            best_score = alpha_beta(&mut -INF_BOUND, &mut 30000, current_depth + 1, position, info, true);
+            best_score = alpha_beta(&mut -INF_BOUND, &mut 30000, current_depth + 1, position, info, hash_table, true);
 
             if info.stopped { break; }
 
-            let pv_moves: usize = get_pv_line(current_depth as u8 + 1, position);
+            let pv_moves: usize = get_pv_line(current_depth as u8 + 1, position, hash_table);
             best_move = position.pv_array[0];
 
             print!("info score cp {} depth {} nodes {} time {}",
