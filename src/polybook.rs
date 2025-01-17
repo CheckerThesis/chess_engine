@@ -1,10 +1,9 @@
-use std::{fs, vec};
+use std::{fs, sync::LazyLock, vec};
 
 use colored::Colorize;
-use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
 
-use crate::{data::{FILE_CHAR, RANK_CHAR}, defs::{Board, Castling::*, Pieces::*, Squares::*, BOARD_SQUARE_NUMBER, DEBUG, FILES_BOARD, NO_MOVE, RANKS_BOARD, WHITE}, io::parse_move, ENGINE_OPTIONS};
+use crate::{data::{FILE_CHAR, RANK_CHAR}, defs::{Board, Castling::*, Pieces::*, Squares::*, BOARD_SQUARE_NUMBER, DEBUG, ENGINE_OPTIONS, FILES_BOARD, NO_MOVE, RANKS_BOARD, WHITE}, io::parse_move};
 
 pub const RANDOM_POLY: [u64; 781] = [
     0x9D39247E33776D41, 0x2AF7398005AAA5C7, 0x44DB015024623547, 0x9C15F73E62A76AE2,
@@ -217,44 +216,39 @@ pub struct PolyBookEntry {
     pub learn: u32,
 }
 
-lazy_static! {
-    pub static ref POLY_BOOK: Vec<PolyBookEntry> = {
-        let mut options = ENGINE_OPTIONS.lock().unwrap();
-        options.book = false;
+pub static POLY_BOOK: LazyLock<Vec<PolyBookEntry>> = LazyLock::new(|| {
+    let contents = fs::read("performance.bin").expect("Should have been able to read file");
+    let length = contents.len();
+    let entry_size = size_of::<PolyBookEntry>();
+    let number_entries = length / entry_size;
+    // println!("{} entries found", number_entries);
 
-        let contents = fs::read("performance.bin").expect("Should have been able to read file");
-        let length = contents.len();
-        let entry_size = size_of::<PolyBookEntry>();
-        let number_entries = length / entry_size;
-        // println!("{} entries found", number_entries);
+    if contents.len() % entry_size != 0 { eprintln!("{}", "Warning: File size is not a multiple of PolyBookEntry size. Some data will be truncated.".red()); }
 
-        if contents.len() % entry_size != 0 { eprintln!("{}", "Warning: File size is not a multiple of PolyBookEntry size. Some data will be truncated.".red()); }
+    let mut poly_book: Vec<PolyBookEntry> = Vec::with_capacity(length / entry_size);
 
-        let mut poly_book: Vec<PolyBookEntry> = Vec::with_capacity(length / entry_size);
+    for i in 0..number_entries {
+        let start = i * entry_size;
+        let end = start + entry_size;
 
-        for i in 0..number_entries {
-            let start = i * entry_size;
-            let end = start + entry_size;
+        if end > length { break; }
 
-            if end > length { break; }
+        let entry_bytes: &[u8] = &contents[start..end];
 
-            let entry_bytes: &[u8] = &contents[start..end];
+        let entry = PolyBookEntry {
+            key: u64::from_le_bytes(entry_bytes[0..8].try_into().unwrap()),
+            the_move: u16::from_le_bytes(entry_bytes[8..10].try_into().unwrap()),
+            weight: u16::from_le_bytes(entry_bytes[10..12].try_into().unwrap()),
+            learn: u32::from_le_bytes(entry_bytes[12..16].try_into().unwrap()),
+        };
 
-            let entry = PolyBookEntry {
-                key: u64::from_le_bytes(entry_bytes[0..8].try_into().unwrap()),
-                the_move: u16::from_le_bytes(entry_bytes[8..10].try_into().unwrap()),
-                weight: u16::from_le_bytes(entry_bytes[10..12].try_into().unwrap()),
-                learn: u32::from_le_bytes(entry_bytes[12..16].try_into().unwrap()),
-            };
+        poly_book.push(entry);
+    }
 
-            poly_book.push(entry);
-        }
+    if number_entries > 0 { { ENGINE_OPTIONS.lock().unwrap().book = true;} }
 
-        if number_entries > 0 { options.book = true; }
-
-        poly_book
-    };
-}
+    poly_book
+});
 
 pub fn has_pawn_for_capture(position: &mut Board) -> bool {
     let square_with_pawn;

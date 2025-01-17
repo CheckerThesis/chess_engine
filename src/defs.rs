@@ -1,9 +1,8 @@
-use std::time::Instant;
+use std::{sync::{LazyLock, Mutex}, time::Instant};
 
 use colored::Colorize;
-use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
-
+// TODO put derives on same line
 pub const BOARD_SQUARE_NUMBER: usize = 120;
 pub const MAX_GAME_MOVES: usize = 2048;
 pub const MAX_POSITION_MOVES: usize = 256;
@@ -19,6 +18,11 @@ pub const NO_MOVE: u64 = 0;
 pub const MAX_DEPTH: usize = 64;
 pub const INF_BOUND: i32 = 30000;
 pub const IS_MATE: i32 = INF_BOUND - MAX_DEPTH as i32;
+
+// .lock() is specific to mutex, careful with .unwrap() consider using something more robust
+pub static ENGINE_OPTIONS: LazyLock<Mutex<EngineOptions>> = LazyLock::new(|| Mutex::new(EngineOptions::default()));
+pub static HASH_TABLE: LazyLock<Mutex<HashTable>> = LazyLock::new(|| Mutex::new(HashTable::default()));
+
 /*
 A8 B8 C8 D8 E8 F8 G8 H8
 A7 B7 C7 D7 E7 F7 G7 H7
@@ -195,7 +199,6 @@ pub struct Board {
     // principal variation is the best sequence of moves,
     // ie. the best according to the engine
     // ie. expected moves played
-    pub hash_table: HashTable,
     pub pv_array: [u64; MAX_DEPTH],
 
     // for move ordering, rough way to record non-capture moves that are good enough to cause beta cut-off or good alpha
@@ -222,101 +225,10 @@ impl Default for Board {
             material: [0; 2],
             history: [Undo::default(); MAX_GAME_MOVES],
             piece_list: [[0; 10]; 13],
-            hash_table: HashTable::default(),
             pv_array: [0; MAX_DEPTH],
             search_history: [[0; BOARD_SQUARE_NUMBER]; 13],
             search_killers: [[0; MAX_DEPTH]; 2],
         }
-    }
-}
-impl Board {
-    // checks if table has an entry that matches the current position, if found set the_move equal to the stored move in the hash
-    // if the score is within proper bounds of alpha-beta, set score and prune in the alpha-beta function
-    pub fn probe_hash_table(&mut self, the_move: &mut u64, score: &mut i32, alpha: i32, beta: i32, depth: i32) -> bool {
-        let i = self.position_key as usize % self.hash_table.pv_table.capacity();
-
-        if DEBUG {
-            if depth > MAX_DEPTH as i32 || depth < 1 { eprintln!("{}", "probe_hash_table: [depth] out of bounds".red()); }
-            if alpha >= beta { eprintln!("{}", "probe_hash_table: [alpha] greater than beta".red()); }
-            if alpha > INF_BOUND || alpha < -INF_BOUND { eprintln!("{}", "probe_hash_table: [alpha] out of bounds".red()); }
-            if beta > INF_BOUND || beta < -INF_BOUND { eprintln!("{}", "probe_hash_table: [beta] out of bounds".red()); }
-        }
-
-        if self.hash_table.pv_table[i].position_key == self.position_key {
-            *the_move = self.hash_table.pv_table[i].the_move;
-
-            if self.hash_table.pv_table[i].depth >= depth {
-                self.hash_table.hit += 1;
-
-                // set mate score for alpha beta
-                *score = self.hash_table.pv_table[i].score;
-                if *score > IS_MATE {
-                    *score -= self.ply as i32;
-                } else if *score < -IS_MATE {
-                    *score += self.ply as i32;
-                }
-
-                // if it is a cutoff
-                match self.hash_table.pv_table[i].flags {
-                    x if x == HashFlag::HashFlagAlpha as u8 => {
-                        if *score <= alpha {
-                            *score = alpha;
-                            return true
-                        }
-                    }
-                    x if x == HashFlag::HashFlagBeta as u8 => {
-                        if *score >= beta {
-                            *score = beta;
-                            return true
-                        }
-                    }
-                    x if x == HashFlag::HashFlagExact as u8 => {
-                        return true
-                    }
-                    _ => return false
-                }
-            }
-        }
-
-        false
-    }
-
-    pub fn store_hash_entry(&mut self, the_move: u64, score: &mut i32, flags: u8, depth: i32) {
-        let i = self.position_key as usize % self.hash_table.pv_table.capacity();
-
-        if DEBUG {
-            // if i < 0 || i > self.hash_table.pv_table.capacity() - 1 { eprintln!("{}", "store_hash_entry: [i] out of bounds".red()); }
-            if depth > MAX_DEPTH as i32 || depth < 1 { eprintln!("{}", "store_hash_entry: [depth] out of bounds".red()); }
-            // if self.ply < 0 || self.ply >= MAX_DEPTH as u8 { eprintln!("{}", "store_hash_entry: [ply] out of bounds".red()); }
-        }
-
-        if self.hash_table.pv_table[i].position_key == 0 {
-            self.hash_table.new_write += 1;
-        } else {
-            self.hash_table.over_write += 1;
-        }
-
-        // reset mate score back to infinite
-        if *score > IS_MATE {
-            *score += self.ply as i32
-        } else if *score < -IS_MATE {
-            *score -= self.ply as i32;
-        }
-
-        self.hash_table.pv_table[i].the_move = the_move;
-        self.hash_table.pv_table[i].position_key = self.position_key;
-        self.hash_table.pv_table[i].flags = flags;
-        self.hash_table.pv_table[i].score = *score;
-        self.hash_table.pv_table[i].depth = depth;
-    }
-
-    pub fn probe_pv_move(&mut self) -> u64 {
-        let i = self.position_key as usize % self.hash_table.pv_table.capacity();
-
-        // if DEBUG && i < 0 || i > self.hash_table.pv_table.capacity() - 1 { eprintln!("{}", "probe_pv_move: [i] out of bounds".red()); }
-
-        if self.hash_table.pv_table[i].position_key == self.position_key { return self.hash_table.pv_table[i].the_move }
-        return NO_MOVE
     }
 }
 
@@ -363,7 +275,7 @@ pub struct EngineOptions {
 impl Default for EngineOptions {
     fn default() -> Self {
         EngineOptions {
-            book: true,
+            book: false,
         }
     }
 }
@@ -426,8 +338,7 @@ pub const MOVE_FLAG_CASTLE: u64 = 0x1000000;   // 0001 0000 0000 0000 0000 0000 
 pub const MOVE_FLAG_CAPTURE: u64 = 0x7C000;    // 0000 0000 0011 1100 0000 0000 0000
 pub const MOVE_FLAG_PROMOTE: u64 = 0xF00000;   // 0000 1111 0000 0000 0000 0000 0000
 
-lazy_static! {
-    /*
+/*
     println!("SQ120-SQ64");
     for i in 0..BOARD_SQUARE_NUMBER {
         if i % 10 == 0 {
@@ -445,8 +356,8 @@ lazy_static! {
     }
     println!("\n");
     */
-    pub static ref SQ120_TO_SQ64: [u8; BOARD_SQUARE_NUMBER] = {
-        let mut sq120_to_sq64 = [65; BOARD_SQUARE_NUMBER];
+pub static SQ120_TO_SQ64: LazyLock<[u8; BOARD_SQUARE_NUMBER]> = LazyLock::new(|| {
+    let mut sq120_to_sq64 = [65; BOARD_SQUARE_NUMBER];
         let mut square64: u8 = 0;
 
         for rank in Ranks::Rank1 as u8..=Ranks::Rank8 as u8 {
@@ -457,259 +368,257 @@ lazy_static! {
             }
         }
         sq120_to_sq64
-    };
-    pub static ref SQ64_TO_SQ120: [u8; 64] = {
-        let mut sq64_to_sq120 = [120; 64];
-        let mut square64: u8 = 0;
+});
+pub static SQ64_TO_SQ120: LazyLock<[u8; 64]> = LazyLock::new(|| {
+    let mut sq64_to_sq120 = [120; 64];
+    let mut square64: u8 = 0;
 
-        for rank in Ranks::Rank1 as u8..=Ranks::Rank8 as u8 {
-            for file in Files::FileA as u8..=Files::FileH as u8 {
-                let square = fr2sq(file, rank);
-                sq64_to_sq120[square64 as usize] = square;
-                square64 += 1;
-            }
+    for rank in Ranks::Rank1 as u8..=Ranks::Rank8 as u8 {
+        for file in Files::FileA as u8..=Files::FileH as u8 {
+            let square = fr2sq(file, rank);
+            sq64_to_sq120[square64 as usize] = square;
+            square64 += 1;
         }
-        sq64_to_sq120
-    };
-
-    // array of integers, each is 8x8 u64 all 0 except for one set to 1
-    pub static ref SET_MASK: [u64; 64] = {
-        let mut mask = [0; 64];
-        for i in 0..64 {
-            mask[i] = 1 << i;
-        }
-        mask
-    };
-    // vice-versa
-    pub static ref CLEAR_MASK: [u64; 64] = {
-        let mut mask = [0; 64];
-        for i in 0..64 {
-            mask[i] = !(1 << i);
-        }
-        mask
-    };
-
-    pub static ref PIECE_KEYS: [[u64; 120]; 13] = {
-        let mut rng = thread_rng();
-        // 0u64 is a u64 integer with 0 as its value
-        let mut keys = [[0u64; 120]; 13];
-
-        for piece in 0..13 {
-            for square in 0..120 {
-                keys[piece][square] = rng.gen();
-            }
-        }
-        keys
-    };
-    pub static ref SIDE_KEY: u64 = {
-        let mut rng = thread_rng();
-        rng.gen()
-    };
-    pub static ref CASTLE_KEYS: [u64; 16] = {
-        let mut rng = thread_rng();
-        let mut keys = [0u64; 16];
-        for i in 0..16 {
-            keys[i] = rng.gen();
-        }
-        keys
-    };
-
-    /*
-    println!("Files board");
-    for i in 0..BOARD_SQUARE_NUMBER {
-        if i % 10 == 0 && i != 0 {
-            println!();
-        }
-        print!("{:<4}", FILES_BOARD[i]);
     }
-    println!("\n\nRanks board");
-    for i in 0..BOARD_SQUARE_NUMBER {
-        if i % 10 == 0 && i != 0 {
-            println!();
-        }
-        print!("{:<4}", RANKS_BOARD[i]);
-    }
-    */
-    pub static ref FILES_BOARD: [u8; BOARD_SQUARE_NUMBER] = {
-        let mut files_board: [u8; BOARD_SQUARE_NUMBER] = [BOARD_SQUARE_NUMBER as u8; BOARD_SQUARE_NUMBER];
+    sq64_to_sq120
+});
 
-        for i in 0..BOARD_SQUARE_NUMBER {
-            files_board[i] = Squares::OffBoard as u8;
-        }
-
-        for rank in Ranks::Rank1 as u8..=Ranks::Rank8 as u8 {
-            for file in Files::FileA as u8..=Files::FileH as u8 {
-                let square = fr2sq(file, rank) as usize;
-                files_board[square] = file;
-            }
-        }
-
-        files_board
-    };
-    pub static ref RANKS_BOARD: [u8; BOARD_SQUARE_NUMBER] = {
-        let mut ranks_board: [u8; BOARD_SQUARE_NUMBER] = [BOARD_SQUARE_NUMBER as u8; BOARD_SQUARE_NUMBER];
-
-        for i in 0..BOARD_SQUARE_NUMBER {
-            ranks_board[i] = Squares::OffBoard as u8;
-        }
-
-        for rank in Ranks::Rank1 as u8..=Ranks::Rank8 as u8 {
-            for file in Files::FileA as u8..=Files::FileH as u8 {
-                let square = fr2sq(file, rank) as usize;
-                ranks_board[square] = rank;
-            }
-        }
-
-        ranks_board
-    };
-
-    /*
-    When ordering moves, you search for them in this order:
-    1. PV Move
-    2. Capture -> most valuable victim, least valuable attacker
-    3. Killers (beta cutoffs)
-    4. History score
-
-        P takes Q
-        N takes Q
-        ..
-        P takes R
-        N takes R
-        ..
-
-        vic Q -> 500, P(505), N(504)
-        vic R -> 400
-    */
-    pub static ref MVV_LVA_SCORES: [[u32; 13]; 13] = {
-        let victim_score: [u32; 13] = [0, 100, 200, 300, 400, 500, 600, 100, 200 ,300 ,400, 500, 600];
-        let mut mvv_lva_scores: [[u32; 13]; 13] = [[0; 13]; 13];
-
-        for attacker in Pieces::WhitePawn as usize..Pieces::BlackKing as usize {
-            for victim in Pieces::WhitePawn as usize..Pieces::BlackKing as usize {
-                mvv_lva_scores[victim][attacker] = victim_score[victim] + 6 - (victim_score[attacker] / 100);
-            }
-        }
-
-        mvv_lva_scores
-    };
-
-    pub static ref FILE_BB_MASK: [u64; 8] = {
-        let mut file_bb_mask: [u64; 8] = [0; 8];
-
-        for rank in (Ranks::Rank1 as u64..=Ranks::Rank8 as u64).rev() {
-            for file in Files::FileA as u64..=Files::FileH as u64 {
-                let square = rank * 8 + file;
-                file_bb_mask[file as usize] |= 1 << square;
-            }
-        }
-
-        file_bb_mask
-    };
-    pub static ref RANK_BB_MASK: [u64; 8] = {
-        let mut rank_bb_mask: [u64; 8] = [0; 8];
-
-        for rank in (Ranks::Rank1 as u64..=Ranks::Rank8 as u64).rev() {
-            for file in Files::FileA as u64..=Files::FileH as u64 {
-                let square = rank * 8 + file;
-                rank_bb_mask[rank as usize] |= 1 << square;
-            }
-        }
-
-        rank_bb_mask
-    };
-
-    /*
-    when & if it ends up 0, the pawn will be passed
-    0 0 0 1 1 1 0 0
-    0 0 0 1 1 1 0 0
-    0 0 0 1 1 1 0 0
-    0 0 0 1 1 1 0 0
-    0 0 0 1 1 1 0 0
-    0 0 0 0 x 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-
+// array of integers, each is 8x8 u64 all 0 except for one set to 1
+pub static SET_MASK: LazyLock<[u64; 64]> = LazyLock::new(|| {
+    let mut mask = [0; 64];
     for i in 0..64 {
-        print_bitboard(ISOLATED_MASK[i]);
+        mask[i] = 1 << i;
     }
-    */
-    pub static ref ISOLATED_MASK: [u64; 64] = {
-        let mut masks = [0u64; 64];
-        for sq in 0..64 {
-            let file = FILES_BOARD[sq120(sq) as usize];
-            if file > Files::FileA as u8 {
-                masks[sq as usize] |= FILE_BB_MASK[(file - 1) as usize];
-            }
-            if file < Files::FileH as u8 {
-                masks[sq as usize] |= FILE_BB_MASK[(file + 1) as usize];
-            }
-        }
-        masks
-    };
-    // White passed pawn masks
-    pub static ref WHITE_PASSED_MASK: [u64; 64] = {
-        let mut masks = [0u64; 64];
-        for sq in 0..64 {
-            let file = FILES_BOARD[sq120(sq) as usize];
+    mask
+});
+pub static CLEAR_MASK: LazyLock<[u64; 64]> = LazyLock::new(|| {
+    let mut mask = [0; 64];
+    for i in 0..64 {
+        mask[i] = !(1 << i);
+    }
+    mask
+});
 
-            // Forward
-            let mut tsq = sq + 8;
+pub static PIECE_KEYS: LazyLock<[[u64; 120]; 13]> = LazyLock::new(|| {
+    let mut rng = thread_rng();
+    // 0u64 is a u64 integer with 0 as its value
+    let mut keys = [[0u64; 120]; 13];
+
+    for piece in 0..13 {
+        for square in 0..120 {
+            keys[piece][square] = rng.gen();
+        }
+    }
+    keys
+});
+pub static SIDE_KEY: LazyLock<u64> = LazyLock::new(|| {
+    let mut rng = thread_rng();
+    rng.gen()
+});
+pub static CASTLE_KEYS: LazyLock<[u64; 16]> = LazyLock::new(|| {
+    let mut rng = thread_rng();
+    let mut keys = [0u64; 16];
+    for i in 0..16 {
+        keys[i] = rng.gen();
+    }
+    keys
+});
+
+/*
+println!("Files board");
+for i in 0..BOARD_SQUARE_NUMBER {
+    if i % 10 == 0 && i != 0 {
+        println!();
+    }
+    print!("{:<4}", FILES_BOARD[i]);
+}
+println!("\n\nRanks board");
+for i in 0..BOARD_SQUARE_NUMBER {
+    if i % 10 == 0 && i != 0 {
+        println!();
+    }
+    print!("{:<4}", RANKS_BOARD[i]);
+}
+*/
+pub static FILES_BOARD: LazyLock<[u8; BOARD_SQUARE_NUMBER]> = LazyLock::new(|| {
+    let mut files_board: [u8; BOARD_SQUARE_NUMBER] = [BOARD_SQUARE_NUMBER as u8; BOARD_SQUARE_NUMBER];
+
+    for i in 0..BOARD_SQUARE_NUMBER {
+        files_board[i] = Squares::OffBoard as u8;
+    }
+
+    for rank in Ranks::Rank1 as u8..=Ranks::Rank8 as u8 {
+        for file in Files::FileA as u8..=Files::FileH as u8 {
+            let square = fr2sq(file, rank) as usize;
+            files_board[square] = file;
+        }
+    }
+
+    files_board
+});
+pub static RANKS_BOARD: LazyLock<[u8; BOARD_SQUARE_NUMBER]> = LazyLock::new(|| {
+    let mut ranks_board: [u8; BOARD_SQUARE_NUMBER] = [BOARD_SQUARE_NUMBER as u8; BOARD_SQUARE_NUMBER];
+
+    for i in 0..BOARD_SQUARE_NUMBER {
+        ranks_board[i] = Squares::OffBoard as u8;
+    }
+
+    for rank in Ranks::Rank1 as u8..=Ranks::Rank8 as u8 {
+        for file in Files::FileA as u8..=Files::FileH as u8 {
+            let square = fr2sq(file, rank) as usize;
+            ranks_board[square] = rank;
+        }
+    }
+
+    ranks_board
+});
+
+/*
+When ordering moves, you search for them in this order:
+1. PV Move
+2. Capture -> most valuable victim, least valuable attacker
+3. Killers (beta cutoffs)
+4. History score
+
+    P takes Q
+    N takes Q
+    ..
+    P takes R
+    N takes R
+    ..
+
+    vic Q -> 500, P(505), N(504)
+    vic R -> 400
+*/
+pub static MVV_LVA_SCORES: LazyLock<[[u32; 13]; 13]> = LazyLock::new(|| {
+    let victim_score: [u32; 13] = [0, 100, 200, 300, 400, 500, 600, 100, 200 ,300 ,400, 500, 600];
+    let mut mvv_lva_scores: [[u32; 13]; 13] = [[0; 13]; 13];
+
+    for attacker in Pieces::WhitePawn as usize..Pieces::BlackKing as usize {
+        for victim in Pieces::WhitePawn as usize..Pieces::BlackKing as usize {
+            mvv_lva_scores[victim][attacker] = victim_score[victim] + 6 - (victim_score[attacker] / 100);
+        }
+    }
+
+    mvv_lva_scores
+});
+
+pub static FILE_BB_MASK: LazyLock<[u64; 8]> = LazyLock::new(|| {
+    let mut file_bb_mask: [u64; 8] = [0; 8];
+
+    for rank in (Ranks::Rank1 as u64..=Ranks::Rank8 as u64).rev() {
+        for file in Files::FileA as u64..=Files::FileH as u64 {
+            let square = rank * 8 + file;
+            file_bb_mask[file as usize] |= 1 << square;
+        }
+    }
+
+    file_bb_mask
+});
+pub static RANK_BB_MASK: LazyLock<[u64; 8]> = LazyLock::new(|| {
+    let mut rank_bb_mask: [u64; 8] = [0; 8];
+
+    for rank in (Ranks::Rank1 as u64..=Ranks::Rank8 as u64).rev() {
+        for file in Files::FileA as u64..=Files::FileH as u64 {
+            let square = rank * 8 + file;
+            rank_bb_mask[rank as usize] |= 1 << square;
+        }
+    }
+
+    rank_bb_mask
+});
+
+/*
+when & if it ends up 0, the pawn will be passed
+0 0 0 1 1 1 0 0
+0 0 0 1 1 1 0 0
+0 0 0 1 1 1 0 0
+0 0 0 1 1 1 0 0
+0 0 0 1 1 1 0 0
+0 0 0 0 x 0 0 0
+0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0
+
+for i in 0..64 {
+    print_bitboard(ISOLATED_MASK[i]);
+}
+*/
+pub static ISOLATED_MASK: LazyLock<[u64; 64]> = LazyLock::new(|| {
+    let mut masks = [0u64; 64];
+    for sq in 0..64 {
+        let file = FILES_BOARD[sq120(sq) as usize];
+        if file > Files::FileA as u8 {
+            masks[sq as usize] |= FILE_BB_MASK[(file - 1) as usize];
+        }
+        if file < Files::FileH as u8 {
+            masks[sq as usize] |= FILE_BB_MASK[(file + 1) as usize];
+        }
+    }
+    masks
+});
+// White passed pawn masks
+pub static WHITE_PASSED_MASK: LazyLock<[u64; 64]> = LazyLock::new(|| {
+    let mut masks = [0u64; 64];
+    for sq in 0..64 {
+        let file = FILES_BOARD[sq120(sq) as usize];
+
+        // Forward
+        let mut tsq = sq + 8;
+        while tsq < 64 {
+            masks[sq as usize] |= 1u64 << tsq;
+            tsq += 8;
+        }
+
+        // Forward-left
+        if file > Files::FileA as u8 {
+            let mut tsq = sq + 7;
             while tsq < 64 {
                 masks[sq as usize] |= 1u64 << tsq;
                 tsq += 8;
             }
+        }
 
-            // Forward-left
-            if file > Files::FileA as u8 {
-                let mut tsq = sq + 7;
-                while tsq < 64 {
-                    masks[sq as usize] |= 1u64 << tsq;
-                    tsq += 8;
-                }
-            }
-
-            // Forward-right
-            if file < Files::FileH as u8 {
-                let mut tsq = sq + 9;
-                while tsq < 64 {
-                    masks[sq as usize] |= 1u64 << tsq;
-                    tsq += 8;
-                }
+        // Forward-right
+        if file < Files::FileH as u8 {
+            let mut tsq = sq + 9;
+            while tsq < 64 {
+                masks[sq as usize] |= 1u64 << tsq;
+                tsq += 8;
             }
         }
-        masks
-    };
-    // Black passed pawn masks
-    pub static ref BLACK_PASSED_MASK: [u64; 64] = {
-        let mut masks = [0u64; 64];
-        for sq in 0..64 {
-            let file = FILES_BOARD[sq120(sq) as usize];
+    }
+    masks
+});
+// Black passed pawn masks
+pub static BLACK_PASSED_MASK: LazyLock<[u64; 64]> = LazyLock::new(|| {
+    let mut masks = [0u64; 64];
+    for sq in 0..64 {
+        let file = FILES_BOARD[sq120(sq) as usize];
 
-            // Backward
-            let mut tsq = sq as i32 - 8;
+        // Backward
+        let mut tsq = sq as i32 - 8;
+        while tsq >= 0 {
+            masks[sq as usize] |= 1u64 << tsq;
+            tsq -= 8;
+        }
+
+        // Backward-left
+        if file > Files::FileA as u8 {
+            let mut tsq = sq as i32 - 9;
             while tsq >= 0 {
                 masks[sq as usize] |= 1u64 << tsq;
                 tsq -= 8;
             }
+        }
 
-            // Backward-left
-            if file > Files::FileA as u8 {
-                let mut tsq = sq as i32 - 9;
-                while tsq >= 0 {
-                    masks[sq as usize] |= 1u64 << tsq;
-                    tsq -= 8;
-                }
-            }
-
-            // Backward-right
-            if file < Files::FileH as u8 {
-                let mut tsq = sq as i32 - 7;
-                while tsq >= 0 {
-                    masks[sq as usize] |= 1u64 << tsq;
-                    tsq -= 8;
-                }
+        // Backward-right
+        if file < Files::FileH as u8 {
+            let mut tsq = sq as i32 - 7;
+            while tsq >= 0 {
+                masks[sq as usize] |= 1u64 << tsq;
+                tsq -= 8;
             }
         }
-        masks
-    };
-}
+    }
+    masks
+});

@@ -18,9 +18,8 @@ mod uci;
 mod polybook;
 
 use std::sync::Mutex;
-use defs::{Board, EngineOptions};
-use once_cell::sync::Lazy;
-use polybook::get_book_move;
+use defs::{Board, EngineOptions, ENGINE_OPTIONS};
+use polybook::{get_book_move, POLY_BOOK};
 use uci::uci_loop;
 
 // use std::io as std_io;
@@ -54,11 +53,14 @@ const FEN_POLY7: &str = "rnbq1bnr/ppp1pkpp/8/3pPp2/8/8/PPPPKPPP/RNBQ1BNR w - - 0
 const FEN_POLY8: &str = "rnbqkbnr/p1pppppp/8/8/PpP4P/8/1P1PPPP1/RNBQKBNR b KQkq c3 0 3";
 const FEN_POLY9: &str = "rnbqkbnr/p1pppppp/8/8/P6P/R1p5/1P1PPPP1/1NBQKBNR b Kkq - 0 4";
 
-pub static ENGINE_OPTIONS: Lazy<Mutex<EngineOptions>> = Lazy::new(|| Mutex::new(EngineOptions::default()));
-
+// TODO: Change moves to u32
 fn main() {
-    let mut position = Board::default();
-    get_book_move(&mut position);
+    // let init = ENGINE_OPTIONS.lock().unwrap();
+    // let init: &Vec<polybook::PolyBookEntry> = &*POLY_BOOK;
+    // let init = HASH_TABLE.lock().unwrap();
+    // let test = ENGINE_OPTIONS.lock().unwrap();
+    // let test = HASH_TABLE.lock().unwrap();
+
     uci_loop();
 }
 /*

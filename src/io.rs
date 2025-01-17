@@ -1,10 +1,9 @@
 use crate::{data::{IS_BISHOP_QUEEN, IS_KNIGHT, IS_ROOK_QUEEN}, defs::{Pieces::Empty, fr2sq, from_square, promoted, to_square, Board, MoveList, DEBUG, FILES_BOARD, NO_MOVE, RANKS_BOARD}, movegen::generate_all_moves, validate::square_on_board};
 
 use colored::Colorize;
-use once_cell::sync::Lazy;
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 
-static SQUARE_STRING: Lazy<Mutex<String>> = Lazy::new(|| Mutex::new(String::new()));
+static SQUARE_STRING: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new(String::new()));
 
 pub fn print_square(square: u8) -> String {
     let file = ('a' as u8 + FILES_BOARD[square as usize]) as char;
@@ -19,7 +18,7 @@ pub fn print_square(square: u8) -> String {
     global_square_string.clone()
 }
 
-static MOVE_STRING: Lazy<Mutex<String>> = Lazy::new(|| Mutex::new(String::new()));
+static MOVE_STRING: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new(String::new()));
 
 pub fn print_move(the_move: u64) -> String {
     let file_from = FILES_BOARD[from_square(the_move) as usize];
