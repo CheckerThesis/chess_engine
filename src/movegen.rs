@@ -9,7 +9,7 @@ fn move_gen(board, moveList)
 
 use colored::Colorize;
 
-use crate::{attack::square_attacked, board::check_board, data::{PIECE_CHAR, PIECE_COLOR}, defs::{captured, from_square, to_square, Board, Castling::*, MoveList, Pieces::{self, *}, Ranks::*, Squares::*, DEBUG, FILES_BOARD, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, MVV_LVA_SCORES, RANKS_BOARD}, io::print_square, makemove::{make_move, take_move}, validate::{piece_valid, piece_valid_empty, square_on_board}, BLACK, WHITE};
+use crate::{attack::square_attacked, board::check_board, data::PIECE_COLOR, defs::{captured, from_square, to_square, Board, Castling::*, MoveList, Pieces::*, Ranks::*, Squares::*, BLACK, DEBUG, FILES_BOARD, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, MVV_LVA_SCORES, RANKS_BOARD, WHITE}, makemove::{make_move, take_move}, validate::{piece_valid, piece_valid_empty, square_on_board}};
 
 pub fn move_builder(from: u64, to: u64, capture: u64, promote: u64, flag: u64) -> u64 { from | (to << 7) | (capture << 14) | (promote << 20) | flag }
 
@@ -61,7 +61,7 @@ pub fn add_capture_move(position: &mut Board, the_move: u64, move_list: &mut Mov
     }
 
     move_list.moves[move_list.count].el_move = the_move;
-    // add 1 million so they are above killer moves and history heuristics and pv_moves for move ordering
+    // add 1 million so they are above killer moves (8/900000), history heuristics, pv_moves for move ordering
     move_list.moves[move_list.count].score = MVV_LVA_SCORES[captured(the_move) as usize][position.pieces[from_square(the_move) as usize] as usize] + 1000000;
     move_list.count += 1;
 }
