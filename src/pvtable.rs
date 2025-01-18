@@ -30,6 +30,7 @@ pub fn get_pv_line(depth: u8, position: &mut Board, hash_table: &mut HashTable) 
 pub fn clear_hash_table(hash_table: &mut HashTable) {
     hash_table.pv_table.clear();
     hash_table.new_write = 0;
+    hash_table.current_age = 0;
 }
 
 // checks if table has an entry that matches the current position, if found set the_move equal to the stored move in the hash
@@ -87,16 +88,23 @@ pub fn store_hash_entry(position: &mut Board, hash_table: &mut HashTable, the_mo
     let i = position.position_key as usize % hash_table.pv_table.capacity();
 
     if DEBUG {
-        // if i < 0 || i > position.hash_table.pv_table.capacity() - 1 { eprintln!("{}", "store_hash_entry: [i] out of bounds".red()); }
+        if i > hash_table.pv_table.capacity() - 1 { eprintln!("{}", "store_hash_entry: [i] out of bounds".red()); }
         if depth > MAX_DEPTH as i32 || depth < 1 { eprintln!("{}", "store_hash_entry: [depth] out of bounds".red()); }
-        // if position.ply < 0 || position.ply >= MAX_DEPTH as u8 { eprintln!("{}", "store_hash_entry: [ply] out of bounds".red()); }
+        if position.ply >= MAX_DEPTH as u8 { eprintln!("{}", "store_hash_entry: [ply] out of bounds".red()); }
     }
+
+    let mut replace = false;
 
     if hash_table.pv_table[i].position_key == 0 {
         hash_table.new_write += 1;
+        replace = true;
     } else {
-        hash_table.over_write += 1;
+        if hash_table.pv_table[i].age < hash_table.current_age || hash_table.pv_table[i].depth < depth {
+            replace = true
+        }
     }
+
+    if replace == false { return; }
 
     // reset mate score back to infinite
     if *score > IS_MATE {
@@ -110,6 +118,7 @@ pub fn store_hash_entry(position: &mut Board, hash_table: &mut HashTable, the_mo
     hash_table.pv_table[i].flags = flags;
     hash_table.pv_table[i].score = *score;
     hash_table.pv_table[i].depth = depth;
+    hash_table.pv_table[i].age = hash_table.current_age;
 }
 
 pub fn probe_pv_move(position: &Board, hash_table: &mut HashTable) -> u64 {

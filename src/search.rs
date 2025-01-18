@@ -63,6 +63,7 @@ pub fn clear_for_search(position: &mut Board, info: &mut SearchInfo, hash_table:
     hash_table.hit = 0;
     hash_table.cut = 0;
     position.ply = 0; // half moves for current search
+    hash_table.current_age += 1;
 
     info.stopped = false;
     info.nodes = 0;
