@@ -206,9 +206,7 @@ pub const RANDOM_POLY: [u64; 781] = [
 
 pub const POLY_KIND_OF_PIECE: [i8; 13] = [ -1, 1, 3, 5, 7, 9, 11, 0, 2, 4, 6, 8, 10 ];
 
-#[derive(Default)]
-#[derive(Copy, Clone)]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct PolyBookEntry {
     pub key: u64,
     pub the_move: u16,

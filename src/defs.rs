@@ -2,7 +2,7 @@ use std::{sync::{LazyLock, Mutex}, time::Instant};
 
 use colored::Colorize;
 use rand::{thread_rng, Rng};
-// TODO put derives on same line
+
 pub const BOARD_SQUARE_NUMBER: usize = 120;
 pub const MAX_GAME_MOVES: usize = 2048;
 pub const MAX_POSITION_MOVES: usize = 256;
@@ -95,8 +95,7 @@ pub enum Castling {
     BlackQueenCastle = 8,
 }
 
-#[derive(Default)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Undo {
     pub the_move: u64,
     pub castle_permission: u8,
@@ -105,8 +104,7 @@ pub struct Undo {
     pub position_key: u64,
 }
 
-#[derive(Default)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Move {
     pub el_move: u64,
     pub score: u32,
@@ -125,14 +123,14 @@ impl Default for MoveList {
     }
 }
 
-#[derive(Default)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct HashEntry {
     pub position_key: u64,
     pub the_move: u64,
     pub score: i32,
-    pub flags: u8,
     pub depth: i32,
+    pub flags: u8,
+    pub age: u8,
 }
 
 pub struct HashTable {
@@ -141,6 +139,7 @@ pub struct HashTable {
     pub over_write: u64,
     pub hit: u64,
     pub cut: u64,
+    pub current_age: u8,
 }
 impl Default for HashTable {
     fn default() -> Self {
@@ -150,6 +149,7 @@ impl Default for HashTable {
             over_write: 0,
             hit: 0,
             cut: 0,
+            current_age: 0,
         }
     }
 }

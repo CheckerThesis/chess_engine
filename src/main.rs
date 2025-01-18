@@ -55,12 +55,6 @@ const FEN_POLY9: &str = "rnbqkbnr/p1pppppp/8/8/P6P/R1p5/1P1PPPP1/1NBQKBNR b Kkq 
 
 // TODO: Change moves to u32
 fn main() {
-    // let init = ENGINE_OPTIONS.lock().unwrap();
-    // let init: &Vec<polybook::PolyBookEntry> = &*POLY_BOOK;
-    // let init = HASH_TABLE.lock().unwrap();
-    // let test = ENGINE_OPTIONS.lock().unwrap();
-    // let test = HASH_TABLE.lock().unwrap();
-
     uci_loop();
 }
 /*

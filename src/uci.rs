@@ -1,4 +1,4 @@
-use crate::{board::{parse_fen, print_board}, defs::{Board, HashTable, SearchInfo, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, WHITE}, io::parse_move, makemove::make_move, polybook::{self, POLY_BOOK}, search::search_position, FEN_START};
+use crate::{board::{parse_fen, print_board}, defs::{Board, HashTable, SearchInfo, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, WHITE}, io::parse_move, makemove::make_move, polybook::{self, POLY_BOOK}, pvtable::clear_hash_table, search::search_position, FEN_START};
 use std::{io::{self, BufRead}, time::{Duration, Instant}};
 
 // go depth 6 wtime 1000 btime 1000 binc 1000 winc 1000 movetime 1000 movestogo 40
@@ -146,7 +146,7 @@ pub fn uci_loop() {
             } else if test_i == 2 {
                 user_input = "setoption name Book value false".to_string();
             } else if test_i == 3 {
-                user_input = "go depth 8".to_string();
+                user_input = "go depth 7".to_string();
             } else if test_i == 4 {
                 // user_input = "go depth 3".to_string();
             } else if test_i == 5{
@@ -167,6 +167,7 @@ pub fn uci_loop() {
         } else if user_input.contains("position") {
             parse_position(&user_input, position);
         } else if user_input == "ucinewgame" {
+            clear_hash_table(&mut HASH_TABLE.lock().unwrap());
             parse_position(&"position startpos".to_string(), position);
         } else if user_input.contains("go") {
             // where the global HASH_TABLE gets dropped in
