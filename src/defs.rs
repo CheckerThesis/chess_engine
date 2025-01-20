@@ -1,4 +1,4 @@
-use std::{sync::{LazyLock, Mutex}, time::Instant};
+use std::{sync::{atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU64, AtomicU8, Ordering}, Arc, LazyLock, Mutex, RwLock}, time::Instant};
 
 use colored::Colorize;
 use rand::{thread_rng, Rng};
@@ -20,8 +20,8 @@ pub const INF_BOUND: i32 = 30000;
 pub const IS_MATE: i32 = INF_BOUND - MAX_DEPTH as i32;
 
 // .lock() is specific to mutex, careful with .unwrap() consider using something more robust
-pub static ENGINE_OPTIONS: LazyLock<Mutex<EngineOptions>> = LazyLock::new(|| Mutex::new(EngineOptions::default()));
-pub static HASH_TABLE: LazyLock<Mutex<HashTable>> = LazyLock::new(|| Mutex::new(HashTable::default()));
+pub static ENGINE_OPTIONS: Mutex<EngineOptions> = Mutex::new(EngineOptions { book: false });
+pub static HASH_TABLE: LazyLock<Arc<Mutex<HashTable>>> = LazyLock::new(|| Arc::new(Mutex::new(HashTable::default())));
 
 /*
 A8 B8 C8 D8 E8 F8 G8 H8
@@ -162,6 +162,7 @@ pub enum HashFlag {
     HashFlagExact,
 }
 
+#[derive(Copy, Clone)]
 pub struct Board {
     pub pieces: [u8; BOARD_SQUARE_NUMBER],
     // pawn bitboard
@@ -232,52 +233,98 @@ impl Default for Board {
     }
 }
 
-#[derive(Copy, Clone)]
+// pub struct SearchInfo {
+//     pub start_time: Instant,
+//     pub stop_time: Instant,
+//     pub depth: i32,
+//     pub time_set: bool,
+
+//     pub moves_to_go: u8,
+
+//     pub nodes: u64,
+
+//     pub stopped: bool,
+
+//     // gives an idea of how good move ordering is, should be greater than 90%
+//     pub fail_high: f32, // number of times alpha > beta on the first move
+//     pub fail_high_first: f32, // number of times alpha > beta total
+//     pub null_cut: u32,
+// }
+// impl Default for SearchInfo {
+//     fn default() -> Self {
+//         SearchInfo {
+//             start_time: Instant::now(),
+//             stop_time: Instant::now(),
+//             depth: 0,
+//             time_set: false,
+//             moves_to_go: 0,
+//             nodes: 0,
+//             stopped: false,
+//             fail_high: 0.0,
+//             fail_high_first: 0.0,
+//             null_cut: 0,
+//         }
+//     }
+// }
+
 pub struct SearchInfo {
+    pub depth: AtomicI32,
+    pub time_set: AtomicBool,
+
+    pub moves_to_go: AtomicU8,
+
+    pub nodes: AtomicU64,
+
+    pub stopped: AtomicBool,
+
+    pub null_cut: AtomicU32,
+
+    pub protected: RwLock<ProtectedInfo>,
+}
+pub struct ProtectedInfo {
     pub start_time: Instant,
     pub stop_time: Instant,
-    pub depth: i32,
-    pub time_set: bool,
-
-    pub moves_to_go: u8,
-
-    pub nodes: u64,
-
-    pub quit: bool,
-    pub stopped: bool,
-
-    // gives an idea of how good move ordering is, should be greater than 90%
-    pub fail_high: f32, // number of times alpha > beta on the first move
-    pub fail_high_first: f32, // number of times alpha > beta total
-    pub null_cut: u32,
+    pub fail_high: f32,
+    pub fail_high_first: f32,
 }
-impl Default for SearchInfo {
-    fn default() -> Self {
-        SearchInfo {
-            start_time: Instant::now(),
-            stop_time: Instant::now(),
-            depth: 0,
-            time_set: false,
-            moves_to_go: 0,
-            nodes: 0,
-            quit: false,
-            stopped: false,
-            fail_high: 0.0,
-            fail_high_first: 0.0,
-            null_cut: 0,
+impl SearchInfo {
+    pub fn new() -> Arc<Self> {
+        Arc::new(SearchInfo {
+            depth: AtomicI32::new(0),
+            time_set: AtomicBool::new(false),
+
+            moves_to_go: AtomicU8::new(0),
+
+            nodes: AtomicU64::new(0),
+
+            stopped: AtomicBool::new(false),
+
+            null_cut: AtomicU32::new(0),
+
+            protected: RwLock::new(ProtectedInfo {
+                start_time: Instant::now(),
+                stop_time: Instant::now(),
+                fail_high: 0.0,
+                fail_high_first: 0.0,
+            }),
+        })
+    }
+
+    pub fn check_up(&self) {
+        if let Ok(protected) = self.protected.read() {
+            if self.time_set.load(Ordering::Relaxed) && (Instant::now() >= protected.stop_time) {
+                self.stopped.store(true, Ordering::Relaxed);
+            }
         }
+    }
+
+    pub fn is_stopped(&self) -> bool {
+        self.stopped.load(Ordering::Relaxed)
     }
 }
 
 pub struct EngineOptions {
     pub book: bool,
-}
-impl Default for EngineOptions {
-    fn default() -> Self {
-        EngineOptions {
-            book: false,
-        }
-    }
 }
 
 // small board to big board
