@@ -23,18 +23,10 @@ pub fn pick_next_move(move_number: usize, move_list: &mut MoveList) {
     move_list.moves[best_number] = temp;
 }
 
-//position.history_ply - position.fifty_move as usize
 pub fn is_repetition(position: &Board) -> bool {
     if position.history_ply <= 1 { return false }
 
     let start = position.history_ply.saturating_sub(position.fifty_move as usize);
-
-    // println!(
-    //     "history_ply: {}, fifty_move: {}, start: {}",
-    //     position.history_ply,
-    //     position.fifty_move,
-    //     position.history_ply.saturating_sub(position.fifty_move as usize)
-    // );
 
     for i in start..position.history_ply - 1 {
         if DEBUG && i > MAX_GAME_MOVES { eprintln!("{}", "is_repetition: [i] is greater than MAX_GAME_MOVES ".red()) }
@@ -262,7 +254,7 @@ pub fn search_position(position: &mut Board, info: Arc<SearchInfo>, hash_table: 
 
     if best_move == NO_MOVE {
         // iterative deepening search best move for each depth
-        for current_depth in 0..info.depth.load(Ordering::Relaxed) {                // infinite
+        for current_depth in 0..info.depth.load(Ordering::Relaxed) {
             best_score = alpha_beta(&mut -INF_BOUND, &mut 30000, current_depth + 1, position, &info, hash_table, true);
 
             if info.is_stopped() { break; }
@@ -270,16 +262,20 @@ pub fn search_position(position: &mut Board, info: Arc<SearchInfo>, hash_table: 
             let pv_moves: usize = get_pv_line(current_depth as u8 + 1, position, hash_table);
             best_move = position.pv_array[0];
 
+
             if let Ok(protected) = info.protected.read() {
-                print!("info score cp {} depth {} nodes {} time {}",
-                best_score, current_depth + 1, info.nodes.load(Ordering::Relaxed), protected.start_time.elapsed().as_millis());
+                let nps = if protected.start_time.elapsed().as_secs() == 0 {
+                    info.nodes.load(Ordering::Relaxed)
+                } else {
+                    info.nodes.load(Ordering::Relaxed) / protected.start_time.elapsed().as_secs()
+                };
+                print!("info score cp {} depth {} nodes {} time {} nps {}",
+                best_score, current_depth + 1, info.nodes.load(Ordering::Relaxed), protected.start_time.elapsed().as_millis(), nps);
             }
 
             print!(" pv");
             for pv_number in 0..pv_moves { print!(" {}", print_move(position.pv_array[pv_number])); }
             println!();
-
-            // println!("Ordering: {}", info.fail_high_first/info.fail_high);
         }
     }
 

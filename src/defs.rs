@@ -233,40 +233,6 @@ impl Default for Board {
     }
 }
 
-// pub struct SearchInfo {
-//     pub start_time: Instant,
-//     pub stop_time: Instant,
-//     pub depth: i32,
-//     pub time_set: bool,
-
-//     pub moves_to_go: u8,
-
-//     pub nodes: u64,
-
-//     pub stopped: bool,
-
-//     // gives an idea of how good move ordering is, should be greater than 90%
-//     pub fail_high: f32, // number of times alpha > beta on the first move
-//     pub fail_high_first: f32, // number of times alpha > beta total
-//     pub null_cut: u32,
-// }
-// impl Default for SearchInfo {
-//     fn default() -> Self {
-//         SearchInfo {
-//             start_time: Instant::now(),
-//             stop_time: Instant::now(),
-//             depth: 0,
-//             time_set: false,
-//             moves_to_go: 0,
-//             nodes: 0,
-//             stopped: false,
-//             fail_high: 0.0,
-//             fail_high_first: 0.0,
-//             null_cut: 0,
-//         }
-//     }
-// }
-
 pub struct SearchInfo {
     pub depth: AtomicI32,
     pub time_set: AtomicBool,

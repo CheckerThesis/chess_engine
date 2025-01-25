@@ -215,13 +215,12 @@ pub struct PolyBookEntry {
 }
 
 pub static POLY_BOOK: LazyLock<Vec<PolyBookEntry>> = LazyLock::new(|| {
-    let contents = fs::read("performance.bin").expect("Should have been able to read file");
-    let length = contents.len();
+    const CONTENTS: &[u8] = include_bytes!("performance.bin");
+    let length = CONTENTS.len();
     let entry_size = size_of::<PolyBookEntry>();
     let number_entries = length / entry_size;
-    // println!("{} entries found", number_entries);
 
-    if contents.len() % entry_size != 0 { eprintln!("{}", "Warning: File size is not a multiple of PolyBookEntry size. Some data will be truncated.".red()); }
+    if CONTENTS.len() % entry_size != 0 { eprintln!("{}", "polybook init: entries not of proper size".red()); }
 
     let mut poly_book: Vec<PolyBookEntry> = Vec::with_capacity(length / entry_size);
 
@@ -231,7 +230,7 @@ pub static POLY_BOOK: LazyLock<Vec<PolyBookEntry>> = LazyLock::new(|| {
 
         if end > length { break; }
 
-        let entry_bytes: &[u8] = &contents[start..end];
+        let entry_bytes: &[u8] = &CONTENTS[start..end];
 
         let entry = PolyBookEntry {
             key: u64::from_le_bytes(entry_bytes[0..8].try_into().unwrap()),
@@ -274,7 +273,6 @@ pub fn has_pawn_for_capture(position: &mut Board) -> bool {
     false
 }
 
-
 pub fn polykey_from_board(position: &mut Board) -> u64 {
     let mut final_key = 0;
 
@@ -310,7 +308,6 @@ pub fn polykey_from_board(position: &mut Board) -> u64 {
 }
 
 pub fn convert_poly_move(poly_move: u16, position: &mut Board) -> u64 {
-
     let from_file = (poly_move >> 6) & 7;
     let from_rank = (poly_move >> 9) & 7;
     let to_file = (poly_move >> 0) & 7;
@@ -344,7 +341,6 @@ pub fn convert_poly_move(poly_move: u16, position: &mut Board) -> u64 {
 
 pub fn get_book_move(position: &mut Board) -> u64 {
     let poly_key = polykey_from_board(position);
-    // println!("polykey: {:016X}", poly_key);
 
     let mut count = 0;
     let mut book_moves: [u32; 32] = [0; 32];
@@ -370,9 +366,4 @@ pub fn get_book_move(position: &mut Board) -> u64 {
     } else {
         NO_MOVE
     }
-
-    // println!("Listing book moves: ");
-    // for i in 0..count {
-    //     println!("BookMove: {}   {}", i + 1, print_move(book_moves[i] as u64));
-    // }
 }

@@ -16,7 +16,6 @@ pub fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) {
     let mut infinite = false;
 
     info.time_set.store(false, Ordering::Relaxed);
-    // info.stopped = false;
 
     while i < tokens.len() {
         match tokens[i] {
@@ -67,7 +66,6 @@ pub fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) {
     if let Ok(mut protected) = info.protected.write() {
         if infinite {
             info.time_set.store(false, Ordering::Relaxed);
-            // info.stop_time = Instant::now() + Duration::from_secs(u64::MAX);
         } else {
             if let Some(_m) = move_time {
                 time = move_time;
@@ -93,7 +91,6 @@ pub fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) {
 
         println!("time: {:?}    start: {:?}    stop: {:?}    depth: {}\ntimeset: {}    info.stopped: {}",
         time, protected.start_time, protected.stop_time, info.depth.load(Ordering::Relaxed), info.time_set.load(Ordering::Relaxed), info.stopped.load(Ordering::Relaxed));
-
     }
 
     let mut position_clone = position.clone();
@@ -101,89 +98,12 @@ pub fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) {
     let table = Arc::clone(&HASH_TABLE);
 
     thread::spawn(move || {
-        // println!("thread spawned");
-
         if let Ok(mut hash_table) = table.lock() {
             search_position(&mut position_clone, search_info, &mut hash_table);
         } else {
             eprintln!("{}", "parse_go: failed to acquire lock on HASH_TABLE".red());
         }
     });
-}
-
-pub fn uci_loop() {
-    let name = "Vault";
-    let z = true;
-
-    let mut user_input = String::new();
-    println!("id name {}", name.to_string());
-    println!("id author Tein Cow");
-    println!("uciok");
-
-    let position: &mut Board = &mut Board::default();
-    let info = SearchInfo::new();
-
-    let mut test_i = 0;
-
-    loop {
-        user_input.clear();
-
-        if z {
-            test_i += 1;
-            if test_i == 1 {
-                // user_input = "position startpos".to_string();
-                user_input = "position fen r3kb1r/3n1pp1/p6p/2pPp2q/Pp2N3/3B2PP/1PQ2P2/R3K2R w KQkq - 0 1".to_string();
-            } else if test_i == 2 {
-                user_input = "setoption name Book value false".to_string();
-            } else if test_i == 3 {
-                user_input = "go depth 8".to_string();
-            } else if test_i == 4 {
-                // user_input = "go movetime 10000".to_string();
-            } else if test_i == 5{
-                // user_input = "go depth 9".to_string();
-            } else {
-                io::stdin().lock().read_line(&mut user_input).unwrap();
-            }
-        } else {
-            io::stdin().lock().read_line(&mut user_input).unwrap();
-        }
-        user_input = user_input.trim().to_string();
-
-        if user_input == "" { continue; }
-
-        if user_input == "isready" {
-            println!("readyok");
-            continue;
-
-        } else if user_input.contains("position") {
-            parse_position(&user_input, position);
-
-        } else if user_input == "ucinewgame" {
-            clear_hash_table(&mut HASH_TABLE.lock().unwrap());
-            parse_position(&"position startpos".to_string(), position);
-
-        } else if user_input.contains("go") {
-            // where the global HASH_TABLE gets dropped in
-            parse_go(&user_input, Arc::clone(&info), position);
-
-        } else if user_input == "stop" {
-            info.stopped.store(true, Ordering::Relaxed);
-        } else if user_input == "quit" {
-            break;
-
-        } else if user_input == "uci" {
-            println!("id name {}", name.to_string());
-            println!("id author Tien Cow");
-            println!("uciok");
-
-        } else if user_input.contains("setoption name Book value ") {
-            if user_input.contains("true") {
-                ENGINE_OPTIONS.lock().unwrap().book = true;
-            } else {
-                ENGINE_OPTIONS.lock().unwrap().book = false;
-            }
-        }
-    }
 }
 
 // position fen fenstr
@@ -212,4 +132,76 @@ pub fn parse_position(input: &String, position: &mut Board) {
     }
 
     print_board(position);
+}
+
+pub fn uci_loop() {
+    let name = "Vault";
+    let mut testing = false;
+
+    let mut user_input = String::new();
+    println!("id name {}", name.to_string());
+    println!("id author Tein Cow");
+    println!("uciok");
+
+    let position: &mut Board = &mut Board::default();
+    let info = SearchInfo::new();
+
+    let mut i = 0;
+
+    loop {
+        user_input.clear();
+
+        if testing {
+            i += 1;
+            if i == 1 {
+                user_input = "position startpos".to_string();
+                // user_input = "position fen r3kb1r/3n1pp1/p6p/2pPp2q/Pp2N3/3B2PP/1PQ2P2/R3K2R w KQkq - 0 1".to_string();
+            } else if i == 2 {
+                user_input = "setoption name Book value false".to_string();
+            } else if i == 3 {
+                user_input = "go depth 8".to_string();
+            } else {
+                io::stdin().lock().read_line(&mut user_input).unwrap();
+            }
+        } else {
+            io::stdin().lock().read_line(&mut user_input).unwrap();
+        }
+        user_input = user_input.trim().to_string();
+
+        if user_input == "" { continue; }
+
+        if user_input == "isready" {
+            println!("readyok");
+            continue;
+
+        } else if user_input.contains("position") {
+            parse_position(&user_input, position);
+
+        } else if user_input == "ucinewgame" {
+            clear_hash_table(&mut HASH_TABLE.lock().unwrap());
+            parse_position(&"position startpos".to_string(), position);
+
+        } else if user_input.contains("go") {
+            parse_go(&user_input, Arc::clone(&info), position);
+
+        } else if user_input == "stop" {
+            info.stopped.store(true, Ordering::Relaxed);
+        } else if user_input == "quit" {
+            break;
+
+        } else if user_input == "uci" {
+            println!("id name {}", name.to_string());
+            println!("id author Tien Cow");
+            println!("uciok");
+
+        } else if user_input.contains("setoption name Book value ") {
+            if user_input.contains("true") {
+                ENGINE_OPTIONS.lock().unwrap().book = true;
+            } else {
+                ENGINE_OPTIONS.lock().unwrap().book = false;
+            }
+        } else if user_input == "testing" {
+            testing = true;
+        }
+    }
 }

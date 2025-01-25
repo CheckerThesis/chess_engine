@@ -255,8 +255,6 @@ pub fn parse_fen(fen: &str, position: &mut Board) {
 
     if z == 1 { eprintln!("{}", "parse_fen: invalid castling permission".red()); }
 
-
-
     if fen_split[3] != "-" {
         // .chars() converts String into char iterator
         // .next() gets the next (first in this case) element in the char iterator
