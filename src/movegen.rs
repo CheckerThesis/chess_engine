@@ -11,9 +11,9 @@ use colored::Colorize;
 
 use crate::{attack::square_attacked, board::check_board, data::PIECE_COLOR, defs::{captured, from_square, to_square, Board, Castling::*, MoveList, Pieces::*, Ranks::*, Squares::*, BLACK, DEBUG, FILES_BOARD, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, MVV_LVA_SCORES, RANKS_BOARD, WHITE}, makemove::{make_move, take_move}, validate::{piece_valid, piece_valid_empty, square_on_board}};
 
-pub fn move_builder(from: u64, to: u64, capture: u64, promote: u64, flag: u64) -> u64 { from | (to << 7) | (capture << 14) | (promote << 20) | flag }
+pub fn move_builder(from: u32, to: u32, capture: u32, promote: u32, flag: u32) -> u32 { from | (to << 7) | (capture << 14) | (promote << 20) | flag }
 
-pub fn move_exists(position: &mut Board, the_move: u64) -> bool {
+pub fn move_exists(position: &mut Board, the_move: u32) -> bool {
     let move_list = &mut MoveList::default();
     generate_all_moves(position, move_list);
 
@@ -33,7 +33,7 @@ pub fn move_exists(position: &mut Board, the_move: u64) -> bool {
 }
 
 // add move to array and increment
-pub fn add_quiet_move(position: &mut Board, the_move: u64, move_list: &mut MoveList) {
+pub fn add_quiet_move(position: &mut Board, the_move: u32, move_list: &mut MoveList) {
     if DEBUG {
         if !square_on_board(from_square(the_move) as usize) { eprintln!("{}", "add_quiet_move: [from] square not on board".red()); }
         if !square_on_board(to_square(the_move) as usize) { eprintln!("{}", "add_quiet_move: [to] square not on board".red()); }
@@ -53,7 +53,7 @@ pub fn add_quiet_move(position: &mut Board, the_move: u64, move_list: &mut MoveL
     move_list.count += 1;
 }
 
-pub fn add_capture_move(position: &mut Board, the_move: u64, move_list: &mut MoveList) {
+pub fn add_capture_move(position: &mut Board, the_move: u32, move_list: &mut MoveList) {
     if DEBUG {
         if !piece_valid_empty(captured(the_move) as usize) { eprintln!("{}", "add_capture_move: [capture] piece isn't empty or a piece".red()); }
         if !square_on_board(from_square(the_move) as usize) { eprintln!("{}", "add_capture_move: [from] square not on board".red()); }
@@ -66,7 +66,7 @@ pub fn add_capture_move(position: &mut Board, the_move: u64, move_list: &mut Mov
     move_list.count += 1;
 }
 
-pub fn add_en_passent_move(_position: &mut Board, the_move: u64, move_list: &mut MoveList) {
+pub fn add_en_passent_move(_position: &mut Board, the_move: u32, move_list: &mut MoveList) {
     if DEBUG {
         if !piece_valid_empty(captured(the_move) as usize) { eprintln!("{}", "add_en_passent_move: [capture] piece isn't empty or a piece".red()); }
         if !square_on_board(from_square(the_move) as usize) { eprintln!("{}", "add_en_passent_move: [from] square not on board".red()); }
@@ -88,12 +88,12 @@ pub fn add_white_pawn_capture_move(position: &mut Board, from: usize, to: usize,
 
     // if able to promote on capture
     if RANKS_BOARD[from as usize] == Rank7 as u8 {
-        add_capture_move(position, move_builder(from as u64, to as u64, capture as u64, WhiteQueen as u64, 0), move_list);
-        add_capture_move(position, move_builder(from as u64, to as u64, capture as u64, WhiteRook as u64, 0), move_list);
-        add_capture_move(position, move_builder(from as u64, to as u64, capture as u64, WhiteBishop as u64, 0), move_list);
-        add_capture_move(position, move_builder(from as u64, to as u64, capture as u64, WhiteKnight as u64, 0), move_list);
+        add_capture_move(position, move_builder(from as u32, to as u32, capture as u32, WhiteQueen as u32, 0), move_list);
+        add_capture_move(position, move_builder(from as u32, to as u32, capture as u32, WhiteRook as u32, 0), move_list);
+        add_capture_move(position, move_builder(from as u32, to as u32, capture as u32, WhiteBishop as u32, 0), move_list);
+        add_capture_move(position, move_builder(from as u32, to as u32, capture as u32, WhiteKnight as u32, 0), move_list);
     } else {
-        add_capture_move(position, move_builder(from as u64, to as u64, capture as u64, Empty as u64, 0), move_list);
+        add_capture_move(position, move_builder(from as u32, to as u32, capture as u32, Empty as u32, 0), move_list);
     }
 }
 pub fn add_white_pawn_move(position: &mut Board, from: usize, to: usize, move_list: &mut MoveList) {
@@ -104,12 +104,12 @@ pub fn add_white_pawn_move(position: &mut Board, from: usize, to: usize, move_li
 
     // if WhitePawn is on Rank7, it will promote on capture
     if RANKS_BOARD[from as usize] == Rank7 as u8 {
-        add_quiet_move(position, move_builder(from as u64, to as u64, Empty as u64, WhiteQueen as u64, 0), move_list);
-        add_quiet_move(position, move_builder(from as u64, to as u64, Empty as u64, WhiteRook as u64, 0), move_list);
-        add_quiet_move(position, move_builder(from as u64, to as u64, Empty as u64, WhiteBishop as u64, 0), move_list);
-        add_quiet_move(position, move_builder(from as u64, to as u64, Empty as u64, WhiteKnight as u64, 0), move_list);
+        add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, WhiteQueen as u32, 0), move_list);
+        add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, WhiteRook as u32, 0), move_list);
+        add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, WhiteBishop as u32, 0), move_list);
+        add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, WhiteKnight as u32, 0), move_list);
     } else {
-        add_capture_move(position, move_builder(from as u64, to as u64, Empty as u64, Empty as u64, 0), move_list);
+        add_capture_move(position, move_builder(from as u32, to as u32, Empty as u32, Empty as u32, 0), move_list);
     }
 }
 
@@ -122,12 +122,12 @@ pub fn add_black_pawn_capture_move(position: &mut Board, from: usize, to: usize,
 
     // if able to promote on capture
     if RANKS_BOARD[from as usize] == Rank2 as u8 {
-        add_capture_move(position, move_builder(from as u64, to as u64, capture as u64, BlackQueen as u64, 0), move_list);
-        add_capture_move(position, move_builder(from as u64, to as u64, capture as u64, BlackRook as u64, 0), move_list);
-        add_capture_move(position, move_builder(from as u64, to as u64, capture as u64, BlackBishop as u64, 0), move_list);
-        add_capture_move(position, move_builder(from as u64, to as u64, capture as u64, BlackKnight as u64, 0), move_list);
+        add_capture_move(position, move_builder(from as u32, to as u32, capture as u32, BlackQueen as u32, 0), move_list);
+        add_capture_move(position, move_builder(from as u32, to as u32, capture as u32, BlackRook as u32, 0), move_list);
+        add_capture_move(position, move_builder(from as u32, to as u32, capture as u32, BlackBishop as u32, 0), move_list);
+        add_capture_move(position, move_builder(from as u32, to as u32, capture as u32, BlackKnight as u32, 0), move_list);
     } else {
-        add_capture_move(position, move_builder(from as u64, to as u64, capture as u64, Empty as u64, 0), move_list);
+        add_capture_move(position, move_builder(from as u32, to as u32, capture as u32, Empty as u32, 0), move_list);
     }
 }
 pub fn add_black_pawn_move(position: &mut Board, from: usize, to: usize, move_list: &mut MoveList) {
@@ -138,12 +138,12 @@ pub fn add_black_pawn_move(position: &mut Board, from: usize, to: usize, move_li
 
     // if BlackPawn is on Rank2, it will promote on capture
     if RANKS_BOARD[from as usize] == Rank2 as u8 {
-        add_quiet_move(position, move_builder(from as u64, to as u64, Empty as u64, BlackQueen as u64, 0), move_list);
-        add_quiet_move(position, move_builder(from as u64, to as u64, Empty as u64, BlackRook as u64, 0), move_list);
-        add_quiet_move(position, move_builder(from as u64, to as u64, Empty as u64, BlackBishop as u64, 0), move_list);
-        add_quiet_move(position, move_builder(from as u64, to as u64, Empty as u64, BlackKnight as u64, 0), move_list);
+        add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, BlackQueen as u32, 0), move_list);
+        add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, BlackRook as u32, 0), move_list);
+        add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, BlackBishop as u32, 0), move_list);
+        add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, BlackKnight as u32, 0), move_list);
     } else {
-        add_capture_move(position, move_builder(from as u64, to as u64, Empty as u64, Empty as u64, 0), move_list);
+        add_capture_move(position, move_builder(from as u32, to as u32, Empty as u32, Empty as u32, 0), move_list);
     }
 }
 
@@ -168,10 +168,10 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
                 // if 2 squares in front is empty
                 if RANKS_BOARD[square] == Rank2 as u8 && position.pieces[square + 20] == Empty as u8 {
                     add_quiet_move(position, move_builder(
-                        square as u64,
-                        (square + 20) as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        square as u32,
+                        (square + 20) as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_PAWN_START),
                         move_list
                     );
@@ -192,18 +192,18 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
             if position.en_passent != NoSq as u8 {
                 if square + 9 == position.en_passent as usize {
                     add_en_passent_move(position, move_builder(
-                        square as u64, (square + 9) as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        square as u32, (square + 9) as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_EN_PASSENT),
                         move_list
                     );
                 }
                 if square + 11 == position.en_passent as usize {
                     add_en_passent_move(position, move_builder(
-                        square as u64, (square + 11) as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        square as u32, (square + 11) as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_EN_PASSENT),
                         move_list
                     );
@@ -222,10 +222,10 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
                 !square_attacked(F1 as usize, BLACK, position) {
                     // println!("White king castle");
                     add_quiet_move(position, move_builder(
-                        E1 as u64,
-                        G1 as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        E1 as u32,
+                        G1 as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_CASTLE),
                         move_list
                     );
@@ -242,10 +242,10 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
                 !square_attacked(D1 as usize, BLACK, position) {
                     // println!("White queen castle");
                     add_quiet_move(position, move_builder(
-                        E1 as u64,
-                        C1 as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        E1 as u32,
+                        C1 as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_CASTLE),
                         move_list
                     );
@@ -266,10 +266,10 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
                 // if 2 squares in front is empty
                 if RANKS_BOARD[square] == Rank7 as u8 && position.pieces[square - 20] == Empty as u8 {
                     add_quiet_move(position, move_builder(
-                        square as u64,
-                        (square - 20) as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        square as u32,
+                        (square - 20) as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_PAWN_START),
                         move_list
                     );
@@ -289,18 +289,18 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
             if position.en_passent != NoSq as u8 {
                 if square - 9 == position.en_passent as usize {
                     add_en_passent_move(position, move_builder(
-                        square as u64, (square - 9) as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        square as u32, (square - 9) as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_EN_PASSENT),
                         move_list
                     );
                 }
                 if square - 11 == position.en_passent as usize {
                     add_en_passent_move(position, move_builder(
-                        square as u64, (square - 11) as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        square as u32, (square - 11) as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_EN_PASSENT),
                         move_list
                     );
@@ -319,10 +319,10 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
                 !square_attacked(F8 as usize, WHITE, position) {
                     // println!("Black king castle");
                     add_quiet_move(position, move_builder(
-                        E8 as u64,
-                        G8 as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        E8 as u32,
+                        G8 as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_CASTLE),
                         move_list
                     );
@@ -338,10 +338,10 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
                 !square_attacked(D8 as usize, WHITE, position) {
                     // println!("Black queen castle");
                     add_quiet_move(position, move_builder(
-                        E8 as u64,
-                        C8 as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        E8 as u32,
+                        C8 as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_CASTLE),
                         move_list
                     );
@@ -401,10 +401,10 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
                         if PIECE_COLOR[position.pieces[target_square as usize] as usize] == side ^ 1 {
                             // println!("  Capture on {}", print_square(target_square as u8));
                             add_capture_move(position, move_builder(
-                                square as u64,
-                                target_square as u64,
-                                position.pieces[target_square as usize] as u64,
-                                Empty as u64,
+                                square as u32,
+                                target_square as u32,
+                                position.pieces[target_square as usize] as u32,
+                                Empty as u32,
                                 0
                             ),
                             move_list);
@@ -414,10 +414,10 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
 
                     // println!("  Normal move on {}", print_square(target_square as u8));
                     add_quiet_move(position, move_builder(
-                        square as u64,
-                        target_square as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        square as u32,
+                        target_square as u32,
+                        Empty as u32,
+                        Empty as u32,
                         0
                     ),
                     move_list);
@@ -464,10 +464,10 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
                     if PIECE_COLOR[position.pieces[target_square] as usize] == side ^ 1 {
                         // println!("  Capture on {}", print_square(target_square as u8));
                         add_capture_move(position, move_builder(
-                            square as u64,
-                            target_square as u64,
-                            position.pieces[target_square as usize] as u64,
-                            Empty as u64,
+                            square as u32,
+                            target_square as u32,
+                            position.pieces[target_square as usize] as u32,
+                            Empty as u32,
                             0
                         ),
                         move_list);
@@ -477,10 +477,10 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
 
                 // println!("  Normal move on {}", print_square(target_square as u8));
                 add_quiet_move(position, move_builder(
-                    square as u64,
-                    target_square as u64,
-                    Empty as u64,
-                    Empty as u64,
+                    square as u32,
+                    target_square as u32,
+                    Empty as u32,
+                    Empty as u32,
                     0
                 ),
                 move_list);
@@ -519,18 +519,18 @@ pub fn generate_all_capture_moves(position: &mut Board, move_list: &mut MoveList
             if position.en_passent != NoSq as u8 {
                 if square + 9 == position.en_passent as usize {
                     add_en_passent_move(position, move_builder(
-                        square as u64, (square + 9) as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        square as u32, (square + 9) as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_EN_PASSENT),
                         move_list
                     );
                 }
                 if square + 11 == position.en_passent as usize {
                     add_en_passent_move(position, move_builder(
-                        square as u64, (square + 11) as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        square as u32, (square + 11) as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_EN_PASSENT),
                         move_list
                     );
@@ -556,18 +556,18 @@ pub fn generate_all_capture_moves(position: &mut Board, move_list: &mut MoveList
             if position.en_passent != NoSq as u8 {
                 if square - 9 == position.en_passent as usize {
                     add_en_passent_move(position, move_builder(
-                        square as u64, (square - 9) as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        square as u32, (square - 9) as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_EN_PASSENT),
                         move_list
                     );
                 }
                 if square - 11 == position.en_passent as usize {
                     add_en_passent_move(position, move_builder(
-                        square as u64, (square - 11) as u64,
-                        Empty as u64,
-                        Empty as u64,
+                        square as u32, (square - 11) as u32,
+                        Empty as u32,
+                        Empty as u32,
                         MOVE_FLAG_EN_PASSENT),
                         move_list
                     );
@@ -627,10 +627,10 @@ pub fn generate_all_capture_moves(position: &mut Board, move_list: &mut MoveList
                         if PIECE_COLOR[position.pieces[target_square as usize] as usize] == side ^ 1 {
                             // println!("  Capture on {}", print_square(target_square as u8));
                             add_capture_move(position, move_builder(
-                                square as u64,
-                                target_square as u64,
-                                position.pieces[target_square as usize] as u64,
-                                Empty as u64,
+                                square as u32,
+                                target_square as u32,
+                                position.pieces[target_square as usize] as u32,
+                                Empty as u32,
                                 0
                             ),
                             move_list);
@@ -679,10 +679,10 @@ pub fn generate_all_capture_moves(position: &mut Board, move_list: &mut MoveList
                     if PIECE_COLOR[position.pieces[target_square] as usize] == side ^ 1 {
                         // println!("  Capture on {}", print_square(target_square as u8));
                         add_capture_move(position, move_builder(
-                            square as u64,
-                            target_square as u64,
-                            position.pieces[target_square as usize] as u64,
-                            Empty as u64,
+                            square as u32,
+                            target_square as u32,
+                            position.pieces[target_square as usize] as u32,
+                            Empty as u32,
                             0
                         ),
                         move_list);

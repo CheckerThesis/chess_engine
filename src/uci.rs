@@ -1,7 +1,7 @@
 use colored::Colorize;
 
-use crate::{board::{parse_fen, print_board}, defs::{Board, HashTable, SearchInfo, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, WHITE}, io::parse_move, makemove::make_move, polybook::{self, POLY_BOOK}, pvtable::clear_hash_table, search::search_position, FEN_START};
-use std::{io::{self, BufRead}, sync::{atomic::Ordering, Arc, LazyLock, Mutex}, thread, time::{Duration, Instant}};
+use crate::{board::{parse_fen, print_board}, defs::{Board, SearchInfo, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, WHITE}, io::parse_move, makemove::make_move, perft::perft_test, pvtable::clear_hash_table, search::search_position, FEN_START};
+use std::{io::{self, BufRead}, sync::{atomic::Ordering, Arc}, thread, time::{Duration, Instant}};
 
 // go depth 6 wtime 1000 btime 1000 binc 1000 winc 1000 movetime 1000 movestogo 40
 pub fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) {
@@ -120,7 +120,7 @@ pub fn parse_position(input: &String, position: &mut Board) {
     }
 
     if !(moves_index == input.len()) {
-        let mut the_move: u64;
+        let mut the_move;
         let moves = &input[moves_index + 6..];
         let moves_split: Vec<&str> = moves.split_whitespace().collect();
 
@@ -202,6 +202,9 @@ pub fn uci_loop() {
             }
         } else if user_input == "testing" {
             testing = true;
+        } else if user_input.contains("perft") {
+            let depth: Vec<&str> = user_input.split_whitespace().collect();
+            perft_test(depth[1].parse::<u8>().expect(""), position);
         }
     }
 }

@@ -1,8 +1,8 @@
-use std::{sync::{atomic::Ordering, Arc, LazyLock, Mutex}, time::Instant};
+use std::sync::{atomic::Ordering, Arc};
 
 use colored::Colorize;
 
-use crate::{attack::square_attacked, board::check_board, defs::{from_square, to_square, Board, HashFlag::*, HashTable, MoveList, SearchInfo, BOARD_SQUARE_NUMBER, DEBUG, ENGINE_OPTIONS, INF_BOUND, IS_MATE, MAX_DEPTH, MAX_GAME_MOVES, MOVE_FLAG_CAPTURE, NO_MOVE}, evaluate::evaluate_position, io::print_move, makemove::{make_move, make_null_move, take_move, take_null_move}, movegen::{generate_all_capture_moves, generate_all_moves}, polybook::{self, get_book_move, POLY_BOOK}, pvtable::{get_pv_line, probe_hash_table, store_hash_entry}};
+use crate::{attack::square_attacked, board::check_board, defs::{from_square, to_square, Board, HashFlag::*, HashTable, MoveList, SearchInfo, BOARD_SQUARE_NUMBER, DEBUG, ENGINE_OPTIONS, INF_BOUND, IS_MATE, MAX_DEPTH, MAX_GAME_MOVES, MOVE_FLAG_CAPTURE, NO_MOVE}, evaluate::evaluate_position, io::print_move, makemove::{make_move, make_null_move, take_move, take_null_move}, movegen::{generate_all_capture_moves, generate_all_moves}, polybook::get_book_move, pvtable::{get_pv_line, probe_hash_table, store_hash_entry}};
 
 // check if time up, or interrupt from GUI
 
@@ -139,7 +139,7 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
     if in_check { depth += 1; } // because if one check, likely a sequence of checks into mate, with this
 
     let mut score: i32 = -INF_BOUND;
-    let mut pv_move: u64 = NO_MOVE;
+    let mut pv_move = NO_MOVE;
     let mut legal = 0;
     let mut internal_alpha = *alpha;
     let mut best_move = NO_MOVE;
@@ -226,7 +226,7 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
 
     // if we've made 0 legal moves
     if legal == 0 {
-        // king_sq attacked by opposite side, and we have no legal moves, we've been checkmated
+        // king_sq attacked by opposite side, and no legal moves then found checkmate
         if in_check {
             return -IS_MATE + position.ply as i32;
         } else {

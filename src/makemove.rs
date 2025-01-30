@@ -163,7 +163,7 @@ pub fn move_piece(from: u8, to: u8, position: &mut Board) {
     }
 }
 
-pub fn make_move(position: &mut Board, the_move: u64) -> bool {
+pub fn make_move(position: &mut Board, the_move: u32) -> bool {
     if DEBUG { check_board(position); }
 
     let from = from_square(the_move);
@@ -190,13 +190,13 @@ pub fn make_move(position: &mut Board, the_move: u64) -> bool {
         }
     // if castle
     } else if the_move & MOVE_FLAG_CASTLE != 0 {
-        if to == C1 as u64 {
+        if to == C1 as u8 {
             move_piece(A1 as u8, D1 as u8, position);
-        } else if to == C8 as u64 {
+        } else if to == C8 as u8 {
             move_piece(A8 as u8, D8 as u8, position);
-        } else if to == G1 as u64 {
+        } else if to == G1 as u8 {
             move_piece(H1 as u8, F1 as u8, position);
-        } else if to == G8 as u64 {
+        } else if to == G8 as u8 {
             move_piece(H8 as u8, F8 as u8, position);
         } else {
             eprintln!("{}", "make_move: castle problem".red());
@@ -222,7 +222,7 @@ pub fn make_move(position: &mut Board, the_move: u64) -> bool {
     position.fifty_move += 1;
 
     let captured = captured(the_move);
-    if captured != Empty as u64 {
+    if captured != Empty as u8 {
         if DEBUG && !piece_valid(captured as usize) { eprintln!("make_move: [captured] piece not valid"); }
 
         clear_piece(to as usize, position);
@@ -251,7 +251,7 @@ pub fn make_move(position: &mut Board, the_move: u64) -> bool {
 
     // promotion
     let promote_piece = promoted(the_move);
-    if promote_piece != Empty as u64 {
+    if promote_piece != Empty as u8 {
         if DEBUG && !piece_valid(promote_piece as usize) { eprintln!("{}", "make_move: [promote_piece] piece not valid".red()); }
         clear_piece(to as usize, position);
         add_piece(to as usize, position, promote_piece as usize);
@@ -280,8 +280,8 @@ pub fn take_move(position: &mut Board) {
     position.ply -= 1;
 
     let the_move = position.history[position.history_ply].the_move;
-    let from = from_square(the_move as u64);
-    let to = to_square(the_move as u64);
+    let from = from_square(the_move);
+    let to = to_square(the_move);
 
     if DEBUG {
         if !square_on_board(from as usize) { eprintln!("{}", "take_move: [from] square not on board".red()); }
@@ -313,13 +313,13 @@ pub fn take_move(position: &mut Board) {
         }
     // if castle
     } else if the_move & MOVE_FLAG_CASTLE != 0 {
-        if to == C1 as u64 {
+        if to == C1 as u8 {
             move_piece(D1 as u8, A1 as u8, position);
-        } else if to == C8 as u64 {
+        } else if to == C8 as u8 {
             move_piece(D8 as u8, A8 as u8, position);
-        } else if to == G1 as u64 {
+        } else if to == G1 as u8 {
             move_piece(F1 as u8, H1 as u8, position);
-        } else if to == G8 as u64 {
+        } else if to == G8 as u8 {
             move_piece(F8 as u8, H8 as u8, position);
         } else {
             eprintln!("{}", "take_move: castle problem".red());
@@ -332,7 +332,7 @@ pub fn take_move(position: &mut Board) {
     if IS_KING[position.pieces[from as usize] as usize] { position.king_square[position.side as usize] = from as u8; }
 
     let captured = captured(the_move);
-    if captured != Empty as u64 {
+    if captured != Empty as u8 {
         if DEBUG && !piece_valid(captured as usize) { eprintln!("take_move: [captured] piece not valid"); }
         add_piece(to as usize, position, captured as usize);
     }
@@ -345,7 +345,7 @@ pub fn take_move(position: &mut Board) {
     } else {
         pawn_type = BlackPawn as u8;
     }
-    if promote_piece != Empty as u64 {
+    if promote_piece != Empty as u8 {
         if DEBUG && !piece_valid(promote_piece as usize) && !IS_PAWN[promote_piece as usize] { eprintln!("{}", "take_move: [promote_piece] piece not valid".red()); }
         clear_piece(from as usize, position);
         add_piece(from as usize, position, pawn_type as usize);

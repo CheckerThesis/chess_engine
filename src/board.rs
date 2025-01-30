@@ -192,7 +192,6 @@ pub fn parse_fen(fen: &str, position: &mut Board) {
         ('B', WhiteBishop), ('K', WhiteKing), ('Q', WhiteQueen),
     ]);
 
-    // vector is a linkedlist but back-to-back (essentially an expandable array)
     let fen_split: Vec<&str> = fen.split_whitespace().collect();
     if fen_split.len() < 4 {
         eprintln!("{}", "parse_fen: FEN string is invalid".red());
@@ -262,7 +261,7 @@ pub fn parse_fen(fen: &str, position: &mut Board) {
         // subtracts result (lowercase letter a-h) by ascii 'a' (97)
         let file = fen_split[3].chars().next().unwrap() as usize - 'a' as usize;
         let rank = fen_split[3].chars().nth(1).unwrap().to_digit(10).unwrap() as usize - 1;
-        position.en_passent = fr2sq(file as u8, rank as u8);
+        position.en_passent = fr2sq(file as u8, rank as u8) as u8;
     }
 
     position.position_key = generate_position_key(position);
@@ -335,7 +334,7 @@ pub fn print_board(position: &mut Board) {
     for rank in (Rank1 as u8..=Rank8 as u8).rev() {
         print!("{}  ", (rank + 1));
         for file in FileA as u8..=FileH as u8 {
-            let sq: u8 = fr2sq(file, rank);
+            let sq = fr2sq(file, rank);
             let piece = position.pieces[sq as usize];
             print!("{:>2}", PIECE_CHAR.chars().nth(piece as usize).unwrap_or(' '));
         }

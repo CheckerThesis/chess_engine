@@ -1,4 +1,4 @@
-use std::{fs, sync::LazyLock, vec};
+use std::sync::LazyLock;
 
 use colored::Colorize;
 use rand::{thread_rng, Rng};
@@ -307,7 +307,7 @@ pub fn polykey_from_board(position: &mut Board) -> u64 {
     final_key
 }
 
-pub fn convert_poly_move(poly_move: u16, position: &mut Board) -> u64 {
+pub fn convert_poly_move(poly_move: u16, position: &mut Board) -> u32 {
     let from_file = (poly_move >> 6) & 7;
     let from_rank = (poly_move >> 9) & 7;
     let to_file = (poly_move >> 0) & 7;
@@ -339,7 +339,7 @@ pub fn convert_poly_move(poly_move: u16, position: &mut Board) -> u64 {
     return parse_move(&s, position)
 }
 
-pub fn get_book_move(position: &mut Board) -> u64 {
+pub fn get_book_move(position: &mut Board) -> u32 {
     let poly_key = polykey_from_board(position);
 
     let mut count = 0;
@@ -362,7 +362,7 @@ pub fn get_book_move(position: &mut Board) -> u64 {
         let mut rng = thread_rng();
         let random_number = rng.gen_range(0..count);
 
-        book_moves[random_number] as u64
+        book_moves[random_number]
     } else {
         NO_MOVE
     }
