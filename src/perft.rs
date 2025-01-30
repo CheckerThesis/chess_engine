@@ -27,7 +27,7 @@ pub fn perft_test(depth: u8, position: &mut Board) {
     if DEBUG { check_board(position); }
 
     print_board(position);
-    println!("\nStart test to depth: {}", depth);
+    println!("Start test to depth: {}", depth);
     let mut leaf_nodes = 0;
     let now = Instant::now();
 

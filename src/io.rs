@@ -20,7 +20,7 @@ pub fn print_square(square: u8) -> String {
 
 static MOVE_STRING: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new(String::new()));
 
-pub fn print_move(the_move: u64) -> String {
+pub fn print_move(the_move: u32) -> String {
     let file_from = FILES_BOARD[from_square(the_move) as usize];
     let rank_from = RANKS_BOARD[from_square(the_move) as usize];
     let file_to = FILES_BOARD[to_square(the_move) as usize];
@@ -61,7 +61,7 @@ pub fn print_move(the_move: u64) -> String {
 }
 
 // a2a4, find this move and return as integer, match from and to squares to user input
-pub fn parse_move(s: &String, position: &mut Board) -> u64 {
+pub fn parse_move(s: &String, position: &mut Board) -> u32 {
     let char_vec: Vec<char> = s.chars().collect();
     // println!("0: {}    1: {}    2: {}    3: {}    4: {}", char_vec[0], char_vec[1], char_vec[2], char_vec[3], char_vec[4]);
 
@@ -82,10 +82,10 @@ pub fn parse_move(s: &String, position: &mut Board) -> u64 {
     for move_number in 0..move_list.count {
         let the_move = move_list.moves[move_number].el_move;
 
-        if from_square(the_move) == from as u64 && to_square(the_move) == to as u64 {
+        if from_square(the_move) == from && to_square(the_move) == to {
             let promotion_piece = promoted(the_move);
 
-            if promotion_piece != Empty as u64 {
+            if promotion_piece != Empty as u8 {
                 if IS_ROOK_QUEEN[promotion_piece as usize] && !IS_BISHOP_QUEEN[promotion_piece as usize] && char_vec[4] == 'r' {
                     return the_move
                 } else if !IS_ROOK_QUEEN[promotion_piece as usize] && IS_BISHOP_QUEEN[promotion_piece as usize] && char_vec[4] == 'b' {

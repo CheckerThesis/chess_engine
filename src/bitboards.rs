@@ -29,8 +29,8 @@ pub fn count_bits(mut bit: u64) -> u64 {
 pub fn print_bitboard(bitboard: u64) {
     for rank in (Ranks::Rank1 as u8..=Ranks::Rank8 as u8).rev() {
         for file in Files::FileA as u8..=Files::FileH as u8 {
-            let square: u8 = fr2sq(file, rank);
-            let square64: u8 = sq64(square);
+            let square = fr2sq(file, rank);
+            let square64= sq64(square);
 
             if ((1 << square64) & bitboard) != 0 {
                 print!("X");

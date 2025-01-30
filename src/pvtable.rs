@@ -35,7 +35,7 @@ pub fn clear_hash_table(hash_table: &mut HashTable) {
 
 // checks if table has an entry that matches the current position, if found set the_move equal to the stored move in the hash
 // if the score is within proper bounds of alpha-beta, set score and prune in the alpha-beta function
-pub fn probe_hash_table(position: &mut Board, hash_table: &mut HashTable, the_move: &mut u64, score: &mut i32, alpha: i32, beta: i32, depth: i32) -> bool {
+pub fn probe_hash_table(position: &mut Board, hash_table: &mut HashTable, the_move: &mut u32, score: &mut i32, alpha: i32, beta: i32, depth: i32) -> bool {
     let i = position.position_key as usize % hash_table.pv_table.capacity();
 
     if DEBUG {
@@ -84,7 +84,7 @@ pub fn probe_hash_table(position: &mut Board, hash_table: &mut HashTable, the_mo
     false
 }
 
-pub fn store_hash_entry(position: &mut Board, hash_table: &mut HashTable, the_move: u64, score: &mut i32, flags: u8, depth: i32) {
+pub fn store_hash_entry(position: &mut Board, hash_table: &mut HashTable, the_move: u32, score: &mut i32, flags: u8, depth: i32) {
     let i = position.position_key as usize % hash_table.pv_table.capacity();
 
     if DEBUG {
@@ -121,7 +121,7 @@ pub fn store_hash_entry(position: &mut Board, hash_table: &mut HashTable, the_mo
     hash_table.pv_table[i].age = hash_table.current_age;
 }
 
-pub fn probe_pv_move(position: &Board, hash_table: &mut HashTable) -> u64 {
+pub fn probe_pv_move(position: &Board, hash_table: &mut HashTable) -> u32 {
     let i = position.position_key as usize % hash_table.pv_table.capacity();
 
     // if DEBUG && i < 0 || i > position.hash_table.pv_table.capacity() - 1 { eprintln!("{}", "probe_pv_move: [i] out of bounds".red()); }

@@ -17,9 +17,6 @@ mod evaluate;
 mod uci;
 mod polybook;
 
-use std::sync::Mutex;
-use defs::{Board, EngineOptions, ENGINE_OPTIONS};
-use polybook::{get_book_move, POLY_BOOK};
 use uci::uci_loop;
 
 // use std::io as std_io;
@@ -53,7 +50,13 @@ const FEN_POLY7: &str = "rnbq1bnr/ppp1pkpp/8/3pPp2/8/8/PPPPKPPP/RNBQ1BNR w - - 0
 const FEN_POLY8: &str = "rnbqkbnr/p1pppppp/8/8/PpP4P/8/1P1PPPP1/RNBQKBNR b KQkq c3 0 3";
 const FEN_POLY9: &str = "rnbqkbnr/p1pppppp/8/8/P6P/R1p5/1P1PPPP1/1NBQKBNR b Kkq - 0 4";
 
-// TODO: Change moves to u32
+// [lints.rust]
+// unused_imports = "allow"
+
+// [profile.release]
+// debug = false
+// unused_imports = "error"
+
 fn main() {
     uci_loop();
 }

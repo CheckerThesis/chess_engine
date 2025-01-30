@@ -1,8 +1,8 @@
-use std::{sync::{atomic::Ordering, Arc, LazyLock, Mutex}, time::Instant};
+use std::sync::{atomic::Ordering, Arc};
 
 use colored::Colorize;
 
-use crate::{attack::square_attacked, board::check_board, defs::{from_square, to_square, Board, HashFlag::*, HashTable, MoveList, SearchInfo, BOARD_SQUARE_NUMBER, DEBUG, ENGINE_OPTIONS, INF_BOUND, IS_MATE, MAX_DEPTH, MAX_GAME_MOVES, MOVE_FLAG_CAPTURE, NO_MOVE}, evaluate::evaluate_position, io::print_move, makemove::{make_move, make_null_move, take_move, take_null_move}, movegen::{generate_all_capture_moves, generate_all_moves}, polybook::{self, get_book_move, POLY_BOOK}, pvtable::{get_pv_line, probe_hash_table, store_hash_entry}};
+use crate::{attack::square_attacked, board::check_board, defs::{from_square, to_square, Board, HashFlag::*, HashTable, MoveList, SearchInfo, BOARD_SQUARE_NUMBER, DEBUG, ENGINE_OPTIONS, INF_BOUND, IS_MATE, MAX_DEPTH, MAX_GAME_MOVES, MOVE_FLAG_CAPTURE, NO_MOVE}, evaluate::evaluate_position, io::print_move, makemove::{make_move, make_null_move, take_move, take_null_move}, movegen::{generate_all_capture_moves, generate_all_moves}, polybook::get_book_move, pvtable::{get_pv_line, probe_hash_table, store_hash_entry}};
 
 // check if time up, or interrupt from GUI
 
@@ -23,18 +23,10 @@ pub fn pick_next_move(move_number: usize, move_list: &mut MoveList) {
     move_list.moves[best_number] = temp;
 }
 
-//position.history_ply - position.fifty_move as usize
 pub fn is_repetition(position: &Board) -> bool {
     if position.history_ply <= 1 { return false }
 
     let start = position.history_ply.saturating_sub(position.fifty_move as usize);
-
-    // println!(
-    //     "history_ply: {}, fifty_move: {}, start: {}",
-    //     position.history_ply,
-    //     position.fifty_move,
-    //     position.history_ply.saturating_sub(position.fifty_move as usize)
-    // );
 
     for i in start..position.history_ply - 1 {
         if DEBUG && i > MAX_GAME_MOVES { eprintln!("{}", "is_repetition: [i] is greater than MAX_GAME_MOVES ".red()) }
@@ -147,7 +139,7 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
     if in_check { depth += 1; } // because if one check, likely a sequence of checks into mate, with this
 
     let mut score: i32 = -INF_BOUND;
-    let mut pv_move: u64 = NO_MOVE;
+    let mut pv_move = NO_MOVE;
     let mut legal = 0;
     let mut internal_alpha = *alpha;
     let mut best_move = NO_MOVE;
@@ -234,7 +226,7 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
 
     // if we've made 0 legal moves
     if legal == 0 {
-        // king_sq attacked by opposite side, and we have no legal moves, we've been checkmated
+        // king_sq attacked by opposite side, and no legal moves then found checkmate
         if in_check {
             return -IS_MATE + position.ply as i32;
         } else {
@@ -262,7 +254,7 @@ pub fn search_position(position: &mut Board, info: Arc<SearchInfo>, hash_table: 
 
     if best_move == NO_MOVE {
         // iterative deepening search best move for each depth
-        for current_depth in 0..info.depth.load(Ordering::Relaxed) {                // infinite
+        for current_depth in 0..info.depth.load(Ordering::Relaxed) {
             best_score = alpha_beta(&mut -INF_BOUND, &mut 30000, current_depth + 1, position, &info, hash_table, true);
 
             if info.is_stopped() { break; }
@@ -270,16 +262,20 @@ pub fn search_position(position: &mut Board, info: Arc<SearchInfo>, hash_table: 
             let pv_moves: usize = get_pv_line(current_depth as u8 + 1, position, hash_table);
             best_move = position.pv_array[0];
 
+
             if let Ok(protected) = info.protected.read() {
-                print!("info score cp {} depth {} nodes {} time {}",
-                best_score, current_depth + 1, info.nodes.load(Ordering::Relaxed), protected.start_time.elapsed().as_millis());
+                let nps = if protected.start_time.elapsed().as_secs() == 0 {
+                    info.nodes.load(Ordering::Relaxed)
+                } else {
+                    info.nodes.load(Ordering::Relaxed) / protected.start_time.elapsed().as_secs()
+                };
+                print!("info score cp {} depth {} nodes {} time {} nps {}",
+                best_score, current_depth + 1, info.nodes.load(Ordering::Relaxed), protected.start_time.elapsed().as_millis(), nps);
             }
 
             print!(" pv");
             for pv_number in 0..pv_moves { print!(" {}", print_move(position.pv_array[pv_number])); }
             println!();
-
-            // println!("Ordering: {}", info.fail_high_first/info.fail_high);
         }
     }
 

@@ -1,6 +1,5 @@
 use std::{sync::{atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU64, AtomicU8, Ordering}, Arc, LazyLock, Mutex, RwLock}, time::Instant};
 
-use colored::Colorize;
 use rand::{thread_rng, Rng};
 
 pub const BOARD_SQUARE_NUMBER: usize = 120;
@@ -13,7 +12,7 @@ pub const BOTH: usize = 2;
 
 pub const DEBUG: bool = false;
 
-pub const NO_MOVE: u64 = 0;
+pub const NO_MOVE: u32 = 0;
 
 pub const MAX_DEPTH: usize = 64;
 pub const INF_BOUND: i32 = 30000;
@@ -24,14 +23,18 @@ pub static ENGINE_OPTIONS: Mutex<EngineOptions> = Mutex::new(EngineOptions { boo
 pub static HASH_TABLE: LazyLock<Arc<Mutex<HashTable>>> = LazyLock::new(|| Arc::new(Mutex::new(HashTable::default())));
 
 /*
-A8 B8 C8 D8 E8 F8 G8 H8
-A7 B7 C7 D7 E7 F7 G7 H7
-A6 B6 C6 D6 E6 F6 G6 H6
-A5 B5 C5 D5 E5 F5 G5 H5
-A4 B4 C4 D4 E4 F4 G4 H4
-A3 B3 C3 D3 E3 F3 G3 H3
-A2 B2 C2 D2 E2 F2 G2 H2
-A1 B1 C1 D1 E1 F1 G1 H1
+*  *  *  *  *  *  *  *  * *
+*  *  *  *  *  *  *  *  * *
+* A8 B8 C8 D8 E8 F8 G8 H8 *
+* A7 B7 C7 D7 E7 F7 G7 H7 *
+* A6 B6 C6 D6 E6 F6 G6 H6 *
+* A5 B5 C5 D5 E5 F5 G5 H5 *
+* A4 B4 C4 D4 E4 F4 G4 H4 *
+* A3 B3 C3 D3 E3 F3 G3 H3 *
+* A2 B2 C2 D2 E2 F2 G2 H2 *
+* A1 B1 C1 D1 E1 F1 G1 H1 *
+*  *  *  *  *  *  *  *  * *
+*  *  *  *  *  *  *  *  * *
 */
 
 #[repr(u8)]
@@ -97,7 +100,7 @@ pub enum Castling {
 
 #[derive(Copy, Clone, Default)]
 pub struct Undo {
-    pub the_move: u64,
+    pub the_move: u32,
     pub castle_permission: u8,
     pub en_passent: u8,
     pub fifty_move: u8,
@@ -106,7 +109,7 @@ pub struct Undo {
 
 #[derive(Copy, Clone, Default)]
 pub struct Move {
-    pub el_move: u64,
+    pub el_move: u32,
     pub score: u32,
 }
 
@@ -126,7 +129,7 @@ impl Default for MoveList {
 #[derive(Copy, Clone, Default)]
 pub struct HashEntry {
     pub position_key: u64,
-    pub the_move: u64,
+    pub the_move: u32,
     pub score: i32,
     pub depth: i32,
     pub flags: u8,
@@ -200,11 +203,11 @@ pub struct Board {
     // principal variation is the best sequence of moves,
     // ie. the best according to the engine
     // ie. expected moves played
-    pub pv_array: [u64; MAX_DEPTH],
+    pub pv_array: [u32; MAX_DEPTH],
 
     // for move ordering, rough way to record non-capture moves that are good enough to cause beta cut-off or good alpha
     pub search_history: [[u32; BOARD_SQUARE_NUMBER]; 13], // stores when a score has beaten alpha
-    pub search_killers: [[u64; MAX_DEPTH]; 2], // stores when a score has beaten beta but is not a capture
+    pub search_killers: [[u32; MAX_DEPTH]; 2], // stores when a score has beaten beta but is not a capture
 }
 impl Default for Board {
     fn default() -> Self {
@@ -233,50 +236,12 @@ impl Default for Board {
     }
 }
 
-// pub struct SearchInfo {
-//     pub start_time: Instant,
-//     pub stop_time: Instant,
-//     pub depth: i32,
-//     pub time_set: bool,
-
-//     pub moves_to_go: u8,
-
-//     pub nodes: u64,
-
-//     pub stopped: bool,
-
-//     // gives an idea of how good move ordering is, should be greater than 90%
-//     pub fail_high: f32, // number of times alpha > beta on the first move
-//     pub fail_high_first: f32, // number of times alpha > beta total
-//     pub null_cut: u32,
-// }
-// impl Default for SearchInfo {
-//     fn default() -> Self {
-//         SearchInfo {
-//             start_time: Instant::now(),
-//             stop_time: Instant::now(),
-//             depth: 0,
-//             time_set: false,
-//             moves_to_go: 0,
-//             nodes: 0,
-//             stopped: false,
-//             fail_high: 0.0,
-//             fail_high_first: 0.0,
-//             null_cut: 0,
-//         }
-//     }
-// }
-
 pub struct SearchInfo {
     pub depth: AtomicI32,
     pub time_set: AtomicBool,
-
     pub moves_to_go: AtomicU8,
-
     pub nodes: AtomicU64,
-
     pub stopped: AtomicBool,
-
     pub null_cut: AtomicU32,
 
     pub protected: RwLock<ProtectedInfo>,
@@ -357,7 +322,7 @@ So essentially, each hexidecimal digit represents each 4 digits
             4    8    9    7    F  -> 4897F
 0000 0000 0100 1000 1001 0111 1111
 */
-pub fn print_binary(the_move: u64) {
+pub fn print_binary(the_move: u32) {
     println!("As binary: ");
 
     for i in (0..=27).rev() {
@@ -373,17 +338,17 @@ pub fn print_binary(the_move: u64) {
 
 // the_move >> x , x is how much the shift is
 // the_move >> x & y, y is the amount of digits (7 for 0x3F)
-pub fn from_square(the_move: u64) -> u64 { the_move & 0x7F }
-pub fn to_square(the_move: u64) -> u64 { the_move >> 7 & 0x7F }
-pub fn captured(the_move: u64) -> u64 { the_move >> 14 & 0xF }
-pub fn promoted(the_move: u64) -> u64 { the_move >> 20 & 0xF }
+pub fn from_square(the_move: u32) -> u8 { (the_move & 0x7F) as u8 }
+pub fn to_square(the_move: u32) -> u8 { (the_move >> 7 & 0x7F) as u8 }
+pub fn captured(the_move: u32) -> u8 { (the_move >> 14 & 0xF) as u8 }
+pub fn promoted(the_move: u32) -> u8 { (the_move >> 20 & 0xF) as u8 }
 
 // beginning number is hex to decimal, 0's is empty 4-digits
-pub const MOVE_FLAG_EN_PASSENT: u64 = 0x40000; // 0000 0000 0100 0000 0000 0000 0000
-pub const MOVE_FLAG_PAWN_START: u64 = 0x80000; // 0000 0000 1000 0000 0000 0000 0000
-pub const MOVE_FLAG_CASTLE: u64 = 0x1000000;   // 0001 0000 0000 0000 0000 0000 0000
-pub const MOVE_FLAG_CAPTURE: u64 = 0x7C000;    // 0000 0000 0011 1100 0000 0000 0000
-pub const MOVE_FLAG_PROMOTE: u64 = 0xF00000;   // 0000 1111 0000 0000 0000 0000 0000
+pub const MOVE_FLAG_EN_PASSENT: u32 = 0x40000; // 0000 0000 0100 0000 0000 0000 0000
+pub const MOVE_FLAG_PAWN_START: u32 = 0x80000; // 0000 0000 1000 0000 0000 0000 0000
+pub const MOVE_FLAG_CASTLE: u32 = 0x1000000;   // 0001 0000 0000 0000 0000 0000 0000
+pub const MOVE_FLAG_CAPTURE: u32 = 0x7C000;    // 0000 0000 0011 1100 0000 0000 0000
+pub const MOVE_FLAG_PROMOTE: u32 = 0xF00000;   // 0000 1111 0000 0000 0000 0000 0000
 
 /*
     println!("SQ120-SQ64");
