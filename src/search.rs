@@ -2,7 +2,7 @@ use std::sync::{atomic::Ordering, Arc};
 
 use colored::Colorize;
 
-use crate::{attack::square_attacked, board::check_board, defs::{from_square, to_square, Board, HashFlag::*, HashTable, MoveList, SearchInfo, BOARD_SQUARE_NUMBER, DEBUG, ENGINE_OPTIONS, INF_BOUND, IS_MATE, MAX_DEPTH, MAX_GAME_MOVES, MOVE_FLAG_CAPTURE, NO_MOVE}, evaluate::evaluate_position, io::print_move, makemove::{make_move, make_null_move, take_move, take_null_move}, movegen::{generate_all_capture_moves, generate_all_moves}, polybook::get_book_move, pvtable::{get_pv_line, probe_hash_table, store_hash_entry}};
+use crate::{attack::square_attacked, board::check_board, defs::{from_square, to_square, Board, HashFlag::*, HashTable, MoveList, SearchInfo, BOARD_SQUARE_NUMBER, DEBUG, ENGINE_OPTIONS, AB_BOUND, IS_MATE, MAX_DEPTH, MAX_GAME_MOVES, MOVE_FLAG_CAPTURE, NO_MOVE}, evaluate::evaluate_position, io::print_move, makemove::{make_move, make_null_move, take_move, take_null_move}, movegen::{generate_all_capture_moves, generate_all_moves}, polybook::get_book_move, pvtable::{get_pv_line, probe_hash_table, store_hash_entry}};
 
 // check if time up, or interrupt from GUI
 
@@ -138,12 +138,12 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
 
     if in_check { depth += 1; } // because if one check, likely a sequence of checks into mate, with this
 
-    let mut score: i32 = -INF_BOUND;
+    let mut score: i32 = -AB_BOUND;
     let mut pv_move = NO_MOVE;
     let mut legal = 0;
     let mut internal_alpha = *alpha;
     let mut best_move = NO_MOVE;
-    let mut best_score: i32 = -INF_BOUND;
+    let mut best_score: i32 = -AB_BOUND;
 
     // transposition table
     if probe_hash_table(position, hash_table,&mut pv_move, &mut score, *alpha, *beta, depth) {
@@ -255,7 +255,7 @@ pub fn search_position(position: &mut Board, info: Arc<SearchInfo>, hash_table: 
     if best_move == NO_MOVE {
         // iterative deepening search best move for each depth
         for current_depth in 0..info.depth.load(Ordering::Relaxed) {
-            best_score = alpha_beta(&mut -INF_BOUND, &mut 30000, current_depth + 1, position, &info, hash_table, true);
+            best_score = alpha_beta(&mut -AB_BOUND, &mut 30000, current_depth + 1, position, &info, hash_table, true);
 
             if info.is_stopped() { break; }
 
@@ -264,13 +264,8 @@ pub fn search_position(position: &mut Board, info: Arc<SearchInfo>, hash_table: 
 
 
             if let Ok(protected) = info.protected.read() {
-                let nps = if protected.start_time.elapsed().as_secs() == 0 {
-                    info.nodes.load(Ordering::Relaxed)
-                } else {
-                    info.nodes.load(Ordering::Relaxed) / protected.start_time.elapsed().as_secs()
-                };
-                print!("info score cp {} depth {} nodes {} time {} nps {}",
-                best_score, current_depth + 1, info.nodes.load(Ordering::Relaxed), protected.start_time.elapsed().as_millis(), nps);
+                print!("info score cp {} depth {} nodes {} time {}",
+                best_score, current_depth + 1, info.nodes.load(Ordering::Relaxed), protected.start_time.elapsed().as_millis());
             }
 
             print!(" pv");

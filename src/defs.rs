@@ -15,8 +15,9 @@ pub const DEBUG: bool = false;
 pub const NO_MOVE: u32 = 0;
 
 pub const MAX_DEPTH: usize = 64;
-pub const INF_BOUND: i32 = 30000;
-pub const IS_MATE: i32 = INF_BOUND - MAX_DEPTH as i32;
+pub const INF_BOUND: u64 = 32000;
+pub const AB_BOUND: i32 = 30000;
+pub const IS_MATE: i32 = AB_BOUND - MAX_DEPTH as i32;
 
 // .lock() is specific to mutex, careful with .unwrap() consider using something more robust
 pub static ENGINE_OPTIONS: Mutex<EngineOptions> = Mutex::new(EngineOptions { book: false });

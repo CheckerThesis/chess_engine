@@ -1,6 +1,46 @@
 use colored::Colorize;
+use rand::{thread_rng, Rng};
 
-use crate::{defs::{Board, HashFlag, HashTable, DEBUG, INF_BOUND, IS_MATE, MAX_DEPTH, NO_MOVE}, makemove::{make_move, take_move}, movegen::move_exists};
+use crate::{board::parse_fen, defs::{Board, HashFlag, HashTable, MoveList, AB_BOUND, DEBUG, INF_BOUND, IS_MATE, MAX_DEPTH, NO_MOVE}, io::print_move, makemove::{make_move, take_move}, movegen::{generate_all_moves, move_exists}};
+
+pub fn extract_score(data: i64) -> i64 { (data & 0xFFFF) - INF_BOUND as i64 }
+pub fn extract_depth(data: u64) -> u64 { (data >> 16) & 0x3F }
+pub fn extract_flags(data: u64) -> u64 { (data >> 23) & 0x3 }
+pub fn extract_move(data: u64) -> u64 { data >> 25 }
+
+pub fn fold_data(score: i32, depth: u64, flags: u64, the_move: u32) -> u64 {
+    (score + INF_BOUND as i32) as u64 |
+    (depth << 16) |
+    (flags << 23) |
+    ((the_move as u64) << 25)
+}
+
+pub fn data_check(the_move: u32) {
+    let mut rng = thread_rng();
+    let depth = rng.gen_range(0..1000) % MAX_DEPTH;
+    let flags = rng.gen_range(0..1000) % 3;
+    let score = rng.gen_range(0..1000) % AB_BOUND;
+
+    let data = fold_data(score, depth as u64, flags as u64, the_move);
+
+    println!("Original: move: {}  depth: {}  flags: {}  score: {}", print_move(the_move), depth, flags, score);
+    println!("Folded:   move: {}  depth: {}  flags: {}  score: {}\n", print_move(extract_move(data) as u32), extract_depth(depth as u64), extract_flags(flags), extract_score(score as i64));
+}
+
+pub fn hash_test(fen: String) {
+    let mut position = Board::default();
+    parse_fen(&fen, &mut position);
+
+    let move_list = &mut MoveList::default();
+    generate_all_moves(&mut position, move_list);
+
+    for move_number in 0..move_list.count {
+        if !make_move(&mut position, move_list.moves[move_number].el_move) { continue; }
+
+        take_move(&mut position);
+        data_check(move_list.moves[move_number].el_move);
+    }
+}
 
 pub fn get_pv_line(depth: u8, position: &mut Board, hash_table: &mut HashTable) -> usize{
     if DEBUG && (depth > MAX_DEPTH as u8 || depth < 1) { eprintln!("{}", "get_pv_line: [depth] greater than MAX_DEPTH or less than 1".red()); }
@@ -41,8 +81,8 @@ pub fn probe_hash_table(position: &mut Board, hash_table: &mut HashTable, the_mo
     if DEBUG {
         if depth > MAX_DEPTH as i32 || depth < 1 { eprintln!("{}", "probe_hash_table: [depth] out of bounds".red()); }
         if alpha >= beta { eprintln!("{}", "probe_hash_table: [alpha] greater than beta".red()); }
-        if alpha > INF_BOUND || alpha < -INF_BOUND { eprintln!("{}", "probe_hash_table: [alpha] out of bounds".red()); }
-        if beta > INF_BOUND || beta < -INF_BOUND { eprintln!("{}", "probe_hash_table: [beta] out of bounds".red()); }
+        if alpha > AB_BOUND || alpha < -AB_BOUND { eprintln!("{}", "probe_hash_table: [alpha] out of bounds".red()); }
+        if beta > AB_BOUND || beta < -AB_BOUND { eprintln!("{}", "probe_hash_table: [beta] out of bounds".red()); }
     }
 
     if hash_table.pv_table[i].position_key == position.position_key {
