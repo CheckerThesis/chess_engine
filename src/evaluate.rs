@@ -196,18 +196,14 @@ pub fn evaluate_position(position: &Board) -> i32 {
     piece = WhiteKnight as usize;
     for piece_number in 0..position.piece_number[piece] {
         let square = position.piece_list[piece][piece_number as usize];
-
         if DEBUG && !square_on_board(square as usize) { eprintln!("{}", "evaluate: [square] is off board for WhiteKnight".red()); }
-
         score += KNIGHT_TABLE[sq64(square) as usize];
     }
     if debug { print!("WhiteKnight: {}    ", score); }
     piece = BlackKnight as usize;
     for piece_number in 0..position.piece_number[piece] {
         let square = position.piece_list[piece][piece_number as usize];
-
         if DEBUG && !square_on_board(square as usize) { eprintln!("{}", "evaluate: [square] is off board for BlackKnight".red()); }
-
         score -= KNIGHT_TABLE[MIRROR64[sq64(square) as usize]];
     }
     if debug { println!("BlackKnight: {}", score); }
@@ -215,18 +211,14 @@ pub fn evaluate_position(position: &Board) -> i32 {
     piece = WhiteBishop as usize;
     for piece_number in 0..position.piece_number[piece] {
         let square = position.piece_list[piece][piece_number as usize];
-
         if DEBUG && !square_on_board(square as usize) { eprintln!("{}", "evaluate: [square] is off board for WhiteBishop".red()); }
-
         score += BISHOP_TABLE[sq64(square) as usize];
     }
     if debug { print!("WhiteBishop: {}    ", score); }
     piece = BlackBishop as usize;
     for piece_number in 0..position.piece_number[piece] {
         let square = position.piece_list[piece][piece_number as usize];
-
         if DEBUG && !square_on_board(square as usize) { eprintln!("{}", "evaluate: [square] is off board for BlackBishop".red()); }
-
         score -= BISHOP_TABLE[MIRROR64[sq64(square) as usize]];
     }
     if debug { println!("BlackBishop: {}", score); }

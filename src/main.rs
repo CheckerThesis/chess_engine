@@ -16,6 +16,7 @@ mod pvtable;
 mod evaluate;
 mod uci;
 mod polybook;
+mod zobristhash;
 
 use uci::uci_loop;
 

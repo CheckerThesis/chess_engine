@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use crate::{board::{parse_fen, print_board}, defs::{Board, SearchInfo, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, WHITE}, io::parse_move, makemove::make_move, perft::perft_test, pvtable::{clear_hash_table, hash_test}, search::search_position, FEN_START};
+use crate::{board::{parse_fen, print_board}, defs::{Board, SearchInfo, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, WHITE}, io::parse_move, makemove::make_move, perft::perft_test, pvtable::clear_hash_table, search::search_position, FEN_START};
 use std::{io::{self, BufRead}, sync::{atomic::Ordering, Arc}, thread, time::{Duration, Instant}};
 
 // go depth 6 wtime 1000 btime 1000 binc 1000 winc 1000 movetime 1000 movestogo 40
@@ -134,9 +134,11 @@ pub fn parse_position(input: &String, position: &mut Board) {
     print_board(position);
 }
 
+// TODO if stop, bring back search thread maybe need to make a gamestate struct that stores
+// the handle for the thread
 pub fn uci_loop() {
     let name = "Vault";
-    let mut testing = false;
+    let mut testing = true;
 
     let mut user_input = String::new();
     println!("id name {}", name.to_string());
@@ -148,20 +150,25 @@ pub fn uci_loop() {
 
     let mut i = 0;
 
-    // hash_test("r3kb1r/3n1pp1/p6p/2pPp2q/Pp2N3/3B2PP/1PQ2P2/R3K2R w KQkq - 0 1".to_string());
-
     loop {
         user_input.clear();
 
         if testing {
             i += 1;
             if i == 1 {
-                user_input = "position startpos".to_string();
-                // user_input = "position fen r3kb1r/3n1pp1/p6p/2pPp2q/Pp2N3/3B2PP/1PQ2P2/R3K2R w KQkq - 0 1".to_string();
+                user_input = "position fen rn1qkb1r/pp2pppp/5n2/3p1b2/3P4/2N1P3/PP3PPP/R1BQKBNR w KQkq - 0 1".to_string();
+                // user_input = "quit".to_string();
+                // user_input = "position startpos".to_string();
+                // user_input = "quit".to_string();
             } else if i == 2 {
-                user_input = "setoption name Book value false".to_string();
-            } else if i == 3 {
-                user_input = "go depth 8".to_string();
+                // user_input = "setoption name Book value false".to_string();
+                user_input = "go depth 11".to_string();
+            // }
+            // else if i == 3 {
+            //     user_input = "position startpos moves e2e4".to_string();
+            // }
+            // else if i == 4 {
+            //     user_input = "go depth 7".to_string();
             } else {
                 io::stdin().lock().read_line(&mut user_input).unwrap();
             }
@@ -180,6 +187,7 @@ pub fn uci_loop() {
             parse_position(&user_input, position);
 
         } else if user_input == "ucinewgame" {
+            // HASH_TABLE.clear();
             clear_hash_table(&mut HASH_TABLE.lock().unwrap());
             parse_position(&"position startpos".to_string(), position);
 

@@ -1,6 +1,9 @@
 use std::{sync::{atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU64, AtomicU8, Ordering}, Arc, LazyLock, Mutex, RwLock}, time::Instant};
 
+use colored::Colorize;
 use rand::{thread_rng, Rng};
+
+use crate::pvtable::{extract_depth, extract_flags, extract_move, extract_score, fold_data};
 
 pub const BOARD_SQUARE_NUMBER: usize = 120;
 pub const MAX_GAME_MOVES: usize = 2048;
@@ -22,7 +25,8 @@ pub const IS_MATE: i32 = AB_BOUND - MAX_DEPTH as i32;
 // .lock() is specific to mutex, careful with .unwrap() consider using something more robust
 pub static ENGINE_OPTIONS: Mutex<EngineOptions> = Mutex::new(EngineOptions { book: false });
 pub static HASH_TABLE: LazyLock<Arc<Mutex<HashTable>>> = LazyLock::new(|| Arc::new(Mutex::new(HashTable::default())));
-
+// pub static HASH_TABLE: LazyLock<DashMap<u64, u64, IdentityBuildHasher>> = LazyLock::new(|| DashMap::with_capacity_and_hasher(131070, IdentityBuildHasher));
+// pub static TEST: LazyLock<DashMap<u64, u64>> = LazyLock::new(|| DashMap::new());
 /*
 *  *  *  *  *  *  *  *  * *
 *  *  *  *  *  *  *  *  * *
@@ -118,8 +122,8 @@ pub struct MoveList {
     pub moves: [Move; MAX_POSITION_MOVES],
     pub count: usize,
 }
-impl Default for MoveList {
-    fn default() -> Self {
+impl MoveList {
+    pub fn default() -> Self {
         MoveList {
             moves: [Move::default(); MAX_POSITION_MOVES],
             count: 0,
@@ -130,10 +134,7 @@ impl Default for MoveList {
 #[derive(Copy, Clone, Default)]
 pub struct HashEntry {
     pub position_key: u64,
-    pub the_move: u32,
-    pub score: i32,
-    pub depth: i32,
-    pub flags: u8,
+    pub data: u64,
     pub age: u8,
 }
 
@@ -145,7 +146,7 @@ pub struct HashTable {
     pub cut: u64,
     pub current_age: u8,
 }
-impl Default for HashTable {
+impl HashTable {
     fn default() -> Self {
         HashTable {
             pv_table: vec![HashEntry::default(); 131070],
@@ -155,6 +156,106 @@ impl Default for HashTable {
             cut: 0,
             current_age: 0,
         }
+    }
+
+    pub fn store_hash_entry(&mut self, position: &mut Board, the_move: u32, score: &mut i32, flags: u8, depth: i32) {
+        let data = fold_data(*score, depth as u64, flags as u64, the_move);
+        let i = position.position_key as usize % self.pv_table.capacity();
+
+        if DEBUG {
+            if i > self.pv_table.capacity() - 1 { eprintln!("{}", "store_hash_entry: [i] out of bounds".red()); }
+            if depth > MAX_DEPTH as i32 || depth < 1 { eprintln!("{}", "store_hash_entry: [depth] out of bounds".red()); }
+            if position.ply >= MAX_DEPTH as u8 { eprintln!("{}", "store_hash_entry: [ply] out of bounds".red()); }
+        }
+
+        let mut replace = false;
+
+        if self.pv_table[i].position_key == 0 {
+            self.new_write += 1;
+            replace = true;
+        } else {
+            if self.pv_table[i].age < self.current_age || extract_depth(self.pv_table[i].data) < depth as u64 {
+                replace = true
+            }
+        }
+
+        if replace == false { return; }
+
+        // reset mate score back to infinite
+        if *score > IS_MATE {
+            *score += position.ply as i32
+        } else if *score < -IS_MATE {
+            *score -= position.ply as i32;
+        }
+
+        self.pv_table[i] = HashEntry {
+            position_key: position.position_key,
+            data,
+            age: self.current_age,
+        };
+    }
+
+    // checks if table has an entry that matches the current position, if found set the_move equal to the stored move in the hash
+    // if the score is within proper bounds of alpha-beta, set score and prune in the alpha-beta function
+    pub fn probe_hash_table(&mut self, position: &mut Board, the_move: &mut u32, score: &mut i32, alpha: i32, beta: i32, depth: i32) -> bool {
+        let i = position.position_key as usize % self.pv_table.capacity();
+
+        if DEBUG {
+            if depth > MAX_DEPTH as i32 || depth < 1 { eprintln!("{}", "probe_hash_table: [depth] out of bounds".red()); }
+            if alpha >= beta { eprintln!("{}", "probe_hash_table: [alpha] greater than beta".red()); }
+            if alpha > AB_BOUND || alpha < -AB_BOUND { eprintln!("{}", "probe_hash_table: [alpha] out of bounds".red()); }
+            if beta > AB_BOUND || beta < -AB_BOUND { eprintln!("{}", "probe_hash_table: [beta] out of bounds".red()); }
+        }
+
+        if self.pv_table[i].position_key == position.position_key {
+            *the_move = extract_move(self.pv_table[i].data) as u32;
+
+            if extract_depth(self.pv_table[i].data) >= depth as u64 {
+                self.hit += 1;
+
+                // set mate score for alpha beta
+                *score = extract_score(self.pv_table[i].data);
+                if *score > IS_MATE {
+                    *score -= position.ply as i32;
+                } else if *score < -IS_MATE {
+                    *score += position.ply as i32;
+                }
+
+                // if it is a cutoff
+                match extract_flags(self.pv_table[i].data) as u8 {
+                    x if x == HashFlag::HashFlagAlpha as u8 => {
+                        if *score <= alpha {
+                            *score = alpha;
+                            return true
+                        }
+                    }
+                    x if x == HashFlag::HashFlagBeta as u8 => {
+                        if *score >= beta {
+                            *score = beta;
+                            return true
+                        }
+                    }
+                    x if x == HashFlag::HashFlagExact as u8 => {
+                        return true
+                    }
+                    _ => return false
+                }
+            }
+        }
+
+        false
+    }
+
+    #[inline(always)]
+    pub fn probe_pv_move(&mut self, position: &Board) -> u32 {
+        let i = position.position_key as usize % self.pv_table.capacity();
+
+        // if DEBUG && i < 0 || i > position.hash_table.pv_table.capacity() - 1 { eprintln!("{}", "probe_pv_move: [i] out of bounds".red()); }
+
+        if self.pv_table[i].position_key == position.position_key {
+            // println!("   PROBED {}", print_move(hash_table.pv_table[i].the_move));
+            return extract_move(self.pv_table[i].data) as u32 }
+        return NO_MOVE
     }
 }
 
@@ -294,11 +395,16 @@ pub struct EngineOptions {
 }
 
 // small board to big board
+#[inline(always)]
 pub fn fr2sq(file: u8, rank: u8) -> u8 { 21 + file + rank * 10 }
+#[inline(always)]
 pub fn sq64(sq120: u8) -> u8 { SQ120_TO_SQ64[sq120 as usize] }
+#[inline(always)]
 pub fn sq120(sq64: u8) -> u8 { SQ64_TO_SQ120[sq64 as usize] }
 
+#[inline(always)]
 pub fn clear_bit(bitboard: &mut u64, square: u8) { *bitboard &= CLEAR_MASK[sq64(square) as usize]; }
+#[inline(always)]
 pub fn set_bit(bitboard: &mut u64, square: u8) { *bitboard |= SET_MASK[sq64(square) as usize]; }
 
 /*
@@ -323,10 +429,10 @@ So essentially, each hexidecimal digit represents each 4 digits
             4    8    9    7    F  -> 4897F
 0000 0000 0100 1000 1001 0111 1111
 */
-pub fn print_binary(the_move: u32) {
+pub fn print_binary(the_move: u64) {
     println!("As binary: ");
 
-    for i in (0..=27).rev() {
+    for i in (0..=63).rev() {
         if 1 << i & the_move == 0 {
             print!("0");
         } else {
@@ -339,9 +445,13 @@ pub fn print_binary(the_move: u32) {
 
 // the_move >> x , x is how much the shift is
 // the_move >> x & y, y is the amount of digits (7 for 0x3F)
+#[inline(always)]
 pub fn from_square(the_move: u32) -> u8 { (the_move & 0x7F) as u8 }
+#[inline(always)]
 pub fn to_square(the_move: u32) -> u8 { (the_move >> 7 & 0x7F) as u8 }
+#[inline(always)]
 pub fn captured(the_move: u32) -> u8 { (the_move >> 14 & 0xF) as u8 }
+#[inline(always)]
 pub fn promoted(the_move: u32) -> u8 { (the_move >> 20 & 0xF) as u8 }
 
 // beginning number is hex to decimal, 0's is empty 4-digits
