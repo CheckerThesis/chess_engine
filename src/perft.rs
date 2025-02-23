@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use crate::{board::{check_board, print_board}, defs::{Board, MoveList, DEBUG}, io::print_move, makemove::{make_move, take_move}, movegen::generate_all_moves};
+use crate::{board::{check_board, print_board}, defs::{extract_movelist_move, Board, MoveList, DEBUG}, io::print_move, makemove::{make_move, take_move}, movegen::generate_all_moves};
 
 pub fn perft(depth: u8, position: &mut Board, leaf_nodes: &mut u64) {
     if DEBUG { check_board(position); }
@@ -14,7 +14,7 @@ pub fn perft(depth: u8, position: &mut Board, leaf_nodes: &mut u64) {
     generate_all_moves(position, move_list);
 
     for move_number in 0..move_list.count {
-        if !make_move(position, move_list.moves[move_number].el_move) {
+        if !make_move(position, extract_movelist_move(move_list.moves[move_number])) {
             continue;
         }
 
@@ -35,7 +35,7 @@ pub fn perft_test(depth: u8, position: &mut Board) {
     generate_all_moves(position, move_list);
 
     for move_number in 0..move_list.count {
-        let the_move = move_list.moves[move_number].el_move;
+        let the_move = extract_movelist_move(move_list.moves[move_number]);
         if !make_move(position, the_move) {
             continue;
         }

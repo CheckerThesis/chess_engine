@@ -1,7 +1,7 @@
 use colored::Colorize;
 use rand::{thread_rng, Rng};
 
-use crate::{board::parse_fen, defs::{Board, HashTable, MoveList, AB_BOUND, DEBUG, INF_BOUND, MAX_DEPTH, NO_MOVE}, io::print_move, makemove::{make_move, take_move}, movegen::{generate_all_moves, move_exists}};
+use crate::{board::parse_fen, defs::{extract_movelist_move, Board, HashTable, MoveList, AB_BOUND, DEBUG, INF_BOUND, MAX_DEPTH, NO_MOVE}, io::print_move, makemove::{make_move, take_move}, movegen::{generate_all_moves, move_exists}};
 
 #[inline(always)]
 pub fn extract_score(data: u64) -> i32 { (data & 0xFFFF) as i32 - INF_BOUND as i32 }
@@ -40,10 +40,10 @@ pub fn hash_test(fen: String) {
     generate_all_moves(&mut position, move_list);
 
     for move_number in 0..move_list.count {
-        if !make_move(&mut position, move_list.moves[move_number].el_move) { continue; }
+        if !make_move(&mut position, extract_movelist_move(move_list.moves[move_number])) { continue; }
 
         take_move(&mut position);
-        data_check(move_list.moves[move_number].el_move);
+        data_check(extract_movelist_move(move_list.moves[move_number]));
     }
 }
 

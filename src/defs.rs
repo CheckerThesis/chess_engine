@@ -112,20 +112,22 @@ pub struct Undo {
     pub position_key: u64,
 }
 
-#[derive(Copy, Clone, Default)]
-pub struct Move {
-    pub el_move: u32,
-    pub score: u32,
-}
-
+#[inline(always)]
+pub fn extract_movelist_move(data: u64) -> u32 { (data >> 32) as u32 }
+#[inline(always)]
+pub fn extract_movelist_score(data: u64) -> u32{ (data & 0xFFFFFFFF) as u32}
+#[inline(always)]
+pub fn store_movelist_move(data: &mut u64, the_move: u32) { *data = (*data & 0x00000000FFFFFFFF) | ((the_move as u64) << 32); }
+#[inline(always)]
+pub fn store_movelist_score(data: &mut u64, score: u32) { *data = (*data & 0xFFFFFFFF00000000) | (score as u64); }
 pub struct MoveList {
-    pub moves: [Move; MAX_POSITION_MOVES],
+    pub moves: [u64; MAX_POSITION_MOVES],
     pub count: usize,
 }
 impl MoveList {
     pub fn default() -> Self {
         MoveList {
-            moves: [Move::default(); MAX_POSITION_MOVES],
+            moves: [0; MAX_POSITION_MOVES],
             count: 0,
         }
     }
@@ -174,7 +176,7 @@ impl HashTable {
             self.new_write += 1;
             replace = true;
         } else {
-            if self.pv_table[i].age < self.current_age || extract_depth(self.pv_table[i].data) < depth as u64 {
+            if self.pv_table[i].age < self.current_age || extract_depth(self.pv_table[i].data) <= depth as u64 {
                 replace = true
             }
         }

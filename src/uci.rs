@@ -162,7 +162,7 @@ pub fn uci_loop() {
                 // user_input = "quit".to_string();
             } else if i == 2 {
                 // user_input = "setoption name Book value false".to_string();
-                user_input = "go depth 11".to_string();
+                user_input = "go depth 10".to_string();
             // }
             // else if i == 3 {
             //     user_input = "position startpos moves e2e4".to_string();

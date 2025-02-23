@@ -1,4 +1,4 @@
-use crate::{data::{IS_BISHOP_QUEEN, IS_KNIGHT, IS_ROOK_QUEEN}, defs::{Pieces::Empty, fr2sq, from_square, promoted, to_square, Board, MoveList, DEBUG, FILES_BOARD, NO_MOVE, RANKS_BOARD}, movegen::generate_all_moves, validate::square_on_board};
+use crate::{data::{IS_BISHOP_QUEEN, IS_KNIGHT, IS_ROOK_QUEEN}, defs::{extract_movelist_move, extract_movelist_score, fr2sq, from_square, promoted, to_square, Board, MoveList, Pieces::Empty, DEBUG, FILES_BOARD, NO_MOVE, RANKS_BOARD}, movegen::generate_all_moves, validate::square_on_board};
 
 use colored::Colorize;
 use std::sync::{LazyLock, Mutex};
@@ -80,7 +80,7 @@ pub fn parse_move(s: &String, position: &mut Board) -> u32 {
     generate_all_moves(position, move_list);
 
     for move_number in 0..move_list.count {
-        let the_move = move_list.moves[move_number].el_move;
+        let the_move = extract_movelist_move(move_list.moves[move_number]);
 
         if from_square(the_move) == from && to_square(the_move) == to {
             let promotion_piece = promoted(the_move);
@@ -108,8 +108,8 @@ pub fn print_move_list(move_list: &mut MoveList) {
     println!("Move list:");
 
     for i in 0..move_list.count {
-        let the_move = move_list.moves[i].el_move;
-        let score = move_list.moves[i].score;
+        let the_move = extract_movelist_move(move_list.moves[i]);
+        let score = extract_movelist_score(move_list.moves[i]);
 
         println!("Move: {} > {} (score: {})", i + 1, print_move(the_move), score);
     }
