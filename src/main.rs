@@ -18,6 +18,7 @@ mod uci;
 mod polybook;
 mod zobristhash;
 
+
 use uci::uci_loop;
 
 // use std::io as std_io;
@@ -57,6 +58,8 @@ const FEN_POLY9: &str = "rnbqkbnr/p1pppppp/8/8/P6P/R1p5/1P1PPPP1/1NBQKBNR b Kkq 
 // [profile.release]
 // debug = false
 // unused_imports = "error"
+// lto = "fat"
+// codegen-units = 1
 
 fn main() {
     uci_loop();

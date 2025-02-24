@@ -1,10 +1,9 @@
-use colored::Colorize;
 
 use crate::{board::{parse_fen, print_board}, defs::{Board, SearchInfo, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, WHITE}, io::parse_move, makemove::make_move, perft::perft_test, pvtable::clear_hash_table, search::search_position, FEN_START};
-use std::{io::{self, BufRead}, sync::{atomic::Ordering, Arc}, thread, time::{Duration, Instant}};
+use std::{io::{self, BufRead}, sync::{atomic::Ordering, Arc}, thread::{self, JoinHandle}, time::{Duration, Instant}};
 
 // go depth 6 wtime 1000 btime 1000 binc 1000 winc 1000 movetime 1000 movestogo 40
-pub fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) {
+pub fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) -> JoinHandle<()> {
     let tokens: Vec<&str> = input.split_whitespace().collect();
     let mut i = 0;
 
@@ -95,15 +94,12 @@ pub fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) {
 
     let mut position_clone = position.clone();
     let search_info = Arc::clone(&info);
-    let table = Arc::clone(&HASH_TABLE);
 
-    thread::spawn(move || {
-        if let Ok(mut hash_table) = table.lock() {
-            search_position(&mut position_clone, search_info, &mut hash_table);
-        } else {
-            eprintln!("{}", "parse_go: failed to acquire lock on HASH_TABLE".red());
-        }
+    let main_search_thread = thread::spawn(move || {
+        search_position(&mut position_clone, search_info, Arc::clone(&*HASH_TABLE));
     });
+
+    main_search_thread
 }
 
 // position fen fenstr
@@ -147,6 +143,7 @@ pub fn uci_loop() {
 
     let position: &mut Board = &mut Board::default();
     let info = SearchInfo::new();
+    info.set_thread_num(4);
 
     let mut i = 0;
 
@@ -162,7 +159,7 @@ pub fn uci_loop() {
                 // user_input = "quit".to_string();
             } else if i == 2 {
                 // user_input = "setoption name Book value false".to_string();
-                user_input = "go depth 10".to_string();
+                user_input = "go depth 11".to_string();
             // }
             // else if i == 3 {
             //     user_input = "position startpos moves e2e4".to_string();
@@ -188,7 +185,7 @@ pub fn uci_loop() {
 
         } else if user_input == "ucinewgame" {
             // HASH_TABLE.clear();
-            clear_hash_table(&mut HASH_TABLE.lock().unwrap());
+            clear_hash_table(&HASH_TABLE);
             parse_position(&"position startpos".to_string(), position);
 
         } else if user_input.contains("go") {

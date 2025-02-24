@@ -8,6 +8,7 @@ use crate::pvtable::{extract_depth, extract_flags, extract_move, extract_score, 
 pub const BOARD_SQUARE_NUMBER: usize = 120;
 pub const MAX_GAME_MOVES: usize = 2048;
 pub const MAX_POSITION_MOVES: usize = 256;
+pub const MAX_THREADS: usize = 16;
 
 pub const WHITE: usize = 0;
 pub const BLACK: usize = 1;
@@ -24,8 +25,8 @@ pub const IS_MATE: i32 = AB_BOUND - MAX_DEPTH as i32;
 
 // .lock() is specific to mutex, careful with .unwrap() consider using something more robust
 pub static ENGINE_OPTIONS: Mutex<EngineOptions> = Mutex::new(EngineOptions { book: false });
-pub static HASH_TABLE: LazyLock<Arc<Mutex<HashTable>>> = LazyLock::new(|| Arc::new(Mutex::new(HashTable::default())));
-// pub static HASH_TABLE: LazyLock<DashMap<u64, u64, IdentityBuildHasher>> = LazyLock::new(|| DashMap::with_capacity_and_hasher(131070, IdentityBuildHasher));
+pub static HASH_TABLE: LazyLock<Arc<HashTable>> = LazyLock::new(|| Arc::new(HashTable::default()));
+// pub static HASH_TABLE: LazyLock<Arc<DashMap<u64, u64, IdentityBuildHasher>>> = LazyLock::new(|| Arc::new(DashMap::with_capacity_and_hasher(131072, IdentityBuildHasher)));
 // pub static TEST: LazyLock<DashMap<u64, u64>> = LazyLock::new(|| DashMap::new());
 /*
 *  *  *  *  *  *  *  *  * *
@@ -133,34 +134,66 @@ impl MoveList {
     }
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Default)]
 pub struct HashEntry {
-    pub position_key: u64,
-    pub data: u64,
-    pub age: u8,
+    position_key: AtomicU64,
+    data: AtomicU64,
+    age: AtomicU8,
 }
 
 pub struct HashTable {
-    pub pv_table: Vec<HashEntry>,
-    pub new_write: u64,
-    pub over_write: u64,
-    pub hit: u64,
-    pub cut: u64,
-    pub current_age: u8,
+    pv_table: Vec<HashEntry>,
+    new_write: AtomicU64,
+    over_write: AtomicU64,
+    pub hit: AtomicU64,
+    pub cut: AtomicU64,
+    pub current_age: AtomicU8,
 }
 impl HashTable {
     fn default() -> Self {
         HashTable {
-            pv_table: vec![HashEntry::default(); 131070],
-            new_write: 0,
-            over_write: 0,
-            hit: 0,
-            cut: 0,
-            current_age: 0,
+            pv_table: (0..131072).map(|_| HashEntry::default()).collect(),
+            new_write: AtomicU64::new(0),
+            over_write: AtomicU64::new(0),
+            hit: AtomicU64::new(0),
+            cut: AtomicU64::new(0),
+            current_age: AtomicU8::new(0),
         }
     }
 
-    pub fn store_hash_entry(&mut self, position: &mut Board, the_move: u32, score: &mut i32, flags: u8, depth: i32) {
+    pub fn get_position_key(&self, i: usize) -> u64 { self.pv_table[i].position_key.load(Ordering::Relaxed) }
+    pub fn set_position_key(&self, i: usize, x: u64) { self.pv_table[i].position_key.store(x, Ordering::Relaxed); }
+
+    pub fn get_data(&self, i: usize) -> u64 { self.pv_table[i].data.load(Ordering::Relaxed) }
+    pub fn set_data(&self, i: usize, x: u64) { self.pv_table[i].data.store(x, Ordering::Relaxed); }
+
+    pub fn get_age(&self, i: usize) -> u8 { self.pv_table[i].age.load(Ordering::Relaxed) }
+    pub fn set_age(&self, i: usize, x: u8) { self.pv_table[i].age.store(x, Ordering::Relaxed); }
+
+    pub fn get_new_write(&self) -> u64 { self.new_write.load(Ordering::Relaxed) }
+    pub fn set_new_write(&self, x: u64) { self.new_write.store(x, Ordering::Relaxed); }
+
+    pub fn get_over_write(&self) -> u64 { self.over_write.load(Ordering::Relaxed) }
+    pub fn set_over_write(&self, x: u64) { self.over_write.store(x, Ordering::Relaxed); }
+
+    pub fn get_hit(&self) -> u64 { self.hit.load(Ordering::Relaxed) }
+    pub fn set_hit(&self, x: u64) { self.hit.store(x, Ordering::Relaxed); }
+
+    pub fn get_cut(&self) -> u64 { self.cut.load(Ordering::Relaxed) }
+    pub fn set_cut(&self, x: u64) { self.cut.store(x, Ordering::Relaxed); }
+
+    pub fn get_current_age(&self) -> u8 { self.current_age.load(Ordering::Relaxed) }
+    pub fn set_current_age(&self, x: u8) { self.current_age.store(x,Ordering::Relaxed) }
+
+    pub fn clear(&self) {
+        for i in 0..131072 {
+            self.set_position_key(i, 0);
+            self.set_data(i, 0);
+            self.set_age(i, 0);
+        }
+    }
+
+    pub fn store_hash_entry(&self, position: &mut Board, the_move: u32, score: &mut i32, flags: u8, depth: i32) {
         let data = fold_data(*score, depth as u64, flags as u64, the_move);
         let i = position.position_key as usize % self.pv_table.capacity();
 
@@ -172,11 +205,11 @@ impl HashTable {
 
         let mut replace = false;
 
-        if self.pv_table[i].position_key == 0 {
-            self.new_write += 1;
+        if self.get_position_key(i) == 0 {
+            self.new_write.fetch_add(1, Ordering::Relaxed);
             replace = true;
         } else {
-            if self.pv_table[i].age < self.current_age || extract_depth(self.pv_table[i].data) <= depth as u64 {
+            if self.get_age(i) < self.get_current_age() || extract_depth(self.get_data(i)) <= depth as u64 {
                 replace = true
             }
         }
@@ -190,16 +223,14 @@ impl HashTable {
             *score -= position.ply as i32;
         }
 
-        self.pv_table[i] = HashEntry {
-            position_key: position.position_key,
-            data,
-            age: self.current_age,
-        };
+        self.set_position_key(i, position.position_key);
+        self.set_data(i, data);
+        self.set_age(i, self.get_current_age());
     }
 
     // checks if table has an entry that matches the current position, if found set the_move equal to the stored move in the hash
     // if the score is within proper bounds of alpha-beta, set score and prune in the alpha-beta function
-    pub fn probe_hash_table(&mut self, position: &mut Board, the_move: &mut u32, score: &mut i32, alpha: i32, beta: i32, depth: i32) -> bool {
+    pub fn probe_hash_table(&self, position: &mut Board, the_move: &mut u32, score: &mut i32, alpha: i32, beta: i32, depth: i32) -> bool {
         let i = position.position_key as usize % self.pv_table.capacity();
 
         if DEBUG {
@@ -209,14 +240,14 @@ impl HashTable {
             if beta > AB_BOUND || beta < -AB_BOUND { eprintln!("{}", "probe_hash_table: [beta] out of bounds".red()); }
         }
 
-        if self.pv_table[i].position_key == position.position_key {
-            *the_move = extract_move(self.pv_table[i].data) as u32;
+        if self.get_position_key(i) == position.position_key {
+            *the_move = extract_move(self.get_data(i)) as u32;
 
-            if extract_depth(self.pv_table[i].data) >= depth as u64 {
-                self.hit += 1;
+            if extract_depth(self.get_data(i)) >= depth as u64 {
+                self.hit.fetch_add(1, Ordering::Relaxed);
 
                 // set mate score for alpha beta
-                *score = extract_score(self.pv_table[i].data);
+                *score = extract_score(self.get_data(i));
                 if *score > IS_MATE {
                     *score -= position.ply as i32;
                 } else if *score < -IS_MATE {
@@ -224,7 +255,7 @@ impl HashTable {
                 }
 
                 // if it is a cutoff
-                match extract_flags(self.pv_table[i].data) as u8 {
+                match extract_flags(self.get_data(i)) as u8 {
                     x if x == HashFlag::HashFlagAlpha as u8 => {
                         if *score <= alpha {
                             *score = alpha;
@@ -249,14 +280,14 @@ impl HashTable {
     }
 
     #[inline(always)]
-    pub fn probe_pv_move(&mut self, position: &Board) -> u32 {
+    pub fn probe_pv_move(&self, position: &Board) -> u32 {
         let i = position.position_key as usize % self.pv_table.capacity();
 
         // if DEBUG && i < 0 || i > position.hash_table.pv_table.capacity() - 1 { eprintln!("{}", "probe_pv_move: [i] out of bounds".red()); }
 
-        if self.pv_table[i].position_key == position.position_key {
+        if self.get_position_key(i) == position.position_key {
             // println!("   PROBED {}", print_move(hash_table.pv_table[i].the_move));
-            return extract_move(self.pv_table[i].data) as u32 }
+            return extract_move(self.get_data(i)) as u32 }
         return NO_MOVE
     }
 }
@@ -347,7 +378,7 @@ pub struct SearchInfo {
     pub nodes: AtomicU64,
     pub stopped: AtomicBool,
     pub null_cut: AtomicU32,
-
+    pub thread_num: AtomicU8,
     pub protected: RwLock<ProtectedInfo>,
 }
 pub struct ProtectedInfo {
@@ -361,15 +392,11 @@ impl SearchInfo {
         Arc::new(SearchInfo {
             depth: AtomicI32::new(0),
             time_set: AtomicBool::new(false),
-
             moves_to_go: AtomicU8::new(0),
-
             nodes: AtomicU64::new(0),
-
             stopped: AtomicBool::new(false),
-
             null_cut: AtomicU32::new(0),
-
+            thread_num: AtomicU8::new(1),
             protected: RwLock::new(ProtectedInfo {
                 start_time: Instant::now(),
                 stop_time: Instant::now(),
@@ -378,6 +405,27 @@ impl SearchInfo {
             }),
         })
     }
+
+    pub fn get_depth(&self) -> i32 { self.depth.load(Ordering::Relaxed) }
+    pub fn set_depth(&self, x: i32) { self.depth.store(x, Ordering::Relaxed); }
+
+    pub fn get_time_set(&self) -> bool { self.time_set.load(Ordering::Relaxed) }
+    pub fn set_time_set(&self, x: bool) { self.time_set.store(x, Ordering::Relaxed); }
+
+    pub fn get_moves_to_go(&self) -> u8 { self.moves_to_go.load(Ordering::Relaxed) }
+    pub fn set_moves_to_go(&self, x: u8) { self.moves_to_go.store(x, Ordering::Relaxed); }
+
+    pub fn get_nodes(&self) -> u64 { self.nodes.load(Ordering::Relaxed) }
+    pub fn set_nodes(&self, x: u64) { self.nodes.store(x, Ordering::Relaxed); }
+
+    pub fn get_stopped(&self) -> bool { self.stopped.load(Ordering::Relaxed) }
+    pub fn set_stopped(&self, x: bool) { self.stopped.store(x, Ordering::Relaxed); }
+
+    pub fn get_null_cut(&self) -> u32 { self.null_cut.load(Ordering::Relaxed) }
+    pub fn set_null_cut(&self, x: u32) { self.null_cut.store(x, Ordering::Relaxed); }
+
+    pub fn get_thread_num(&self) -> u8 { self.thread_num.load(Ordering::Relaxed) }
+    pub fn set_thread_num(&self, x: u8) { self.thread_num.store(x, Ordering::Relaxed); }
 
     pub fn check_up(&self) {
         if let Ok(protected) = self.protected.read() {
@@ -392,9 +440,16 @@ impl SearchInfo {
     }
 }
 
-pub struct EngineOptions {
-    pub book: bool,
+pub struct SearchWorkerData {
+    pub position: Board,
+    pub info: Arc<SearchInfo>,
+
+    pub thread_number: u8,
+    pub depth: u8,
+    pub best_move: AtomicU32,
 }
+
+pub struct EngineOptions { pub book: bool, }
 
 // small board to big board
 #[inline(always)]

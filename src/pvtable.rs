@@ -1,3 +1,4 @@
+
 use colored::Colorize;
 use rand::{thread_rng, Rng};
 
@@ -47,7 +48,7 @@ pub fn hash_test(fen: String) {
     }
 }
 
-pub fn get_pv_line(depth: u8, position: &mut Board, hash_table: &mut HashTable) -> usize{
+pub fn get_pv_line(depth: u8, position: &mut Board, hash_table: &HashTable) -> usize{
     if DEBUG && (depth > MAX_DEPTH as u8 || depth < 1) { eprintln!("{}", "get_pv_line: [depth] greater than MAX_DEPTH or less than 1".red()); }
 
     let mut count: usize = 0;
@@ -72,10 +73,10 @@ pub fn get_pv_line(depth: u8, position: &mut Board, hash_table: &mut HashTable) 
     count
 }
 
-pub fn clear_hash_table(hash_table: &mut HashTable) {
-    hash_table.pv_table.clear();
-    hash_table.new_write = 0;
-    hash_table.current_age = 0;
+pub fn clear_hash_table(hash_table: &HashTable) {
+    hash_table.clear();
+    hash_table.set_new_write(0);
+    hash_table.set_current_age(0);
 }
 
 // checks if table has an entry that matches the current position, if found set the_move equal to the stored move in the hash
