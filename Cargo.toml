@@ -7,3 +7,9 @@ edition = "2021"
 rand = "0.8.5"
 colored = "2.2.0"
 dashmap = "6.1.0"
+
+[profile.release]
+debug = false
+unused_imports = "error"
+lto = "fat"
+codegen-units = 1
