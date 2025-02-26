@@ -9,8 +9,28 @@ fn move_gen(board, moveList)
 
 use colored::Colorize;
 
-use crate::{attack::square_attacked, board::check_board, data::PIECE_COLOR, defs::{captured, from_square, to_square, Board, Castling::*, MoveList, Pieces::*, Ranks::*, Squares::*, BLACK, DEBUG, FILES_BOARD, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, MVV_LVA_SCORES, RANKS_BOARD, WHITE}, makemove::{make_move, take_move}, validate::{piece_valid, piece_valid_empty, square_on_board}};
+use crate::{attack::square_attacked, board::check_board, data::PIECE_COLOR, defs::{captured, extract_movelist_move, from_square, store_movelist_move, store_movelist_score, to_square, Board, Castling::*, MoveList, Pieces::*, Ranks::*, Squares::*, BLACK, DEBUG, FILES_BOARD, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, MVV_LVA_SCORES, RANKS_BOARD, WHITE}, makemove::{make_move, take_move}, validate::{piece_valid, piece_valid_empty, square_on_board}};
 
+// indexes that pieces move (like pawn captures)
+const PIECE_DIRECTION: [[i8; 8]; 13] = [
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [-8, -19, -21, -12, 8, 19, 21, 12],
+    [-9, -11, 11, 9, 0, 0, 0, 0],
+    [-1, -10, 1, 10, 0, 0, 0, 0],
+    [-1, -10, 1, 10, -9, -11, 11, 9],
+    [-1, -10, 1, 10, -9, -11, 11, 9],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [-8, -19, -21, -12, 8, 19, 21, 12],
+    [-9, -11, 11, 9, 0, 0, 0, 0],
+    [-1, -10, 1, 10, 0, 0, 0, 0],
+    [-1, -10, 1, 10, -9, -11, 11, 9],
+    [-1, -10, 1, 10, -9, -11, 11, 9]
+];
+// number of directions each piece can move (rook 4, queen 8)
+const NUMBER_DIRECTION: [u8; 13] = [0, 0, 8, 4, 4, 8, 8, 0, 8, 4, 4, 8, 8];
+
+#[inline(always)]
 pub fn move_builder(from: u32, to: u32, capture: u32, promote: u32, flag: u32) -> u32 { from | (to << 7) | (capture << 14) | (promote << 20) | flag }
 
 pub fn move_exists(position: &mut Board, the_move: u32) -> bool {
@@ -18,18 +38,14 @@ pub fn move_exists(position: &mut Board, the_move: u32) -> bool {
     generate_all_moves(position, move_list);
 
     for move_number in 0..move_list.count {
-        if !make_move(position, move_list.moves[move_number].el_move) {
-            continue;
-        }
+        if !make_move(position, extract_movelist_move(move_list.moves[move_number])) { continue; }
 
         take_move(position);
 
-        if move_list.moves[move_number].el_move == the_move {
-            return true
-        }
+        if extract_movelist_move(move_list.moves[move_number]) == the_move { return true }
     }
 
-    return false
+    false
 }
 
 // add move to array and increment
@@ -39,17 +55,11 @@ pub fn add_quiet_move(position: &mut Board, the_move: u32, move_list: &mut MoveL
         if !square_on_board(to_square(the_move) as usize) { eprintln!("{}", "add_quiet_move: [to] square not on board".red()); }
     }
 
-    move_list.moves[move_list.count].el_move = the_move;
+    store_movelist_move(&mut move_list.moves[move_list.count], the_move);
 
-    // update non-capture moves that give beta cut-offs
-    if position.search_killers[0][position.ply as usize] == the_move {
-        move_list.moves[move_list.count].score = 900000;
-    } else if position.search_killers[1][position.ply as usize] == the_move {
-        move_list.moves[move_list.count].score = 800000;
-    } else {
-        move_list.moves[move_list.count].score = position.search_history[position.pieces[from_square(the_move) as usize] as usize][to_square(the_move) as usize];
-    }
-
+    if position.search_killers[0][position.ply as usize] == the_move { store_movelist_score(&mut move_list.moves[move_list.count], 900000); }
+    else if position.search_killers[1][position.ply as usize] == the_move { store_movelist_score(&mut move_list.moves[move_list.count], 800000); }
+    else { store_movelist_score(&mut move_list.moves[move_list.count], position.search_history[position.pieces[from_square(the_move) as usize] as usize][to_square(the_move) as usize]); }
     move_list.count += 1;
 }
 
@@ -60,9 +70,8 @@ pub fn add_capture_move(position: &mut Board, the_move: u32, move_list: &mut Mov
         if !square_on_board(to_square(the_move) as usize) { eprintln!("{}", "add_capture_move: [to] square not on board".red()); }
     }
 
-    move_list.moves[move_list.count].el_move = the_move;
-    // add 1 million so they are above killer moves (8/900000), history heuristics, pv_moves for move ordering
-    move_list.moves[move_list.count].score = MVV_LVA_SCORES[captured(the_move) as usize][position.pieces[from_square(the_move) as usize] as usize] + 1000000;
+    store_movelist_move(&mut move_list.moves[move_list.count], the_move);
+    store_movelist_score(&mut move_list.moves[move_list.count], MVV_LVA_SCORES[captured(the_move) as usize][position.pieces[from_square(the_move) as usize] as usize] + 1000000,);
     move_list.count += 1;
 }
 
@@ -72,13 +81,10 @@ pub fn add_en_passent_move(_position: &mut Board, the_move: u32, move_list: &mut
         if !square_on_board(from_square(the_move) as usize) { eprintln!("{}", "add_en_passent_move: [from] square not on board".red()); }
         if !square_on_board(to_square(the_move) as usize) { eprintln!("{}", "add_en_passent_move: [to] square not on board".red()); }
     }
-
-    move_list.moves[move_list.count].el_move = the_move;
-    // add 1 million so they are above killer moves and history heuristics and pv_moves for move ordering
-    move_list.moves[move_list.count].score = 105 + 1000000;
+    store_movelist_move(&mut move_list.moves[move_list.count], the_move);
+    store_movelist_score(&mut move_list.moves[move_list.count], 105 + 1000000);
     move_list.count += 1;
 }
-
 pub fn add_white_pawn_capture_move(position: &mut Board, from: usize, to: usize, capture: usize, move_list: &mut MoveList) {
     if DEBUG {
         if !piece_valid_empty(capture) { eprintln!("{}", "add_white_pawn_capture_move: [capture] piece isn't empty or a piece".red()); }
@@ -109,7 +115,7 @@ pub fn add_white_pawn_move(position: &mut Board, from: usize, to: usize, move_li
         add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, WhiteBishop as u32, 0), move_list);
         add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, WhiteKnight as u32, 0), move_list);
     } else {
-        add_capture_move(position, move_builder(from as u32, to as u32, Empty as u32, Empty as u32, 0), move_list);
+        add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, Empty as u32, 0), move_list);
     }
 }
 
@@ -143,7 +149,7 @@ pub fn add_black_pawn_move(position: &mut Board, from: usize, to: usize, move_li
         add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, BlackBishop as u32, 0), move_list);
         add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, BlackKnight as u32, 0), move_list);
     } else {
-        add_capture_move(position, move_builder(from as u32, to as u32, Empty as u32, Empty as u32, 0), move_list);
+        add_quiet_move(position, move_builder(from as u32, to as u32, Empty as u32, Empty as u32, 0), move_list);
     }
 }
 
@@ -349,25 +355,6 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
             }
         }
     }
-
-    // indexes that pieces move (like pawn captures)
-    const PIECE_DIRECTION: [[i8; 8]; 13] = [
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [-8, -19, -21, -12, 8, 19, 21, 12],
-        [-9, -11, 11, 9, 0, 0, 0, 0],
-        [-1, -10, 1, 10, 0, 0, 0, 0],
-        [-1, -10, 1, 10, -9, -11, 11, 9],
-        [-1, -10, 1, 10, -9, -11, 11, 9],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [-8, -19, -21, -12, 8, 19, 21, 12],
-        [-9, -11, 11, 9, 0, 0, 0, 0],
-        [-1, -10, 1, 10, 0, 0, 0, 0],
-        [-1, -10, 1, 10, -9, -11, 11, 9],
-        [-1, -10, 1, 10, -9, -11, 11, 9]
-    ];
-    // number of directions each piece can move (rook 4, queen 8)
-    const NUMBER_DIRECTION: [u8; 13] = [0, 0, 8, 4, 4, 8, 8, 0, 8, 4, 4, 8, 8];
 
     // Loop for slide pieces:
     const LOOP_SLIDE_PIECES: [u8; 8] = [WhiteBishop as u8, WhiteRook as u8, WhiteQueen as u8, 0, BlackBishop as u8, BlackRook as u8, BlackQueen as u8, 0];
@@ -575,25 +562,6 @@ pub fn generate_all_capture_moves(position: &mut Board, move_list: &mut MoveList
             }
         }
     }
-
-    // indexes that pieces move (like pawn captures)
-    const PIECE_DIRECTION: [[i8; 8]; 13] = [
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [-8, -19, -21, -12, 8, 19, 21, 12],
-        [-9, -11, 11, 9, 0, 0, 0, 0],
-        [-1, -10, 1, 10, 0, 0, 0, 0],
-        [-1, -10, 1, 10, -9, -11, 11, 9],
-        [-1, -10, 1, 10, -9, -11, 11, 9],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [-8, -19, -21, -12, 8, 19, 21, 12],
-        [-9, -11, 11, 9, 0, 0, 0, 0],
-        [-1, -10, 1, 10, 0, 0, 0, 0],
-        [-1, -10, 1, 10, -9, -11, 11, 9],
-        [-1, -10, 1, 10, -9, -11, 11, 9]
-    ];
-    // number of directions each piece can move (rook 4, queen 8)
-    const NUMBER_DIRECTION: [u8; 13] = [0, 0, 8, 4, 4, 8, 8, 0, 8, 4, 4, 8, 8];
 
     // Loop for slide pieces:
     const LOOP_SLIDE_PIECES: [u8; 8] = [WhiteBishop as u8, WhiteRook as u8, WhiteQueen as u8, 0, BlackBishop as u8, BlackRook as u8, BlackQueen as u8, 0];

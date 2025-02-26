@@ -19,9 +19,13 @@ use crate::{attack::square_attacked, board::check_board, data::{IS_KING, IS_PAWN
 13. change side, increment ply and history ply
 */
 
+#[inline(always)]
 pub fn hash_piece(position: &mut Board, piece: usize, square: usize) { position.position_key ^= PIECE_KEYS[piece as usize][square as usize]; }
+#[inline(always)]
 pub fn hash_castle(position: &mut Board) { position.position_key ^= CASTLE_KEYS[position.castle_permission as usize]; }
+#[inline(always)]
 pub fn hash_side(position: &mut Board) { position.position_key ^= *SIDE_KEY; }
+#[inline(always)]
 pub fn hash_en_passant(position: &mut Board) { position.position_key ^= PIECE_KEYS[Empty as usize][position.en_passent as usize]; }
 
 // 1111 == 15

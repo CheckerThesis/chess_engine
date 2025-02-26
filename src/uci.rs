@@ -1,10 +1,9 @@
-use colored::Colorize;
 
 use crate::{board::{parse_fen, print_board}, defs::{Board, SearchInfo, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, WHITE}, io::parse_move, makemove::make_move, perft::perft_test, pvtable::clear_hash_table, search::search_position, FEN_START};
-use std::{io::{self, BufRead}, sync::{atomic::Ordering, Arc}, thread, time::{Duration, Instant}};
+use std::{i32, io::{self, BufRead}, sync::{atomic::Ordering, Arc}, thread::{self, JoinHandle}, time::{Duration, Instant}};
 
 // go depth 6 wtime 1000 btime 1000 binc 1000 winc 1000 movetime 1000 movestogo 40
-pub fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) {
+pub fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) -> Option<JoinHandle<()>> {
     let tokens: Vec<&str> = input.split_whitespace().collect();
     let mut i = 0;
 
@@ -89,21 +88,18 @@ pub fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) {
             info.depth.store(MAX_DEPTH as i32, Ordering::Relaxed);
         }
 
-        println!("time: {:?}    start: {:?}    stop: {:?}    depth: {}\ntimeset: {}    info.stopped: {}",
-        time, protected.start_time, protected.stop_time, info.depth.load(Ordering::Relaxed), info.time_set.load(Ordering::Relaxed), info.stopped.load(Ordering::Relaxed));
+        println!("time: {:?}    start: {:?}    stop: {:?}    depth: {}\ntimeset: {}    info.stopped: {}    thread count: {}",
+        time, protected.start_time, protected.stop_time, info.depth.load(Ordering::Relaxed), info.time_set.load(Ordering::Relaxed), info.stopped.load(Ordering::Relaxed), info.get_thread_num());
     }
 
     let mut position_clone = position.clone();
     let search_info = Arc::clone(&info);
-    let table = Arc::clone(&HASH_TABLE);
 
-    thread::spawn(move || {
-        if let Ok(mut hash_table) = table.lock() {
-            search_position(&mut position_clone, search_info, &mut hash_table);
-        } else {
-            eprintln!("{}", "parse_go: failed to acquire lock on HASH_TABLE".red());
-        }
+    let main_search_thread = thread::spawn(move || {
+        search_position(&mut position_clone, search_info, Arc::clone(&*HASH_TABLE));
     });
+
+    Some(main_search_thread)
 }
 
 // position fen fenstr
@@ -134,17 +130,22 @@ pub fn parse_position(input: &String, position: &mut Board) {
     print_board(position);
 }
 
+// TODO organize the uci_loop
 pub fn uci_loop() {
     let name = "Vault";
-    let mut testing = false;
+    let mut testing = true;
 
     let mut user_input = String::new();
+
+    let mut main_search_thread: Option<JoinHandle<()>> = None;
+    let position: &mut Board = &mut Board::default();
+    let info = SearchInfo::new();
+    info.set_thread_num(4);
+    println!("thread count {}", info.get_thread_num());
+
     println!("id name {}", name.to_string());
     println!("id author Tein Cow");
     println!("uciok");
-
-    let position: &mut Board = &mut Board::default();
-    let info = SearchInfo::new();
 
     let mut i = 0;
 
@@ -154,12 +155,15 @@ pub fn uci_loop() {
         if testing {
             i += 1;
             if i == 1 {
-                user_input = "position startpos".to_string();
-                // user_input = "position fen r3kb1r/3n1pp1/p6p/2pPp2q/Pp2N3/3B2PP/1PQ2P2/R3K2R w KQkq - 0 1".to_string();
+                user_input = "position fen rn1qkb1r/pp2pppp/5n2/3p1b2/3P4/2N1P3/PP3PPP/R1BQKBNR w KQkq - 0 1".to_string();
+                // user_input = "position fen r2q1rk1/2p1bppp/p2p1n2/1p2P3/4P1b1/1nP1BN2/PP3PPP/RN1QR1K1 w - - 1 12".to_string();
+                // user_input = "quit".to_string();
+                // user_input = "position startpos".to_string();
+                // user_input = "quit".to_string();
             } else if i == 2 {
-                user_input = "setoption name Book value false".to_string();
-            } else if i == 3 {
-                user_input = "go depth 8".to_string();
+                // user_input = "setoption name Book value false".to_string();
+                user_input = "go depth 11".to_string();
+
             } else {
                 io::stdin().lock().read_line(&mut user_input).unwrap();
             }
@@ -178,15 +182,25 @@ pub fn uci_loop() {
             parse_position(&user_input, position);
 
         } else if user_input == "ucinewgame" {
-            clear_hash_table(&mut HASH_TABLE.lock().unwrap());
+            clear_hash_table(&HASH_TABLE);
             parse_position(&"position startpos".to_string(), position);
 
         } else if user_input.contains("go") {
-            parse_go(&user_input, Arc::clone(&info), position);
+            main_search_thread = parse_go(&user_input, Arc::clone(&info), position);
 
         } else if user_input == "stop" {
             info.stopped.store(true, Ordering::Relaxed);
+
+            if let Some(thread) = main_search_thread.take() {
+                match thread.join() {
+                    Ok(_) => println!("Thread joined successfully."),
+                    Err(e) => eprintln!("Error joining thread: {:?}", e),
+                }
+            } else {
+                println!("No thread to join.");
+            }
         } else if user_input == "quit" {
+            info.stopped.store(true, Ordering::Relaxed);
             break;
 
         } else if user_input == "uci" {
@@ -194,6 +208,11 @@ pub fn uci_loop() {
             println!("id author Tien Cow");
             println!("uciok");
 
+        } else if user_input.contains("threads" ){
+            let temp: Vec<&str> = user_input.split_whitespace().collect();
+            let temp2 = temp[1].parse::<i32>();
+            info.thread_num.store(temp2.unwrap() as u8, Ordering::Relaxed);
+            println!("threads count {}", info.get_thread_num());
         } else if user_input.contains("setoption name Book value ") {
             if user_input.contains("true") {
                 ENGINE_OPTIONS.lock().unwrap().book = true;
@@ -205,6 +224,13 @@ pub fn uci_loop() {
         } else if user_input.contains("perft") {
             let depth: Vec<&str> = user_input.split_whitespace().collect();
             perft_test(depth[1].parse::<u8>().expect(""), position);
+        }
+    }
+
+    if let Some(thread) = main_search_thread.take() {
+        match thread.join() {
+            Ok(_) => println!("Thread joined successfully."),
+            Err(e) => eprintln!("Error joining thread: {:?}", e),
         }
     }
 }

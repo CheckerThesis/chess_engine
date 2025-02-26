@@ -1,0 +1,77 @@
+Vice 1.1:
+info score cp 15 depth 1 nodes 46 time 0 pv f1d3
+info score cp 10 depth 2 nodes 666 time 0 pv f1b5 b8c6
+info score cp 15 depth 3 nodes 3299 time 1 pv f1d3 f5d3 d1d3
+info score cp 15 depth 4 nodes 18460 time 10 pv f1b5 b8c6 g1e2 e7e6
+info score cp 15 depth 5 nodes 85431 time 37 pv c1d2 b8c6 d1b3 d8d7 e1c1
+info score cp 10 depth 6 nodes 371919 time 97 pv f1b5 b8c6 c1d2 a8c8
+info score cp 15 depth 7 nodes 1428135 time 276 pv g1f3 b8c6 f1b5 e7e6 f3e5 a8c8 b5c6
+info score cp 15 depth 8 nodes 3309286 time 587 pv g1f3 b8c6 f1b5 e7e6 f3e5 a8c8 b5c6 b7c6
+info score cp 20 depth 9 nodes 13920723 time 2346 pv g1f3
+info score cp 35 depth 10 nodes 70457510 time 11335 pv d1b3
+info score cp 35 depth 11 nodes 170832714 time 27482 pv d1b3
+
+Vault multi-threading part 2 (4):
+info score cp 15 depth 1 nodes 49 time 0 pv f1d3
+info score cp 10 depth 2 nodes 2527 time 0 pv f1b5 b8c6
+info score cp 15 depth 3 nodes 8659 time 1 pv f1d3 f5d3 d1d3
+info score cp 15 depth 4 nodes 50041 time 4 pv f1b5 b8c6 g1e2 e7e6
+info score cp 15 depth 5 nodes 197600 time 16 pv f1d3 f5d3 d1d3 b8c6 c1d2
+info score cp 10 depth 6 nodes 707926 time 55 pv f1b5 b8c6 g1e2 e7e6 e1g1 f8d6
+info score cp 15 depth 7 nodes 2359889 time 187 pv f1d3 f5d3 d1d3 b8c6 g1f3 c6b4 d3d2
+info score cp 10 depth 8 nodes 7654174 time 584 pv f1b5 b8d7 g1f3 e7e6 f3h4 f8b4 h4f5 b4c3
+info score cp 20 depth 9 nodes 25509642 time 1938 pv g1f3 b8c6 f1b5 e7e6 f3e5 a8c8 g2g4
+info score cp 35 depth 10 nodes 81307922 time 6060 pv d1b3 f5c8 f1b5 b8c6 g1f3 c8f5 f3e5 a8c8
+info score cp 35 depth 11 nodes 178652610 time 13096 pv d1b3 f5c8 f1d3 e7e6 c1d2 b8c6 g1f3 f8d6
+
+Vault multi-threading (4):
+info score cp 15 depth 1 nodes 99 time 0 pv f1d3
+info score cp 10 depth 2 nodes 2211 time 0 pv f1b5 b8c6
+info score cp 15 depth 3 nodes 9235 time 1 pv f1d3 f5d3 d1d3
+info score cp 15 depth 4 nodes 51204 time 5 pv f1b5 b8c6 g1e2 e7e6
+info score cp 15 depth 5 nodes 292722 time 22 pv c1d2 b8c6 d1b3 d8d7 c3d5
+info score cp 15 depth 6 nodes 974271 time 72 pv f1b5 b8c6 g1f3 e7e6 e1g1 f8d6
+info score cp 15 depth 7 nodes 3545254 time 255 pv g1f3 b8c6 f1b5 e7e6 f3e5 a8c8 b5c6
+info score cp 15 depth 8 nodes 10590468 time 743 pv g1f3 b8c6 f1b5 e7e6 f3e5 a8c8 b5c6
+info score cp 20 depth 9 nodes 32709896 time 2319 pv g1f3 b8c6 f1b5 e7e6 f3e5 a8c8 g2g4
+info score cp 35 depth 10 nodes 117399999 time 8446 pv d1b3 f5c8 f1b5 b8c6 g1f3 c8f5 e1g1
+info score cp 35 depth 11 nodes 317130932 time 21976 pv d1b3 f5c8 c1d2 e7e6 f1d3 f8d6 g1f3
+
+Vault multi-threading part 2 (1):
+info score cp 15 depth 1 nodes 46 time 0 pv f1d3
+info score cp 10 depth 2 nodes 666 time 0 pv f1b5 b8c6
+info score cp 15 depth 3 nodes 3299 time 1 pv f1d3 f5d3 d1d3
+info score cp 15 depth 4 nodes 18512 time 5 pv f1b5 b8c6 g1e2 e7e6
+info score cp 15 depth 5 nodes 85756 time 20 pv c1d2 b8c6 d1b3 d8d7 e1c1
+info score cp 10 depth 6 nodes 377736 time 84 pv f1b5 b8c6 c1d2 a8c8 g1f3 f6e4
+info score cp 15 depth 7 nodes 1459833 time 328 pv g1f3 b8c6 f1b5 e7e6 f3e5 a8c8 b5c6
+info score cp 15 depth 8 nodes 3934367 time 860 pv g1f3 b8c6 f1b5 e7e6 f3e5 a8c8 b5c6 b7c6
+info score cp 20 depth 9 nodes 12336043 time 2634 pv g1f3 b8c6 f1b5 e7e6 f3e5 a8c8 g2g4 f5g6
+info score cp 35 depth 10 nodes 41443356 time 8730 pv d1b3 f5c8 f1b5 b8c6 g1f3 c8f5 f3e5 a8c8 c1d2
+info score cp 35 depth 11 nodes 119695451 time 25358 pv d1b3 f5c8 c1d2 e7e6 g1f3 b8c6 f1d3
+
+Vault multi-threading (1):
+info score cp 15 depth 1 nodes 46 time 0 pv f1d3
+info score cp 10 depth 2 nodes 666 time 0 pv f1b5 b8c6
+info score cp 15 depth 3 nodes 3299 time 1 pv f1d3 f5d3 d1d3
+info score cp 15 depth 4 nodes 18504 time 5 pv f1b5 b8c6 g1e2 e7e6
+info score cp 15 depth 5 nodes 116106 time 25 pv c1d2 b8c6 d1b3 d8d7 e1c1
+info score cp 15 depth 6 nodes 480880 time 101 pv f1b5 b8c6 g1f3 e7e6 e1g1 f6e4
+info score cp 15 depth 7 nodes 2084466 time 425 pv g1f3 b8c6 f1b5 e7e6 f3e5 a8c8
+info score cp 15 depth 8 nodes 7007362 time 1395 pv g1f3 b8c6 f1b5 e7e6 f3e5 a8c8
+info score cp 20 depth 9 nodes 23802535 time 4673 pv g1f3 b8c6 f1b5 e7e6 f3e5 a8c8 g2g4
+info score cp 35 depth 10 nodes 73735637 time 14490 pv d1b3 f5c8 f1b5 b8c6 g1f3 c8f5 f3e5 a8c8 c1d2
+info score cp 35 depth 11 nodes 186157381 time 36411 pv d1b3 f5c8 c1d2 e7e6 f1d3 b8c6 g1f3 f8d6
+
+Vault latest commit:
+info score cp 15 depth 1 nodes 46 time 0 pv f1d3
+info score cp 10 depth 2 nodes 666 time 0 pv f1b5 b8c6
+info score cp 15 depth 3 nodes 3299 time 1 pv f1d3 f5d3 d1d3
+info score cp 15 depth 4 nodes 18509 time 5 pv f1b5 b8c6 g1e2 e7e6
+info score cp 15 depth 5 nodes 115196 time 25 pv c1d2 b8c6 d1b3 d8d7 e1c1
+info score cp 15 depth 6 nodes 478604 time 101 pv f1b5 b8c6 g1f3 e7e6 e1g1 f6e4
+info score cp 15 depth 7 nodes 2068975 time 426 pv g1f3 b8c6 f1b5 e7e6 f3e5
+info score cp 15 depth 8 nodes 6860595 time 1359 pv g1f3 b8c6 f1b5 e7e6 f3e5
+info score cp 20 depth 9 nodes 25550603 time 5100 pv g1f3 b8c6 f1b5 e7e6 f3e5 a8c8 g2g4
+info score cp 35 depth 10 nodes 76761409 time 15184 pv d1b3 f5c8 f1b5 b8c6 g1f3 c8f5 f3e5 a8c8 e1g1
+info score cp 35 depth 11 nodes 183611191 time 35903 pv d1b3 f5c8 c1d2 e7e6 f1d3 b8c6 g1f3
