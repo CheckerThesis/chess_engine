@@ -1,20 +1,19 @@
 use crate::defs::{fr2sq, sq64, Files, Ranks};
 
+#[inline(always)]
 pub fn pop_bit(bitboard: &mut u64) -> u64 {
-    // Isolates the least significant bit (LSB) that is set to 1
-    let least_significant_bit = *bitboard & (*bitboard as i64).wrapping_neg() as u64;
+    let least_significant_bit = *bitboard & (*bitboard as i64).wrapping_neg() as u64; // isolate the least significant bit (LSB) that is set to 1
 
-    // Performs a bit-scan forward operation to get the index of the LSB
-    let lsb_index: u64 = least_significant_bit.trailing_zeros() as u64;
+    let lsb_index: u64 = least_significant_bit.trailing_zeros() as u64; // perform a bit-scan forward operation to get the index of the LSB
 
-    // Clear the LSB from the bitboard
-    *bitboard &= *bitboard - 1;
+    *bitboard &= *bitboard - 1; // clear the LSB from the bitboard
 
-    // Since the trailing_zeros function returns the index from the least significant bit position (0),
+    // since the trailing_zeros function returns the index from the least significant bit position (0),
     // we need to convert it to a 64-based square index suitable for a chessboard
     lsb_index
 }
 
+#[inline(always)]
 pub fn count_bits(mut bit: u64) -> u64 {
     let mut r = 0;
 

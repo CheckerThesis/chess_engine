@@ -4,7 +4,6 @@ use colored::Colorize;
 
 use crate::{attack::square_attacked, board::check_board, defs::{extract_movelist_move, extract_movelist_score, from_square, store_movelist_score, to_square, Board, HashFlag::*, HashTable, MoveList, SearchInfo, SearchWorkerData, AB_BOUND, BOARD_SQUARE_NUMBER, DEBUG, ENGINE_OPTIONS, IS_MATE, MAX_DEPTH, MAX_GAME_MOVES, MOVE_FLAG_CAPTURE, NO_MOVE}, evaluate::evaluate_position, io::print_move, makemove::{make_move, make_null_move, take_move, take_null_move}, movegen::{generate_all_capture_moves, generate_all_moves}, polybook::get_book_move, pvtable::get_pv_line};
 
-// from move_number through the remaining moves, find the best score and put it in front
 pub fn pick_next_move(move_number: usize, move_list: &mut MoveList) {
     let mut best_score = 0;
     let mut best_number = move_number;
@@ -61,8 +60,29 @@ pub fn clear_for_search(position: &mut Board, info: &SearchInfo, hash_table: &Ha
     }
 }
 
-// resolves all captures so if a queen takes a defended pawn, the engine doesn't think it is +1 pawn, but realizes
-// opponent can take the queen as well (horizon effect)
+/**
+Resolves all captures to avoid the horizon effect.
+
+The horizon effect from the CPW "Consider the situation where the last move you consider is queen takes pawn. If you stop there and evaluate, you might think that you have won a pawn. But what if you were to search one move deeper and find that the next move is pawn takes queen?"
+
+# Parameters
+- `alpha`: Used for alpha-beta pruning, are originally passed in from leaf-nodes of `alpha-beta`.
+- `beta`: Used for alpha-beta pruning, are originally passed in from leaf-nodes of `alpha-beta`.
+- `position`: Current position being passed in (changes according to generated moves).
+- `info`: Reference to info struct to tell how much time is left for search and keep track of how many nodes traversed.
+## Returns
+Best score found within capture-only search.
+
+# Logic
+1. `evaluate_position` current position, if it's score is already greater or equal to beta, return.
+2. If that same score is greater than alpha, set alpha equal to it.
+3. `generate_all_capture_moves` and alpha-beta through them.
+4. Quiescence ends when any of these conditions are met:
+    - `position.ply` > `MAX_DEPTH`.
+    - When there are no more capture moves to generate (a quiet position has been reached).
+    - Fifty move repetition.
+    - Time has run out.
+*/
 pub fn quiescence(alpha: i32, beta: i32, position: &mut Board, info: &SearchInfo) -> i32 {
     if DEBUG { check_board(position); }
 
@@ -84,12 +104,10 @@ pub fn quiescence(alpha: i32, beta: i32, position: &mut Board, info: &SearchInfo
     let move_list = &mut MoveList::default();
     generate_all_capture_moves(position, move_list);
 
-    // loop through moves
     for move_number in 0..move_list.count {
         pick_next_move(move_number, move_list);
 
-        // if not legal move
-        if !make_move(position, extract_movelist_move(move_list.moves[move_number])) { continue; }
+        if !make_move(position, extract_movelist_move(move_list.moves[move_number])) { continue; } // if not legal move
 
         legal += 1;
         score = -quiescence(-beta, -internal_alpha, position, info); // negamax
@@ -118,7 +136,45 @@ pub fn quiescence(alpha: i32, beta: i32, position: &mut Board, info: &SearchInfo
 
     internal_alpha
 }
+/**
+Searches through move tree with alpha-beta negamax algorithm.
 
+Alpha-beta allows large branches of the move tree to be cut off; these cut-offs occur more often when the moves are ordered from best to worst. Evaluations are only done on quiet positions (during quiescence).
+
+## Has features:
+- Transposition table (`hash_table`): Stores previous searches.
+- Null move pruning (`do_null`): When depth is greater than 3, it will cut off the search early if a beta cutoff is caused even after giving the opponent a free move (by performing a null move).
+### Move ordering:
+- Killer moves - Two quiet (non-capture) moves that cause beta-offs are stored in `position.search_killers`. First slot is given a score of 900000, second 800000.
+- History heuristic - Whenever a score has beaten alpha, add the depth to that move.
+- MVV LVA - More during move generation, "Most valuable victim, least valuable attacker", pawn takes queen is more valuable than vice versa.
+
+# Parameters
+- `alpha`: Used for alpha-beta pruning, are originally passed in from leaf-nodes of `alpha-beta`.
+- `beta`: Used for alpha-beta pruning, are originally passed in from leaf-nodes of `alpha-beta`.
+- `depth`: Counter variable so search doesn't go too deep.
+- `position`: Current position being passed in (changes according to generated moves).
+- `info`: Reference to info struct to tell how much time is left for search and keep track of how many nodes traversed.
+- `hash_table`: Global transposition table being passed to all threads for LazySMP.
+- `do_null`: Boolean to determine if null move pruning should be used.
+
+## Returns
+Best move found.
+
+# Logic
+1. Check how much time is left with `info.check_up()`.
+2. If `in_check` increase the depth by one because there is likely to be a sequence of checks then.
+3. Probe `hash_table` with our current `position.position_key`. Return score based on `HashFlag`.
+4. Null move prune.
+5. Generate all moves then look through the `move_list` to find the `pv_move`, if found boost its score by 2000000.
+6. Pick highest scoring move and call `alpha-beta` if negamax.
+7. Alpha-beta
+    - If score is higher than alpha (alpha-cutoff)
+    - If score is higher than beta (beta-cutoff), then if it's not a capture store in the killer moves, always store in the transposition table with `HashFlagBeta` (when probing..), return beta
+    - If not capture move, add the current depth to the killer move (outside of the beta if). This is the history heuristic.
+8. If `in_check` and `legal` = 0, then player in check and have made 0 legal moves (checkmate).
+9. If alpha has changed store it in the `hash_table` with `HashFlagExact` (when probing..), else store it with `HashFlagAlpha` (when probing..).
+*/
 pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mut Board, info: &SearchInfo, hash_table: &HashTable, do_null: bool) -> i32 {
     if DEBUG { check_board(position); }
 
@@ -155,7 +211,7 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
     let move_list = &mut MoveList::default();
     generate_all_moves(position, move_list);
 
-    // If there is a PV move, boost its score.
+    // if there is a pv_move, boost its score
     if pv_move != NO_MOVE {
         for move_number in 0..move_list.count {
             if extract_movelist_move(move_list.moves[move_number]) == pv_move {
@@ -175,7 +231,7 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
 
         if !make_move(position, extract_movelist_move(move_list.moves[move_number])) { continue; } // if not legal
         legal += 1;
-        score = -alpha_beta(&mut -*beta, &mut -internal_alpha, depth - 1, position, info, hash_table, true);
+        score = -alpha_beta(&mut -*beta, &mut -internal_alpha, depth - 1, position, info, hash_table, true); // negamax
         take_move(position);
         if info.is_stopped() { return 0; }
 
@@ -201,8 +257,9 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
                     return *beta;
                 }
                 internal_alpha = score;
-                // history heuristic
-                if extract_movelist_move(move_list.moves[move_number]) & MOVE_FLAG_CAPTURE == 0 { position.search_history[position.pieces[from_square(best_move) as usize] as usize][to_square(best_move) as usize] += depth as u32; }
+
+                // if not a capture
+                if extract_movelist_move(move_list.moves[move_number]) & MOVE_FLAG_CAPTURE == 0 { position.search_history[position.pieces[from_square(best_move) as usize] as usize][to_square(best_move) as usize] += depth as u32; } // history heuristic
             }
         }
     }
@@ -228,6 +285,7 @@ pub fn iterative_deepen(mut thread_data: SearchWorkerData, hash_table: &HashTabl
     let mut best_score: i32;
 
     for current_depth in 1..=thread_data.info.depth.load(Ordering::Relaxed) {
+        thread_data.info.check_up();
         best_score = alpha_beta(&mut -AB_BOUND, &mut 30000, current_depth, &mut thread_data.position, &thread_data.info, hash_table, true );
 
         if thread_data.info.is_stopped() { break; }
@@ -266,7 +324,7 @@ pub fn search_position(position: &mut Board, info: Arc<SearchInfo>, hash_table: 
                 position: position.clone(),
                 info: Arc::clone(&info),
                 thread_number: i,
-                depth: info.get_depth() as u8,
+                // depth: info.get_depth() as u8,
                 best_move: AtomicU32::new(NO_MOVE),
             };
 

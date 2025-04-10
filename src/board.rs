@@ -4,7 +4,22 @@ use colored::Colorize;
 use crate::{bitboards::{count_bits, pop_bit}, data::{PIECE_BIG, PIECE_COLOR, PIECE_MAJOR, PIECE_MINOR, PIECE_VALUE}, defs::{fr2sq, set_bit, sq120, Board, Castling::{*}, Files::*, Pieces::{self, *}, Ranks::*, Squares::{NoSq, OffBoard}, BLACK, BOARD_SQUARE_NUMBER, BOTH, RANKS_BOARD, SQ64_TO_SQ120, WHITE}, hashkeys::generate_position_key};
 use crate::data::{PIECE_CHAR, SIDE_CHAR};
 
-// fill temp variables with current, then compare them with the values filled
+/**
+Verifies the internal consistency of the chess board position.
+
+Essentially fill temp variables with what's in `position.pieces` and compare with the other position variables.
+
+# Parameters
+- `position`: A mutable reference to`Board` struct representing the current game state.
+
+# Logic
+1. Iterates through each piece type and confirms that the `position.piece_list` matches `position.pieces`
+2. Iterate through 64 square board, increment `temp_piece_number[piece]` (number of pieces for each piece type) and others, and confirm `position.piece_number` matches.
+3. Check if each pawn bitboard equals `position.piece_number` for pawns. Check that where there are pawns on the bitboard, they are also on `position.pieces`.
+4. Check if amount of material on `position.pieces` matches `position.material`. Do the same for major, minor, and big pieces.
+5. `generate_position_key` and make sure it is the same as `position.position_key`.
+6. Confirm en passant is on Rank3/6 and confirm `position.pieces` has a king on `position.king_square`.
+*/
 pub fn check_board(position: &mut Board) {
     // fill these values with position values, at the end see if they
     let mut temp_piece_number: [u8; 13] = [0; 13];
@@ -24,9 +39,7 @@ pub fn check_board(position: &mut Board) {
         for temp_piece_num in 0..position.piece_number[temp_piece as usize] {
             let square120 = position.piece_list[temp_piece as usize][temp_piece_num as usize];
             // if piece at pieces array != temp_piece
-            if position.pieces[square120 as usize] != temp_piece {
-                eprintln!("{}", "check_board: position.piece_list and board/position.pieces are not synced".red());
-            }
+            if position.pieces[square120 as usize] != temp_piece { eprintln!("{}", "check_board: position.piece_list and board/position.pieces are not synced".red()); }
         }
     }
 
@@ -87,7 +100,6 @@ pub fn check_board(position: &mut Board) {
 
         if position.pieces[sq120(square64 as u8) as usize] != BlackPawn as u8 {
             eprintln!("{}", "check_board: BlackPawn bitboard and board/position.pieces are not synced".red());
-
         }
     }
     while temp_pawns[BOTH] != 0 {
@@ -137,6 +149,20 @@ pub fn check_board(position: &mut Board) {
     }
 }
 
+/**
+Updates the board's piece lists, material counts, and pawn bitboards based on the current board layout.
+
+# Parameters
+`position`: A mutable reference to the Board struct representing the current game state.
+
+# Logic
+1. Iterates over all squares on the board.
+2. For each valid piece (ignoring off-board and empty squares):
+    - Increments the piece count for big, minor, and major pieces and adds the piece's value to the material score.
+    - Records the square in the piece list and updates the corresponding piece counter.
+    - Updates the king's square if the piece is a king.
+    - Sets the corresponding bit in the pawn bitboards if the piece is a pawn.
+*/
 pub fn update_lists_material(position: &mut Board) {
     for square in 0..BOARD_SQUARE_NUMBER {
         let piece = position.pieces[square] as usize;
@@ -146,15 +172,9 @@ pub fn update_lists_material(position: &mut Board) {
             let color = PIECE_COLOR[piece] as usize;
 
             // if data array true, increment the corresponding color in the board struct
-            if PIECE_BIG[piece] {
-                position.big_piece[color] += 1;
-            }
-            if PIECE_MINOR[piece] {
-                position.minor_piece[color] += 1;
-            }
-            if PIECE_MAJOR[piece] {
-                position.major_piece[color] += 1;
-            }
+            if PIECE_BIG[piece] { position.big_piece[color] += 1; }
+            if PIECE_MINOR[piece] { position.minor_piece[color] += 1; }
+            if PIECE_MAJOR[piece] { position.major_piece[color] += 1; }
             position.material[color] += PIECE_VALUE[piece];
 
             // first white pawn: piece_list[WhitePawn][0] = A1
@@ -181,7 +201,22 @@ pub fn update_lists_material(position: &mut Board) {
     }
 }
 
-// Result<(), &'static str> means returns nothing: (), or error in string: &'static str
+/**
+Parses a FEN string and updates the board state accordingly.
+
+# Parameters
+`fen`: A string slice containing the FEN notation.
+`position`: A mutable reference to the Board struct representing the current game state.
+
+# Logic
+1. Resets the board using `reset_board`.
+2. Iterates over the FEN piece placement section, mapping characters to pieces and placing them on the board.
+3. Handles numeric characters to skip empty squares and '/' to change ranks.
+4. Sets the active side based on the FEN.
+5. Processes castling permissions.
+6. Determines and sets the en passant square if provided.
+7. Generates the position key and updates material and piece lists.
+*/
 pub fn parse_fen(fen: &str, position: &mut Board) {
     reset_board(position);
 
@@ -239,7 +274,7 @@ pub fn parse_fen(fen: &str, position: &mut Board) {
     };
     if position.side == 10 { eprintln!("{}", "parse_fen: incorrect side in FEN".red()); }
 
-    // 00000000 |= 4 == 00000100
+    // 0000 0000 |= 4 == 0000 0100
     let mut z = 0;
     for i in fen_split[2].chars() {
         match i {

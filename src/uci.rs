@@ -1,5 +1,5 @@
 
-use crate::{board::{parse_fen, print_board}, defs::{Board, SearchInfo, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, WHITE}, io::parse_move, makemove::make_move, perft::perft_test, pvtable::clear_hash_table, search::search_position, FEN_START};
+use crate::{board::{parse_fen, print_board}, defs::{Board, MoveList, SearchInfo, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, MAX_THREADS, WHITE}, io::{parse_move, print_move_list}, makemove::make_move, movegen::generate_all_moves, perft::perft_test, pvtable::clear_hash_table, search::search_position, FEN_START};
 use std::{i32, io::{self, BufRead}, sync::{atomic::Ordering, Arc}, thread::{self, JoinHandle}, time::{Duration, Instant}};
 
 // go depth 6 wtime 1000 btime 1000 binc 1000 winc 1000 movetime 1000 movestogo 40
@@ -127,13 +127,12 @@ pub fn parse_position(input: &String, position: &mut Board) {
         }
     }
 
-    print_board(position);
+    // print_board(position);
 }
 
-// TODO organize the uci_loop
 pub fn uci_loop() {
     let name = "Vault";
-    let mut testing = true;
+    let mut testing = false;
 
     let mut user_input = String::new();
 
@@ -162,7 +161,7 @@ pub fn uci_loop() {
                 // user_input = "quit".to_string();
             } else if i == 2 {
                 // user_input = "setoption name Book value false".to_string();
-                user_input = "go depth 11".to_string();
+                user_input = "go depth 10".to_string();
 
             } else {
                 io::stdin().lock().read_line(&mut user_input).unwrap();
@@ -210,9 +209,13 @@ pub fn uci_loop() {
 
         } else if user_input.contains("threads" ){
             let temp: Vec<&str> = user_input.split_whitespace().collect();
-            let temp2 = temp[1].parse::<i32>();
-            info.thread_num.store(temp2.unwrap() as u8, Ordering::Relaxed);
-            println!("threads count {}", info.get_thread_num());
+            let temp2 = temp[1].parse::<i32>().unwrap();
+            if temp2 > MAX_THREADS as i32 {
+                println!("too many threads");
+            } else {
+                info.thread_num.store(temp2 as u8, Ordering::Relaxed);
+                println!("threads count {}", info.get_thread_num());
+            }
         } else if user_input.contains("setoption name Book value ") {
             if user_input.contains("true") {
                 ENGINE_OPTIONS.lock().unwrap().book = true;
@@ -224,6 +227,12 @@ pub fn uci_loop() {
         } else if user_input.contains("perft") {
             let depth: Vec<&str> = user_input.split_whitespace().collect();
             perft_test(depth[1].parse::<u8>().expect(""), position);
+        } else if user_input.contains("generate") {
+            let move_list= &mut MoveList::default();
+            generate_all_moves(position, move_list);
+            print_move_list(move_list);
+        } else if user_input.contains("data") {
+            position.print_data();
         }
     }
 

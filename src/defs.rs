@@ -3,7 +3,7 @@ use std::{sync::{atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU64, AtomicU8,
 use colored::Colorize;
 use rand::{thread_rng, Rng};
 
-use crate::pvtable::{extract_depth, extract_flags, extract_move, extract_score, fold_data};
+use crate::io::{print_move, print_move_list};
 
 pub const BOARD_SQUARE_NUMBER: usize = 120;
 pub const MAX_GAME_MOVES: usize = 2048;
@@ -23,11 +23,9 @@ pub const INF_BOUND: u64 = 32000;
 pub const AB_BOUND: i32 = 30000;
 pub const IS_MATE: i32 = AB_BOUND - MAX_DEPTH as i32;
 
-// .lock() is specific to mutex, careful with .unwrap() consider using something more robust
 pub static ENGINE_OPTIONS: Mutex<EngineOptions> = Mutex::new(EngineOptions { book: false });
 pub static HASH_TABLE: LazyLock<Arc<HashTable>> = LazyLock::new(|| Arc::new(HashTable::default()));
-// pub static HASH_TABLE: LazyLock<Arc<DashMap<u64, u64, IdentityBuildHasher>>> = LazyLock::new(|| Arc::new(DashMap::with_capacity_and_hasher(131072, IdentityBuildHasher)));
-// pub static TEST: LazyLock<DashMap<u64, u64>> = LazyLock::new(|| DashMap::new());
+
 /*
 *  *  *  *  *  *  *  *  * *
 *  *  *  *  *  *  *  *  * *
@@ -43,7 +41,6 @@ pub static HASH_TABLE: LazyLock<Arc<HashTable>> = LazyLock::new(|| Arc::new(Hash
 *  *  *  *  *  *  *  *  * *
 */
 
-#[repr(u8)]
 #[derive(Copy, Clone)]
 pub enum Pieces {
     Empty,
@@ -60,7 +57,6 @@ pub enum Pieces {
     BlackQueen,
     BlackKing,
 }
-#[repr(u8)]
 pub enum Files {
     FileA,
     FileB,
@@ -72,7 +68,6 @@ pub enum Files {
     FileH,
     FileNone,
 }
-#[repr(u8)]
 pub enum Ranks {
     Rank1,
     Rank2,
@@ -84,8 +79,6 @@ pub enum Ranks {
     Rank8,
     RankNone,
 }
-
-#[repr(u8)]
 pub enum Squares {
     A1 = 21, B1, C1, D1, E1, F1, G1, H1,
     A2 = 31, B2, C2, D2, E2, F2, G2, H2,
@@ -96,7 +89,7 @@ pub enum Squares {
     A7 = 81, B7, C7, D7, E7, F7, G7, H7,
     A8 = 91, B8, C8, D8, E8, F8, G8, H8, NoSq, OffBoard
 }
-
+/// Represents 4 bits for castling permissions
 pub enum Castling {
     WhiteKingCastle = 1,
     WhiteQueenCastle = 2,
@@ -121,6 +114,8 @@ pub fn extract_movelist_score(data: u64) -> u32{ (data & 0xFFFFFFFF) as u32}
 pub fn store_movelist_move(data: &mut u64, the_move: u32) { *data = (*data & 0x00000000FFFFFFFF) | ((the_move as u64) << 32); }
 #[inline(always)]
 pub fn store_movelist_score(data: &mut u64, score: u32) { *data = (*data & 0xFFFFFFFF00000000) | (score as u64); }
+
+/// An array of moves for using bitwise operations to extract information.
 pub struct MoveList {
     pub moves: [u64; MAX_POSITION_MOVES],
     pub count: usize,
@@ -134,13 +129,41 @@ impl MoveList {
     }
 }
 
+#[inline(always)]
+pub fn extract_score(data: u64) -> i32 { (data & 0xFFFF) as i32 - INF_BOUND as i32 }
+#[inline(always)]
+pub fn extract_depth(data: u64) -> u64 { (data >> 16) & 0x3F }
+#[inline(always)]
+pub fn extract_flags(data: u64) -> u64 { (data >> 23) & 0x3 }
+#[inline(always)]
+pub fn extract_move(data: u64) -> u64 { data >> 25 }
+#[inline(always)]
+pub fn fold_data(score: i32, depth: u64, flags: u64, the_move: u32) -> u64 { (score + INF_BOUND as i32) as u64 | (depth << 16) | (flags << 23) | ((the_move as u64) << 25) }
 #[derive(Default)]
 pub struct HashEntry {
     position_key: AtomicU64,
     data: AtomicU64,
     age: AtomicU8,
 }
+/**
+Transposition table, stores previously computed positions.
 
+The `HashTable` stores `HashEntry` structs which consist of a position's:
+- Position key (for use in alpha-beta, checking if the position key of the current position is already in the `HashTable`).
+- Data (score, depth, flags, move).
+- Age of the entry.
+
+# Fields
+- `pv_table` - A vector of `HashEntry` representing the hash table entries.
+- `new_write` - Counter for newly added entries.
+- `over_write` - Counter for overwritten entries.
+- `hit` - Counter for successful lookups.
+- `cut` - Counter for search cutoffs based on stored entries.
+- `current_age` - Current age of table to help in replacing old data.
+
+# Usage
+The `HashTable` is used to store and retrieve search data for game positions, avoiding redundent computations. In our case, it's used at the beginning of alpha-beta.
+*/
 pub struct HashTable {
     pv_table: Vec<HashEntry>,
     new_write: AtomicU64,
@@ -193,7 +216,21 @@ impl HashTable {
         }
     }
 
-    pub fn store_hash_entry(&self, position: &mut Board, the_move: u32, score: &mut i32, flags: u8, depth: i32) {
+    /**
+    Stores new entry in `HashTable`.
+
+    # Parameters
+    - `position`: Reference to position in the current alpha-beta.
+    - `the_move`: Move from `pick_next_move` function.
+    - `score`: Mutable reference to the score for a position.
+    - `flags`: Hash flags for this `HashEntry`.
+    - `depth`: Depth of current search for given position.
+
+    # Logic
+    1. Check if replace is necessary (if index is empty, age is younger than stored, deeper depth than stored).
+    2. Adjust score for mate.
+    */
+    pub fn store_hash_entry(&self, position: &Board, the_move: u32, score: &mut i32, flags: u8, depth: i32) {
         let data = fold_data(*score, depth as u64, flags as u64, the_move);
         let i = position.position_key as usize % self.pv_table.capacity();
 
@@ -204,19 +241,17 @@ impl HashTable {
         }
 
         let mut replace = false;
-
         if self.get_position_key(i) == 0 {
             self.new_write.fetch_add(1, Ordering::Relaxed);
             replace = true;
         } else {
-            if self.get_age(i) < self.get_current_age() || extract_depth(self.get_data(i)) <= depth as u64 {
-                replace = true
-            }
+            if self.get_age(i) < self.get_current_age() || extract_depth(self.get_data(i)) <= depth as u64 { replace = true }
         }
 
         if replace == false { return; }
 
-        // reset mate score back to infinite
+        // IS_MATE is mate found for white, -IS_MATE is mate found for black, add or subtract
+        // ply to get the exact amount of moves for mate
         if *score > IS_MATE {
             *score += position.ply as i32
         } else if *score < -IS_MATE {
@@ -230,7 +265,18 @@ impl HashTable {
 
     // checks if table has an entry that matches the current position, if found set the_move equal to the stored move in the hash
     // if the score is within proper bounds of alpha-beta, set score and prune in the alpha-beta function
-    pub fn probe_hash_table(&self, position: &mut Board, the_move: &mut u32, score: &mut i32, alpha: i32, beta: i32, depth: i32) -> bool {
+    /**
+    Check if table has an entry that matches the current position.
+
+    # Parameters
+    - `position`: Used to hash the `position.position_key`.
+    - `the_move`: Stores the move stored in the hash table.
+    - `score`: Score we change inside the function
+    - `alpha`:
+    - `beta`:
+    - `depth`:
+    */
+    pub fn probe_hash_table(&self, position: &Board, the_move: &mut u32, score: &mut i32, alpha: i32, beta: i32, depth: i32) -> bool {
         let i = position.position_key as usize % self.pv_table.capacity();
 
         if DEBUG {
@@ -292,7 +338,9 @@ impl HashTable {
     }
 }
 
-#[repr(u8)]
+/**
+- HashFlagAlpha:
+*/
 pub enum HashFlag {
     HashFlagNone,
     HashFlagAlpha,
@@ -303,9 +351,7 @@ pub enum HashFlag {
 #[derive(Copy, Clone)]
 pub struct Board {
     pub pieces: [u8; BOARD_SQUARE_NUMBER],
-    // pawn bitboard
-    pub pawns: [u64; 3],
-
+    pub pawns: [u64; 3], // pawn bitboard
     pub king_square: [u8; 2],
 
     pub side: u8,
@@ -316,24 +362,17 @@ pub struct Board {
     pub history_ply: usize,
 
     pub castle_permission: u8,
-
     pub position_key: u64,
 
-    // number of pieces for each piece type
-    pub piece_number: [u8; 13],
-    // anything that's not a pawn
-    pub big_piece: [u8; 2],
-    // rooks and queens
-    pub major_piece: [u8; 2],
-    // bishops and knights
-    pub minor_piece: [u8; 2],
-    // value of each side
-    pub material: [i32; 2],
+    pub piece_number: [u8; 13], // number of pieces for each piece type
+    pub big_piece: [u8; 2], // anything that's not a pawn
+    pub major_piece: [u8; 2], // rooks and queens
+    pub minor_piece: [u8; 2], // bishops and knights
+    pub material: [i32; 2], // value of each side
 
     pub history: [Undo; MAX_GAME_MOVES],
 
-    // piece_list [WhiteKnight][0] = E1 | for looping through only pieces for move generation
-    pub piece_list: [[u8; 10]; 13],
+    pub piece_list: [[u8; 10]; 13],// piece_list [WhiteKnight][0] = E1 | for looping through only pieces for move generation
 
     // principal variation is the best sequence of moves,
     // ie. the best according to the engine
@@ -341,11 +380,14 @@ pub struct Board {
     pub pv_array: [u32; MAX_DEPTH],
 
     // for move ordering, rough way to record non-capture moves that are good enough to cause beta cut-off or good alpha
-    pub search_history: [[u32; BOARD_SQUARE_NUMBER]; 13], // stores when a score has beaten alpha
-    pub search_killers: [[u32; MAX_DEPTH]; 2], // stores when a score has beaten beta but is not a capture
+    pub search_history: [[u32; BOARD_SQUARE_NUMBER]; 13], // stores when a score has beaten alpha, history heuristic
+    pub search_killers: [[u32; MAX_DEPTH]; 2], // stores when a score has beaten beta but is not a capture, killer moves
 }
-impl Default for Board {
-    fn default() -> Self {
+impl Board {
+    pub fn print_data(&self) {
+        println!("{} {}", self.side, self.en_passent);
+    }
+    pub fn default() -> Self {
         Board {
             pieces: [Squares::OffBoard as u8; BOARD_SQUARE_NUMBER],
             pawns: [0; 3],
@@ -374,7 +416,7 @@ impl Default for Board {
 pub struct SearchInfo {
     pub depth: AtomicI32,
     pub time_set: AtomicBool,
-    pub moves_to_go: AtomicU8,
+    // pub moves_to_go: AtomicU8,
     pub nodes: AtomicU64,
     pub stopped: AtomicBool,
     pub null_cut: AtomicU32,
@@ -392,7 +434,7 @@ impl SearchInfo {
         Arc::new(SearchInfo {
             depth: AtomicI32::new(0),
             time_set: AtomicBool::new(false),
-            moves_to_go: AtomicU8::new(0),
+            // moves_to_go: AtomicU8::new(0),
             nodes: AtomicU64::new(0),
             stopped: AtomicBool::new(false),
             null_cut: AtomicU32::new(0),
@@ -406,23 +448,23 @@ impl SearchInfo {
         })
     }
 
-    pub fn get_depth(&self) -> i32 { self.depth.load(Ordering::Relaxed) }
-    pub fn set_depth(&self, x: i32) { self.depth.store(x, Ordering::Relaxed); }
+    // pub fn get_depth(&self) -> i32 { self.depth.load(Ordering::Relaxed) }
+    // pub fn set_depth(&self, x: i32) { self.depth.store(x, Ordering::Relaxed); }
 
-    pub fn get_time_set(&self) -> bool { self.time_set.load(Ordering::Relaxed) }
-    pub fn set_time_set(&self, x: bool) { self.time_set.store(x, Ordering::Relaxed); }
+    // pub fn get_time_set(&self) -> bool { self.time_set.load(Ordering::Relaxed) }
+    // pub fn set_time_set(&self, x: bool) { self.time_set.store(x, Ordering::Relaxed); }
 
-    pub fn get_moves_to_go(&self) -> u8 { self.moves_to_go.load(Ordering::Relaxed) }
-    pub fn set_moves_to_go(&self, x: u8) { self.moves_to_go.store(x, Ordering::Relaxed); }
+    // pub fn get_moves_to_go(&self) -> u8 { self.moves_to_go.load(Ordering::Relaxed) }
+    // pub fn set_moves_to_go(&self, x: u8) { self.moves_to_go.store(x, Ordering::Relaxed); }
 
-    pub fn get_nodes(&self) -> u64 { self.nodes.load(Ordering::Relaxed) }
-    pub fn set_nodes(&self, x: u64) { self.nodes.store(x, Ordering::Relaxed); }
+    // pub fn get_nodes(&self) -> u64 { self.nodes.load(Ordering::Relaxed) }
+    // pub fn set_nodes(&self, x: u64) { self.nodes.store(x, Ordering::Relaxed); }
 
-    pub fn get_stopped(&self) -> bool { self.stopped.load(Ordering::Relaxed) }
-    pub fn set_stopped(&self, x: bool) { self.stopped.store(x, Ordering::Relaxed); }
+    // pub fn get_stopped(&self) -> bool { self.stopped.load(Ordering::Relaxed) }
+    // pub fn set_stopped(&self, x: bool) { self.stopped.store(x, Ordering::Relaxed); }
 
-    pub fn get_null_cut(&self) -> u32 { self.null_cut.load(Ordering::Relaxed) }
-    pub fn set_null_cut(&self, x: u32) { self.null_cut.store(x, Ordering::Relaxed); }
+    // pub fn get_null_cut(&self) -> u32 { self.null_cut.load(Ordering::Relaxed) }
+    // pub fn set_null_cut(&self, x: u32) { self.null_cut.store(x, Ordering::Relaxed); }
 
     pub fn get_thread_num(&self) -> u8 { self.thread_num.load(Ordering::Relaxed) }
     pub fn set_thread_num(&self, x: u8) { self.thread_num.store(x, Ordering::Relaxed); }
@@ -445,7 +487,7 @@ pub struct SearchWorkerData {
     pub info: Arc<SearchInfo>,
 
     pub thread_number: u8,
-    pub depth: u8,
+    // pub depth: u8,
     pub best_move: AtomicU32,
 }
 

@@ -1,56 +1,55 @@
 #![allow(dead_code)]
 
-mod defs;
+mod attack;
 mod bitboards;
-mod hashkeys;
 mod board;
 mod data;
-mod attack;
-mod io;
-mod movegen;
-mod validate;
-mod makemove;
-mod perft;
-mod search;
-mod pvtable;
+mod defs;
 mod evaluate;
-mod uci;
+mod hashkeys;
+mod io;
+mod makemove;
+mod movegen;
+mod perft;
 mod polybook;
+mod pvtable;
+mod search;
+mod uci;
+mod validate;
 mod zobristhash;
-
 
 use uci::uci_loop;
 
 // use std::io as std_io;
 
 const FEN_START: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-const FEN_WHITE_PAWNS: &str = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1";
-const FEN_BLACK_PAWNS: &str = "rnbqkbnr/p1p1p3/3p3p/1p1p4/2P1Pp2/8/PP1P1PpP/RNBQKB1R b KQkq e3 0 1";
-const FEN_KNIGHTS_KINGS: &str = "5k2/1n6/4n3/6N1/8/3N4/8/5K2 w - - 0 1";
-const FEN_ROOKS: &str = "6k1/8/5r2/8/1nR5/5N2/8/6K1 b - - 0 1";
-const FEN_QUEENS: &str = "6k1/8/4nq2/8/1nQ5/5N2/1N6/6K1 b - - 0 1";
-const FEN_BISHOPS: &str = "6k1/1b6/4n3/8/1n4B1/1B3N2/1N6/2b3K1 b - - 0 1";
-const FEN_CASTLE1: &str = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
-const FEN_CASTLE2: &str = "3rk2r/8/8/8/8/8/6p1/R3K2R b KQk - 0 1";
-const FEN_TRICKY: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-const FEN_48: &str = "n1n5/PPPk4/8/8/8/8/4Kppp/5N1N w - - 0 1";
-const FEN_60: &str = "2rr3k/pp3pp1/1nnqbN1p/3pN3/2pP4/2P3Q1/PPB4P/R4RK1 w - - 0 1";
-const FEN_61: &str = "r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1";
+// const FEN_WHITE_PAWNS: &str = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1";
+// const FEN_BLACK_PAWNS: &str = "rnbqkbnr/p1p1p3/3p3p/1p1p4/2P1Pp2/8/PP1P1PpP/RNBQKB1R b KQkq e3 0 1";
+// const FEN_KNIGHTS_KINGS: &str = "5k2/1n6/4n3/6N1/8/3N4/8/5K2 w - - 0 1";
+// const FEN_ROOKS: &str = "6k1/8/5r2/8/1nR5/5N2/8/6K1 b - - 0 1";
+// const FEN_QUEENS: &str = "6k1/8/4nq2/8/1nQ5/5N2/1N6/6K1 b - - 0 1";
+// const FEN_BISHOPS: &str = "6k1/1b6/4n3/8/1n4B1/1B3N2/1N6/2b3K1 b - - 0 1";
+// const FEN_CASTLE1: &str = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
+// const FEN_CASTLE2: &str = "3rk2r/8/8/8/8/8/6p1/R3K2R b KQk - 0 1";
+// const FEN_TRICKY: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+// const FEN_48: &str = "n1n5/PPPk4/8/8/8/8/4Kppp/5N1N w - - 0 1";
+// const FEN_60: &str = "2rr3k/pp3pp1/1nnqbN1p/3pN3/2pP4/2P3Q1/PPB4P/R4RK1 w - - 0 1";
+// const FEN_61: &str = "r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1";
 
-const FEN_WIKI3: &str = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
-const FEN_WIKI4: &str = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
-const FEN_WIKI4R: &str = "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1";
-const FEN_WIKI5: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
-const FEN_WIKI6: &str = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
+// const FEN_WIKI3: &str = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
+// const FEN_WIKI4: &str = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
+// const FEN_WIKI4R: &str = "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1";
+// const FEN_WIKI5: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
+// const FEN_WIKI6: &str = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
 
-const FEN_POLY2: &str = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
-const FEN_POLY3: &str = "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2";
-const FEN_POLY4: &str = "rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2";
-const FEN_POLY5: &str = "rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3";
-const FEN_POLY6: &str = "rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPPKPPP/RNBQ1BNR b kq - 0 3";
-const FEN_POLY7: &str = "rnbq1bnr/ppp1pkpp/8/3pPp2/8/8/PPPPKPPP/RNBQ1BNR w - - 0 4";
-const FEN_POLY8: &str = "rnbqkbnr/p1pppppp/8/8/PpP4P/8/1P1PPPP1/RNBQKBNR b KQkq c3 0 3";
-const FEN_POLY9: &str = "rnbqkbnr/p1pppppp/8/8/P6P/R1p5/1P1PPPP1/1NBQKBNR b Kkq - 0 4";
+// const FEN_POLY2: &str = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
+// const FEN_POLY3: &str = "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2";
+// const FEN_POLY4: &str = "rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2";
+// const FEN_POLY5: &str = "rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3";
+// const FEN_POLY6: &str = "rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPPKPPP/RNBQ1BNR b kq - 0 3";
+// const FEN_POLY7: &str = "rnbq1bnr/ppp1pkpp/8/3pPp2/8/8/PPPPKPPP/RNBQ1BNR w - - 0 4";
+// const FEN_POLY8: &str = "rnbqkbnr/p1pppppp/8/8/PpP4P/8/1P1PPPP1/RNBQKBNR b KQkq c3 0 3";
+// const FEN_POLY9: &str = "rnbqkbnr/p1pppppp/8/8/P6P/R1p5/1P1PPPP1/1NBQKBNR b Kkq - 0 4";
 
 // [lints.rust]
 // unused_imports = "allow"

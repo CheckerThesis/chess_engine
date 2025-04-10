@@ -11,7 +11,6 @@ use colored::Colorize;
 
 use crate::{attack::square_attacked, board::check_board, data::PIECE_COLOR, defs::{captured, extract_movelist_move, from_square, store_movelist_move, store_movelist_score, to_square, Board, Castling::*, MoveList, Pieces::*, Ranks::*, Squares::*, BLACK, DEBUG, FILES_BOARD, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, MVV_LVA_SCORES, RANKS_BOARD, WHITE}, makemove::{make_move, take_move}, validate::{piece_valid, piece_valid_empty, square_on_board}};
 
-// indexes that pieces move (like pawn captures)
 const PIECE_DIRECTION: [[i8; 8]; 13] = [
     [0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0],
@@ -26,9 +25,15 @@ const PIECE_DIRECTION: [[i8; 8]; 13] = [
     [-1, -10, 1, 10, 0, 0, 0, 0],
     [-1, -10, 1, 10, -9, -11, 11, 9],
     [-1, -10, 1, 10, -9, -11, 11, 9]
-];
-// number of directions each piece can move (rook 4, queen 8)
-const NUMBER_DIRECTION: [u8; 13] = [0, 0, 8, 4, 4, 8, 8, 0, 8, 4, 4, 8, 8];
+]; // indexes that pieces move (like pawn captures)
+
+const NUMBER_DIRECTION: [u8; 13] = [0, 0, 8, 4, 4, 8, 8, 0, 8, 4, 4, 8, 8]; // number of directions each piece can move (rook 4, queen 8)
+
+const LOOP_SLIDE_PIECES: [u8; 8] = [WhiteBishop as u8, WhiteRook as u8, WhiteQueen as u8, 0, BlackBishop as u8, BlackRook as u8, BlackQueen as u8, 0];
+const LOOP_SLIDE_INDEX: [usize; 2] = [0, 4];
+
+const LOOP_NON_SLIDE_PIECES: [u8; 6] = [WhiteKnight as u8, WhiteKing as u8, 0, BlackKnight as u8, BlackKing as u8, 0];
+const LOOP_NON_SLIDE_INDEX: [usize; 2] = [0, 3];
 
 #[inline(always)]
 pub fn move_builder(from: u32, to: u32, capture: u32, promote: u32, flag: u32) -> u32 { from | (to << 7) | (capture << 14) | (promote << 20) | flag }
@@ -48,8 +53,20 @@ pub fn move_exists(position: &mut Board, the_move: u32) -> bool {
     false
 }
 
-// add move to array and increment
-pub fn add_quiet_move(position: &mut Board, the_move: u32, move_list: &mut MoveList) {
+/**
+Adds non-capture move to `move_list`.
+
+# Parameters
+- `position`: Current position. Used to check if `the_move` is in the `position.search_killers`.
+- `the_move`: Move generated from `generate_all_moves`.
+- `move_list`: What `the_move` is added to.
+
+# Logic
+1. Store the move.
+2. If `the_move` is found in either `position.search_killers` 0 or 1, add 900000 or 800000 to the score respectively (for move ordering).
+3. Increment `move_list`.
+*/
+pub fn add_quiet_move(position: &Board, the_move: u32, move_list: &mut MoveList) {
     if DEBUG {
         if !square_on_board(from_square(the_move) as usize) { eprintln!("{}", "add_quiet_move: [from] square not on board".red()); }
         if !square_on_board(to_square(the_move) as usize) { eprintln!("{}", "add_quiet_move: [to] square not on board".red()); }
@@ -63,7 +80,20 @@ pub fn add_quiet_move(position: &mut Board, the_move: u32, move_list: &mut MoveL
     move_list.count += 1;
 }
 
-pub fn add_capture_move(position: &mut Board, the_move: u32, move_list: &mut MoveList) {
+/**
+Adds capture move to `move_list`.
+
+# Parameters
+- `position`: Current position. Used to check if `the_move` is in the `position.search_killers`.
+- `the_move`: Move generated from `generate_all_moves`.
+- `move_list`: What `the_move` is added to.
+
+# Logic
+1. Store the move.
+2. Since there is a capture: extract the attacker and victim from `the_move`, then increase according to `MVV_LVA_SCORES`, and add 1000000 (for move ordering).
+3. Increment `move_list`.
+*/
+pub fn add_capture_move(position: &Board, the_move: u32, move_list: &mut MoveList) {
     if DEBUG {
         if !piece_valid_empty(captured(the_move) as usize) { eprintln!("{}", "add_capture_move: [capture] piece isn't empty or a piece".red()); }
         if !square_on_board(from_square(the_move) as usize) { eprintln!("{}", "add_capture_move: [from] square not on board".red()); }
@@ -75,7 +105,7 @@ pub fn add_capture_move(position: &mut Board, the_move: u32, move_list: &mut Mov
     move_list.count += 1;
 }
 
-pub fn add_en_passent_move(_position: &mut Board, the_move: u32, move_list: &mut MoveList) {
+pub fn add_en_passent_move(_position: &Board, the_move: u32, move_list: &mut MoveList) {
     if DEBUG {
         if !piece_valid_empty(captured(the_move) as usize) { eprintln!("{}", "add_en_passent_move: [capture] piece isn't empty or a piece".red()); }
         if !square_on_board(from_square(the_move) as usize) { eprintln!("{}", "add_en_passent_move: [from] square not on board".red()); }
@@ -85,7 +115,7 @@ pub fn add_en_passent_move(_position: &mut Board, the_move: u32, move_list: &mut
     store_movelist_score(&mut move_list.moves[move_list.count], 105 + 1000000);
     move_list.count += 1;
 }
-pub fn add_white_pawn_capture_move(position: &mut Board, from: usize, to: usize, capture: usize, move_list: &mut MoveList) {
+pub fn add_white_pawn_capture_move(position: &Board, from: usize, to: usize, capture: usize, move_list: &mut MoveList) {
     if DEBUG {
         if !piece_valid_empty(capture) { eprintln!("{}", "add_white_pawn_capture_move: [capture] piece isn't empty or a piece".red()); }
         if !square_on_board(from as usize) { eprintln!("{}", "add_white_pawn_capture_move: [from] square not on board".red()); }
@@ -102,7 +132,7 @@ pub fn add_white_pawn_capture_move(position: &mut Board, from: usize, to: usize,
         add_capture_move(position, move_builder(from as u32, to as u32, capture as u32, Empty as u32, 0), move_list);
     }
 }
-pub fn add_white_pawn_move(position: &mut Board, from: usize, to: usize, move_list: &mut MoveList) {
+pub fn add_white_pawn_move(position: &Board, from: usize, to: usize, move_list: &mut MoveList) {
     if DEBUG {
         if !square_on_board(from as usize) { eprintln!("{}", "add_white_pawn_move: [from] square not on board".red()); }
         if !square_on_board(to as usize) { eprintln!("{}", "add_white_pawn_move: [to] square not on board".red()); }
@@ -119,7 +149,7 @@ pub fn add_white_pawn_move(position: &mut Board, from: usize, to: usize, move_li
     }
 }
 
-pub fn add_black_pawn_capture_move(position: &mut Board, from: usize, to: usize, capture: usize, move_list: &mut MoveList) {
+pub fn add_black_pawn_capture_move(position: &Board, from: usize, to: usize, capture: usize, move_list: &mut MoveList) {
     if DEBUG {
         if !piece_valid_empty(capture) { eprintln!("{}", "add_black_pawn_capture_move: [capture] piece isn't empty or a piece".red()); }
         if !square_on_board(from as usize) { eprintln!("{}", "add_black_pawn_capture_move: [from] square not on board".red()); }
@@ -136,7 +166,7 @@ pub fn add_black_pawn_capture_move(position: &mut Board, from: usize, to: usize,
         add_capture_move(position, move_builder(from as u32, to as u32, capture as u32, Empty as u32, 0), move_list);
     }
 }
-pub fn add_black_pawn_move(position: &mut Board, from: usize, to: usize, move_list: &mut MoveList) {
+pub fn add_black_pawn_move(position: &Board, from: usize, to: usize, move_list: &mut MoveList) {
     if DEBUG {
         if !square_on_board(from as usize) { eprintln!("{}", "add_black_pawn_move: [from] square not on board".red()); }
         if !square_on_board(to as usize) { eprintln!("{}", "add_black_pawn_move: [to] square not on board".red()); }
@@ -153,6 +183,25 @@ pub fn add_black_pawn_move(position: &mut Board, from: usize, to: usize, move_li
     }
 }
 
+/**
+Generate all moves for the current position (including illegal ones) and add to `move_list`.
+
+# Parameters
+- `position`: Current position. Does not need to be mutable if debug is off.
+- `move_list`: What every move will be added to.
+
+# Logic
+For each piece:
+1. Pawns - Check in front, two in front, in-front corners if there is opposite colors.
+2. Sliding pieces -
+    1. Loop through each sliding piece.
+    2. Depending on the piece, determine the direction based on `PIECE_DIRECTION` array.
+    3. While loop until it hits another piece (if opposite color add to capture moves) or off the board.
+3. Non-sliding pieces -
+    1. Loop through each non-sliding piece.
+    2. Depending on the piece, determine the direction based on `PIECE_DIRECTION` array.
+    3. If that square has a piece from opposite side, `add_capture_move`, else `add_quiet_move`.
+*/
 pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
     if DEBUG { check_board(position); }
 
@@ -357,10 +406,7 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
     }
 
     // Loop for slide pieces:
-    const LOOP_SLIDE_PIECES: [u8; 8] = [WhiteBishop as u8, WhiteRook as u8, WhiteQueen as u8, 0, BlackBishop as u8, BlackRook as u8, BlackQueen as u8, 0];
-    const LOOP_SLIDE_INDEX: [usize; 2] = [0, 4];
-
-    let mut piece_index = LOOP_SLIDE_INDEX[side as usize]; // to skip the 0 (non-slide piece)
+    let mut piece_index = LOOP_SLIDE_INDEX[side as usize]; // skips to white or black sliding pieces depending on side
     let mut piece = LOOP_SLIDE_PIECES[piece_index];
     piece_index += 1;
 
@@ -420,9 +466,6 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
     }
 
     // Loop for non-slide:
-    const LOOP_NON_SLIDE_PIECES: [u8; 6] = [WhiteKnight as u8, WhiteKing as u8, 0, BlackKnight as u8, BlackKing as u8, 0];
-    const LOOP_NON_SLIDE_INDEX: [usize; 2] = [0, 3];
-
     let mut piece_index = LOOP_NON_SLIDE_INDEX[side as usize];
     let mut piece = LOOP_NON_SLIDE_PIECES[piece_index];
     piece_index += 1;
@@ -439,7 +482,7 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
             // println!("piece: {} on {}", PIECE_CHAR.chars().nth(piece as usize).unwrap_or(' '), print_square(square));
 
             for i in 0..NUMBER_DIRECTION[piece as usize] {
-            // get target_square via piece_direction array
+                // get target_square via piece_direction array
                 let direction: i8 = PIECE_DIRECTION[piece as usize][i as usize];
                 let target_square = (square as i16 + direction as i16) as usize;
 
@@ -479,6 +522,7 @@ pub fn generate_all_moves(position: &mut Board, move_list: &mut MoveList) {
     }
 }
 
+/// See `generate_all_moves`.
 pub fn generate_all_capture_moves(position: &mut Board, move_list: &mut MoveList) {
     if DEBUG { check_board(position); }
 
@@ -563,10 +607,6 @@ pub fn generate_all_capture_moves(position: &mut Board, move_list: &mut MoveList
         }
     }
 
-    // Loop for slide pieces:
-    const LOOP_SLIDE_PIECES: [u8; 8] = [WhiteBishop as u8, WhiteRook as u8, WhiteQueen as u8, 0, BlackBishop as u8, BlackRook as u8, BlackQueen as u8, 0];
-    const LOOP_SLIDE_INDEX: [usize; 2] = [0, 4];
-
     let mut piece_index = LOOP_SLIDE_INDEX[side as usize]; // to skip the 0 (non-slide piece)
     let mut piece = LOOP_SLIDE_PIECES[piece_index];
     piece_index += 1;
@@ -616,9 +656,6 @@ pub fn generate_all_capture_moves(position: &mut Board, move_list: &mut MoveList
     }
 
     // Loop for non-slide:
-    const LOOP_NON_SLIDE_PIECES: [u8; 6] = [WhiteKnight as u8, WhiteKing as u8, 0, BlackKnight as u8, BlackKing as u8, 0];
-    const LOOP_NON_SLIDE_INDEX: [usize; 2] = [0, 3];
-
     let mut piece_index = LOOP_NON_SLIDE_INDEX[side as usize];
     let mut piece = LOOP_NON_SLIDE_PIECES[piece_index];
     piece_index += 1;

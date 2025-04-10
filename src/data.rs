@@ -1,11 +1,10 @@
 use crate::defs::*;
 
 pub const PIECE_CHAR: &str = ".♙♘♗♖♕♔♟♞♝♜♛♚";
-// pub const PIECE_CHAR: &str = ".PNBRQKpnbrqk";
 pub const SIDE_CHAR: &str = "wb-";
 pub const RANK_CHAR: &str = "12345678";
 pub const FILE_CHAR: &str = "abcdefgh";
-
+                                // Empty, WPawn, WKnight, WBishop, WRook, WQueen, WKing, BPawn, BKnight, BBishop, BRook, BQueen,BKing
 pub const PIECE_BIG: [bool; 13] = [false, false, true, true, true, true, true, false, true, true, true, true, true];
 pub const PIECE_MAJOR: [bool; 13] = [false, false, false, false, true, true, true, false, false, false, true, true, true];
 pub const PIECE_MINOR: [bool; 13] = [false, false, true, true, false, false, false, false, true, true, false, false, false];

@@ -111,9 +111,7 @@ pub fn add_piece(square: usize, position: &mut Board, piece: usize) {
 
     let color = PIECE_COLOR[piece as usize] as usize;
 
-    // hash in
-    hash_piece(position, piece, square);
-
+    hash_piece(position, piece, square); // hash in
     position.pieces[square] = piece as u8;
 
     if PIECE_BIG[piece] {
@@ -143,8 +141,7 @@ pub fn move_piece(from: u8, to: u8, position: &mut Board) {
     let piece = position.pieces[from as usize] as usize;
     let color = PIECE_COLOR[piece] as usize;
 
-    // hash out
-    hash_piece(position, piece, from as usize);
+    hash_piece(position, piece, from as usize); // hash out
     position.pieces[from as usize] = Empty as u8;
 
     // hash in
@@ -181,8 +178,7 @@ pub fn make_move(position: &mut Board, the_move: u32) -> bool {
         if !piece_valid(position.pieces[from as usize] as usize) { eprintln!("{}", "make_move: [position.pieces[from]] piece not valid".red()); }
     }
 
-    // store hashkey
-    position.history[position.history_ply].position_key = position.position_key;
+    position.history[position.history_ply].position_key = position.position_key; // store hashkey
 
     // if en passant
     if the_move & MOVE_FLAG_EN_PASSENT != 0 {
