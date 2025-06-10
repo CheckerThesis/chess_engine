@@ -1,9 +1,22 @@
-
-use crate::{board::{parse_fen, print_board}, defs::{Board, MoveList, SearchInfo, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, MAX_THREADS, WHITE}, io::{parse_move, print_move_list}, makemove::make_move, movegen::generate_all_moves, perft::perft_test, pvtable::clear_hash_table, search::search_position, FEN_START};
-use std::{i32, io::{self, BufRead}, sync::{atomic::Ordering, Arc}, thread::{self, JoinHandle}, time::{Duration, Instant}};
+use crate::{
+    attack::square_attacked, board::parse_fen, defs::{
+        extract_movelist_move, Board, MoveList, SearchInfo, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, MAX_THREADS, WHITE
+    }, io::{parse_move, print_move}, makemove::{make_move, take_move}, movegen::generate_all_moves, perft::perft_test, pvtable::clear_hash_table, search::search_position, FEN_START
+};
+use std::{
+    i32,
+    io::{self, BufRead},
+    sync::{atomic::Ordering, Arc},
+    thread::{self, JoinHandle},
+    time::{Duration, Instant},
+};
 
 // go depth 6 wtime 1000 btime 1000 binc 1000 winc 1000 movetime 1000 movestogo 40
-pub fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) -> Option<JoinHandle<()>> {
+pub fn parse_go(
+    input: &String,
+    info: Arc<SearchInfo>,
+    position: &mut Board,
+) -> Option<JoinHandle<()>> {
     let tokens: Vec<&str> = input.split_whitespace().collect();
     let mut i = 0;
 
@@ -107,12 +120,20 @@ pub fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) -> 
 // .. moves e2e4 e7e5 ..
 pub fn parse_position(input: &String, position: &mut Board) {
     let mut moves_index: usize = input.len();
-    if let Some(move_index) = input.find("moves") { moves_index = move_index; }
+    if let Some(move_index) = input.find("moves") {
+        moves_index = move_index;
+    }
 
     if input.contains("startpos") {
         parse_fen(FEN_START, position);
     } else if let Some(fen_index) = input.find("fen") {
         parse_fen(&input[fen_index + 4..moves_index - 1], position);
+        let side;
+        if position.side as usize == WHITE { side = BLACK; }
+        else { side = WHITE; }
+        if square_attacked(position.king_square[position.side as usize] as usize, side, position) {
+            println!("bot in-check");
+        }
     }
 
     if !(moves_index == input.len()) {
@@ -154,15 +175,15 @@ pub fn uci_loop() {
         if testing {
             i += 1;
             if i == 1 {
-                user_input = "position fen rn1qkb1r/pp2pppp/5n2/3p1b2/3P4/2N1P3/PP3PPP/R1BQKBNR w KQkq - 0 1".to_string();
+                // user_input = "position fen rn1qkb1r/pp2pppp/5n2/3p1b2/3P4/2N1P3/PP3PPP/R1BQKBNR w KQkq - 0 1".to_string();
                 // user_input = "position fen r2q1rk1/2p1bppp/p2p1n2/1p2P3/4P1b1/1nP1BN2/PP3PPP/RN1QR1K1 w - - 1 12".to_string();
                 // user_input = "quit".to_string();
-                // user_input = "position startpos".to_string();
+                user_input = "position fen r2qkbnr/1b5p/p1n2p2/1pN1pNpB/1P1pP3/1Q4P1/PBPP1P1P/R3K2R b KQkq - 1 2".to_string();
                 // user_input = "quit".to_string();
             } else if i == 2 {
                 // user_input = "setoption name Book value false".to_string();
-                user_input = "go depth 10".to_string();
-
+                // user_input = "go depth 10".to_string();
+                user_input = "go depth 8".to_string();
             } else {
                 io::stdin().lock().read_line(&mut user_input).unwrap();
             }
@@ -171,22 +192,20 @@ pub fn uci_loop() {
         }
         user_input = user_input.trim().to_string();
 
-        if user_input == "" { continue; }
+        if user_input == "" {
+            continue;
+        }
 
         if user_input == "isready" {
             println!("readyok");
             continue;
-
         } else if user_input.contains("position") {
             parse_position(&user_input, position);
-
         } else if user_input == "ucinewgame" {
             clear_hash_table(&HASH_TABLE);
             parse_position(&"position startpos".to_string(), position);
-
         } else if user_input.contains("go") {
             main_search_thread = parse_go(&user_input, Arc::clone(&info), position);
-
         } else if user_input == "stop" {
             info.stopped.store(true, Ordering::Relaxed);
 
@@ -201,13 +220,11 @@ pub fn uci_loop() {
         } else if user_input == "quit" {
             info.stopped.store(true, Ordering::Relaxed);
             break;
-
         } else if user_input == "uci" {
             println!("id name {}", name.to_string());
             println!("id author Tien Cow");
             println!("uciok");
-
-        } else if user_input.contains("threads" ){
+        } else if user_input.contains("threads") {
             let temp: Vec<&str> = user_input.split_whitespace().collect();
             let temp2 = temp[1].parse::<i32>().unwrap();
             if temp2 > MAX_THREADS as i32 {
@@ -228,9 +245,43 @@ pub fn uci_loop() {
             let depth: Vec<&str> = user_input.split_whitespace().collect();
             perft_test(depth[1].parse::<u8>().expect(""), position);
         } else if user_input.contains("generate") {
-            let move_list= &mut MoveList::default();
-            generate_all_moves(position, move_list);
-            print_move_list(move_list);
+            println!("movelist start");
+            let mut move_list = MoveList::default();
+            generate_all_moves(position, &mut move_list);
+
+            let mut move_list_legal = Vec::with_capacity(move_list.count);
+            let mut in_check = false;
+
+            for mv in move_list.moves.iter().take(move_list.count) {
+                let za_move = extract_movelist_move(*mv);
+                let made_move = make_move(position, za_move);
+
+                if made_move { // add check indicator to movelist output
+                    move_list_legal.push(print_move(za_move));
+                    take_move(position);
+                    // 4375 3095
+                } else if square_attacked(position.king_square[position.side as usize] as usize, (position.side ^ 1) as usize, position) {
+                    // println!("position.king_square: {}    position.side: {}", position.king_square[position.side as usize], position.side);
+                    // print_board(position);
+                    // println!("{}    {}", za_move, print_move(za_move));
+                    in_check = true;
+                }
+            }
+
+            for mv in move_list_legal {
+                println!("{}", mv);
+            }
+            println!("movelist end {}", in_check);
+
+            // let side = position.side;
+
+            // position.side = WHITE as u8;
+            // print!("{} ", evaluate_position(position));
+
+            // position.side = BLACK as u8;
+            // println!("{}", evaluate_position(position));
+
+            // position.side = side;
         } else if user_input.contains("data") {
             position.print_data();
         }

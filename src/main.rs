@@ -16,7 +16,6 @@ mod pvtable;
 mod search;
 mod uci;
 mod validate;
-mod zobristhash;
 
 use uci::uci_loop;
 

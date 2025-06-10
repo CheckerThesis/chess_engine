@@ -24,7 +24,7 @@ For each piece:
 5. King - Loop on the border of the param `square`.
 */
 pub fn square_attacked(square: usize, side: usize, position: &mut Board) -> bool {
-    let squarei8 = square as i8;
+    let squarei8: i8 = square as i8;
 
     if DEBUG {
         if !square_on_board(square) { eprintln!("{}", "square_attacked: [square] square not on board".red()); }

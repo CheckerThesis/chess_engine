@@ -3,8 +3,6 @@ use std::{sync::{atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU64, AtomicU8,
 use colored::Colorize;
 use rand::{thread_rng, Rng};
 
-use crate::io::{print_move, print_move_list};
-
 pub const BOARD_SQUARE_NUMBER: usize = 120;
 pub const MAX_GAME_MOVES: usize = 2048;
 pub const MAX_POSITION_MOVES: usize = 256;
@@ -14,7 +12,7 @@ pub const WHITE: usize = 0;
 pub const BLACK: usize = 1;
 pub const BOTH: usize = 2;
 
-pub const DEBUG: bool = false;
+pub const DEBUG: bool = true;
 
 pub const NO_MOVE: u32 = 0;
 
@@ -114,7 +112,6 @@ pub fn extract_movelist_score(data: u64) -> u32{ (data & 0xFFFFFFFF) as u32}
 pub fn store_movelist_move(data: &mut u64, the_move: u32) { *data = (*data & 0x00000000FFFFFFFF) | ((the_move as u64) << 32); }
 #[inline(always)]
 pub fn store_movelist_score(data: &mut u64, score: u32) { *data = (*data & 0xFFFFFFFF00000000) | (score as u64); }
-
 /// An array of moves for using bitwise operations to extract information.
 pub struct MoveList {
     pub moves: [u64; MAX_POSITION_MOVES],
@@ -271,10 +268,15 @@ impl HashTable {
     # Parameters
     - `position`: Used to hash the `position.position_key`.
     - `the_move`: Stores the move stored in the hash table.
-    - `score`: Score we change inside the function
-    - `alpha`:
-    - `beta`:
-    - `depth`:
+    - `score`: Score we change inside the function.
+    - `alpha`: Determine whether the position has been hashed inside our table.
+    - `beta`: Determine whether the position has been hashed inside our table.
+    - `depth`: Check what depth we're looking for.
+    ## Returns
+    Boolean dependent on if the search-info is stored in the table.
+
+    # Logic
+    1.
     */
     pub fn probe_hash_table(&self, position: &Board, the_move: &mut u32, score: &mut i32, alpha: i32, beta: i32, depth: i32) -> bool {
         let i = position.position_key as usize % self.pv_table.capacity();
@@ -507,15 +509,6 @@ pub fn clear_bit(bitboard: &mut u64, square: u8) { *bitboard &= CLEAR_MASK[sq64(
 pub fn set_bit(bitboard: &mut u64, square: u8) { *bitboard |= SET_MASK[sq64(square) as usize]; }
 
 /*
-One block of bits = F
-1111 = F = 15
-1000 = 8
-1000 1111 = 8F
-
-0001 = 1
-0010 = 2
-0100 = 4
-
 Lowest square a piece will be on is 21, highest is 98
 0000 0000 0000 0000 0000 0111 1111 -> From -> 0x7F
 0000 0000 0000 0011 1111 1000 0000 -> To >> 7 0x7F (shift right by 7 bits)
@@ -524,9 +517,6 @@ Lowest square a piece will be on is 21, highest is 98
 0000 0000 1000 0000 0000 0000 0000 -> Pawn start -> 0x80000
 0000 1111 0000 0000 0000 0000 0000 -> Promoted piece >> 20 0xF
 0001 0000 0000 0000 0000 0000 0000 -> Castle -> 0x1000000
-So essentially, each hexidecimal digit represents each 4 digits
-            4    8    9    7    F  -> 4897F
-0000 0000 0100 1000 1001 0111 1111
 */
 pub fn print_binary(the_move: u64) {
     println!("As binary: ");

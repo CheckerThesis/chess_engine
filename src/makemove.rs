@@ -49,6 +49,7 @@ const CASTLE_PERMISSION: [u8; 120] = [
 pub fn clear_piece(square: usize, position: &mut Board) {
     if DEBUG && !square_on_board(square as usize) { eprintln!("{}", "clear_piece: [square] square not on board".red()); }
     let piece = position.pieces[square] as usize;
+    // println!("{}", piece);
     if DEBUG && !piece_valid(piece as usize) { eprintln!("{}", "clear_piece: [piece] piece not valid".red()); }
     let color = PIECE_COLOR[piece as usize] as usize;
 
@@ -56,6 +57,7 @@ pub fn clear_piece(square: usize, position: &mut Board) {
     hash_piece(position, piece, square);
 
     position.pieces[square] = Empty as u8;
+    println!("color {}   square {}   piece {}", color, square, piece);
     position.material[color] -= PIECE_VALUE[piece];
 
     if PIECE_BIG[piece] {
@@ -264,7 +266,7 @@ pub fn make_move(position: &mut Board, the_move: u32) -> bool {
     hash_side(position);
 
     if DEBUG { check_board(position); }
-
+    // println!("{} {}", position.king_square[side as usize] as usize, position.side);
     if square_attacked(position.king_square[side as usize] as usize, position.side as usize, position) {
         take_move(position);
         return false;
@@ -288,8 +290,7 @@ pub fn take_move(position: &mut Board) {
         if !square_on_board(to as usize) { eprintln!("{}", "take_move: [to] square not on board".red()); }
     }
 
-    if position.en_passent != NoSq as u8 {
-        hash_en_passant(position); }
+    if position.en_passent != NoSq as u8 { hash_en_passant(position); }
     hash_castle(position);
 
     position.castle_permission = position.history[position.history_ply].castle_permission;

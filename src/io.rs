@@ -57,13 +57,25 @@ pub fn print_move(the_move: u32) -> String {
 
     let mut global_move_string = MOVE_STRING.lock().unwrap();
     *global_move_string = move_string;
+
+    // Check if any character is outside the expected chess notation range
+    let is_valid_chess_notation = global_move_string.chars().all(|c| {
+        (c >= 'a' && c <= 'h') || // Valid file characters
+        (c >= '1' && c <= '8') || // Valid rank characters
+        (c == 'q' || c == 'r' || c == 'n' || c == 'b') // Valid promotion characters
+    });
+
+    if !is_valid_chess_notation {
+        return "checkmate".to_string();
+    }
+
     global_move_string.clone()
 }
 
 // a2a4, find this move and return as integer, match from and to squares to user input
 pub fn parse_move(s: &String, position: &mut Board) -> u32 {
     let char_vec: Vec<char> = s.chars().collect();
-    // println!("0: {}    1: {}    2: {}    3: {}    4: {}", char_vec[0], char_vec[1], char_vec[2], char_vec[3], char_vec[4]);
+    // println!("0: {}    1: {}    2: {}    3: {}", char_vec[0], char_vec[1], char_vec[2], char_vec[3]);
 
     if char_vec[1] > '8' || char_vec[1] < '1' { return NO_MOVE }
     if char_vec[3] > '8' || char_vec[3] < '1' { return NO_MOVE }
