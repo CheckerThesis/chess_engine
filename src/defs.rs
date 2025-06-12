@@ -550,6 +550,21 @@ pub const MOVE_FLAG_CASTLE: u32 = 0x1000000;   // 0001 0000 0000 0000 0000 0000 
 pub const MOVE_FLAG_CAPTURE: u32 = 0x7C000;    // 0000 0000 0011 1100 0000 0000 0000
 pub const MOVE_FLAG_PROMOTE: u32 = 0xF00000;   // 0000 1111 0000 0000 0000 0000 0000
 
+pub enum UciCommand {
+    Uci,
+    IsReady,
+    SetOption(String),
+    UciNewGame,
+    Position(String),
+    Go(String),
+    Stop,
+    Quit,
+    Unknown,
+
+    Testing(String),
+    Generate
+}
+
 /*
     println!("SQ120-SQ64");
     for i in 0..BOARD_SQUARE_NUMBER {

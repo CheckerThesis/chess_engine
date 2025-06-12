@@ -57,7 +57,7 @@ pub fn clear_piece(square: usize, position: &mut Board) {
     hash_piece(position, piece, square);
 
     position.pieces[square] = Empty as u8;
-    println!("color {}   square {}   piece {}", color, square, piece);
+    // println!("color {}   square {}   piece {}", color, square, piece);
     position.material[color] -= PIECE_VALUE[piece];
 
     if PIECE_BIG[piece] {

@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'part_2_chess'",
+            "name": "Debug executable 'vault'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=part_2_chess",
-                    "--package=part_2_chess"
+                    "--bin=vault",
+                    "--package=vault"
                 ],
                 "filter": {
-                    "name": "part_2_chess",
+                    "name": "vault",
                     "kind": "bin"
                 }
             },
@@ -25,16 +25,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'part_2_chess'",
+            "name": "Debug unit tests in executable 'vault'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=part_2_chess",
-                    "--package=part_2_chess"
+                    "--bin=vault",
+                    "--package=vault"
                 ],
                 "filter": {
-                    "name": "part_2_chess",
+                    "name": "vault",
                     "kind": "bin"
                 }
             },
