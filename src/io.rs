@@ -65,9 +65,7 @@ pub fn print_move(the_move: u32) -> String {
         (c == 'q' || c == 'r' || c == 'n' || c == 'b') // Valid promotion characters
     });
 
-    if !is_valid_chess_notation {
-        return "checkmate".to_string();
-    }
+    if !is_valid_chess_notation { return "a1a1".to_string(); }
 
     global_move_string.clone()
 }

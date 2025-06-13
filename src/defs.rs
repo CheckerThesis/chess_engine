@@ -12,7 +12,7 @@ pub const WHITE: usize = 0;
 pub const BLACK: usize = 1;
 pub const BOTH: usize = 2;
 
-pub const DEBUG: bool = true;
+pub const DEBUG: bool = false;
 
 pub const NO_MOVE: u32 = 0;
 
@@ -22,6 +22,7 @@ pub const AB_BOUND: i32 = 30000;
 pub const IS_MATE: i32 = AB_BOUND - MAX_DEPTH as i32;
 
 pub static ENGINE_OPTIONS: Mutex<EngineOptions> = Mutex::new(EngineOptions { book: false });
+pub const TT_SIZE: i32 = 134217728; // 2mb: 131072 64mb: 1048576 128mb: 134217728
 pub static HASH_TABLE: LazyLock<Arc<HashTable>> = LazyLock::new(|| Arc::new(HashTable::default()));
 
 /*
@@ -172,7 +173,7 @@ pub struct HashTable {
 impl HashTable {
     fn default() -> Self {
         HashTable {
-            pv_table: (0..131072).map(|_| HashEntry::default()).collect(),
+            pv_table: (0..TT_SIZE).map(|_| HashEntry::default()).collect(),
             new_write: AtomicU64::new(0),
             over_write: AtomicU64::new(0),
             hit: AtomicU64::new(0),
@@ -192,24 +193,29 @@ impl HashTable {
 
     pub fn get_new_write(&self) -> u64 { self.new_write.load(Ordering::Relaxed) }
     pub fn set_new_write(&self, x: u64) { self.new_write.store(x, Ordering::Relaxed); }
+    pub fn increment_new_write(&self) { self.new_write.fetch_add(1, Ordering::Relaxed); }
 
     pub fn get_over_write(&self) -> u64 { self.over_write.load(Ordering::Relaxed) }
     pub fn set_over_write(&self, x: u64) { self.over_write.store(x, Ordering::Relaxed); }
+    pub fn increment_over_write(&self) { self.over_write.fetch_add(1, Ordering::Relaxed); }
 
     pub fn get_hit(&self) -> u64 { self.hit.load(Ordering::Relaxed) }
     pub fn set_hit(&self, x: u64) { self.hit.store(x, Ordering::Relaxed); }
+    pub fn increment_hit(&self) { self.hit.fetch_add(1, Ordering::Relaxed); }
 
     pub fn get_cut(&self) -> u64 { self.cut.load(Ordering::Relaxed) }
     pub fn set_cut(&self, x: u64) { self.cut.store(x, Ordering::Relaxed); }
+    pub fn increment_cut(&self) { self.cut.fetch_add(1, Ordering::Relaxed); }
 
     pub fn get_current_age(&self) -> u8 { self.current_age.load(Ordering::Relaxed) }
     pub fn set_current_age(&self, x: u8) { self.current_age.store(x,Ordering::Relaxed) }
+    pub fn increment_current_age(&self) { self.current_age.fetch_add(1, Ordering::Relaxed); }
 
     pub fn clear(&self) {
-        for i in 0..131072 {
-            self.set_position_key(i, 0);
-            self.set_data(i, 0);
-            self.set_age(i, 0);
+        for i in 0..TT_SIZE {
+            self.set_position_key(i as usize, 0);
+            self.set_data(i as usize, 0);
+            self.set_age(i as usize, 0);
         }
     }
 
@@ -239,9 +245,10 @@ impl HashTable {
 
         let mut replace = false;
         if self.get_position_key(i) == 0 {
-            self.new_write.fetch_add(1, Ordering::Relaxed);
+            self.increment_new_write();
             replace = true;
         } else {
+            self.increment_over_write();
             if self.get_age(i) < self.get_current_age() || extract_depth(self.get_data(i)) <= depth as u64 { replace = true }
         }
 
@@ -249,11 +256,8 @@ impl HashTable {
 
         // IS_MATE is mate found for white, -IS_MATE is mate found for black, add or subtract
         // ply to get the exact amount of moves for mate
-        if *score > IS_MATE {
-            *score += position.ply as i32
-        } else if *score < -IS_MATE {
-            *score -= position.ply as i32;
-        }
+        if *score > IS_MATE { *score += position.ply as i32 } 
+        else if *score < -IS_MATE { *score -= position.ply as i32; }
 
         self.set_position_key(i, position.position_key);
         self.set_data(i, data);
@@ -288,19 +292,18 @@ impl HashTable {
             if beta > AB_BOUND || beta < -AB_BOUND { eprintln!("{}", "probe_hash_table: [beta] out of bounds".red()); }
         }
 
+        // Verify this is the same position
         if self.get_position_key(i) == position.position_key {
             *the_move = extract_move(self.get_data(i)) as u32;
 
+            // If depth is at least as deep as current search
             if extract_depth(self.get_data(i)) >= depth as u64 {
-                self.hit.fetch_add(1, Ordering::Relaxed);
+                self.increment_hit();
 
-                // set mate score for alpha beta
+                // If score represents mate, adjust in terms of how many moves until mate
                 *score = extract_score(self.get_data(i));
-                if *score > IS_MATE {
-                    *score -= position.ply as i32;
-                } else if *score < -IS_MATE {
-                    *score += position.ply as i32;
-                }
+                if *score > IS_MATE { *score -= position.ply as i32; }
+                else if *score < -IS_MATE { *score += position.ply as i32; }
 
                 // if it is a cutoff
                 match extract_flags(self.get_data(i)) as u8 {
@@ -309,16 +312,14 @@ impl HashTable {
                             *score = alpha;
                             return true
                         }
-                    }
+                    },
                     x if x == HashFlag::HashFlagBeta as u8 => {
                         if *score >= beta {
                             *score = beta;
                             return true
                         }
-                    }
-                    x if x == HashFlag::HashFlagExact as u8 => {
-                        return true
-                    }
+                    },
+                    x if x == HashFlag::HashFlagExact as u8 => return true,
                     _ => return false
                 }
             }
@@ -333,9 +334,7 @@ impl HashTable {
 
         // if DEBUG && i < 0 || i > position.hash_table.pv_table.capacity() - 1 { eprintln!("{}", "probe_pv_move: [i] out of bounds".red()); }
 
-        if self.get_position_key(i) == position.position_key {
-            // println!("   PROBED {}", print_move(hash_table.pv_table[i].the_move));
-            return extract_move(self.get_data(i)) as u32 }
+        if self.get_position_key(i) == position.position_key { return extract_move(self.get_data(i)) as u32 }
         return NO_MOVE
     }
 }
@@ -450,23 +449,22 @@ impl SearchInfo {
         })
     }
 
-    // pub fn get_depth(&self) -> i32 { self.depth.load(Ordering::Relaxed) }
-    // pub fn set_depth(&self, x: i32) { self.depth.store(x, Ordering::Relaxed); }
+    pub fn get_depth(&self) -> i32 { self.depth.load(Ordering::Relaxed) }
+    pub fn set_depth(&self, x: i32) { self.depth.store(x, Ordering::Relaxed); }
 
-    // pub fn get_time_set(&self) -> bool { self.time_set.load(Ordering::Relaxed) }
-    // pub fn set_time_set(&self, x: bool) { self.time_set.store(x, Ordering::Relaxed); }
+    pub fn get_time_set(&self) -> bool { self.time_set.load(Ordering::Relaxed) }
+    pub fn set_time_set(&self, x: bool) { self.time_set.store(x, Ordering::Relaxed); }
 
-    // pub fn get_moves_to_go(&self) -> u8 { self.moves_to_go.load(Ordering::Relaxed) }
-    // pub fn set_moves_to_go(&self, x: u8) { self.moves_to_go.store(x, Ordering::Relaxed); }
+    pub fn get_nodes(&self) -> u64 { self.nodes.load(Ordering::Relaxed) }
+    pub fn set_nodes(&self, x: u64) { self.nodes.store(x, Ordering::Relaxed); }
+    pub fn increment_nodes(&self) { self.nodes.fetch_add(1, Ordering::Relaxed); }
 
-    // pub fn get_nodes(&self) -> u64 { self.nodes.load(Ordering::Relaxed) }
-    // pub fn set_nodes(&self, x: u64) { self.nodes.store(x, Ordering::Relaxed); }
+    pub fn get_stopped(&self) -> bool { self.stopped.load(Ordering::Relaxed) }
+    pub fn set_stopped(&self, x: bool) { self.stopped.store(x, Ordering::Relaxed); }
 
-    // pub fn get_stopped(&self) -> bool { self.stopped.load(Ordering::Relaxed) }
-    // pub fn set_stopped(&self, x: bool) { self.stopped.store(x, Ordering::Relaxed); }
-
-    // pub fn get_null_cut(&self) -> u32 { self.null_cut.load(Ordering::Relaxed) }
-    // pub fn set_null_cut(&self, x: u32) { self.null_cut.store(x, Ordering::Relaxed); }
+    pub fn get_null_cut(&self) -> u32 { self.null_cut.load(Ordering::Relaxed) }
+    pub fn set_null_cut(&self, x: u32) { self.null_cut.store(x, Ordering::Relaxed); }
+    pub fn increment_null_cut(&self) { self.null_cut.fetch_add(1, Ordering::Relaxed); }
 
     pub fn get_thread_num(&self) -> u8 { self.thread_num.load(Ordering::Relaxed) }
     pub fn set_thread_num(&self, x: u8) { self.thread_num.store(x, Ordering::Relaxed); }
@@ -479,9 +477,7 @@ impl SearchInfo {
         }
     }
 
-    pub fn is_stopped(&self) -> bool {
-        self.stopped.load(Ordering::Relaxed)
-    }
+    pub fn is_stopped(&self) -> bool { self.stopped.load(Ordering::Relaxed) }
 }
 
 pub struct SearchWorkerData {
@@ -491,6 +487,9 @@ pub struct SearchWorkerData {
     pub thread_number: u8,
     // pub depth: u8,
     pub best_move: AtomicU32,
+}
+impl SearchWorkerData {
+    pub fn set_best_move(&self, best_move: u32) { self.best_move.store(best_move, Ordering::Release); }
 }
 
 pub struct EngineOptions { pub book: bool, }

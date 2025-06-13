@@ -2,7 +2,7 @@ use colored::Colorize;
 
 use crate::{
     attack::square_attacked, board::parse_fen, defs::{
-        extract_movelist_move, Board, MoveList, SearchInfo, UciCommand, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, MAX_THREADS, WHITE
+        extract_movelist_move, Board, HashTable, MoveList, SearchInfo, UciCommand, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, MAX_THREADS, TT_SIZE, WHITE
     }, io::{parse_move, print_move}, makemove::{make_move, take_move}, movegen::generate_all_moves, perft::perft_test, pvtable::clear_hash_table, search::search_position, FEN_START
 };
 use std::{
@@ -106,9 +106,7 @@ fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) -> Opti
     let mut position_clone = position.clone();
     let search_info = Arc::clone(&info);
 
-    let main_search_thread = thread::spawn(move || {
-        search_position(&mut position_clone, search_info, Arc::clone(&*HASH_TABLE));
-    });
+    let main_search_thread = thread::spawn(move || { search_position(&mut position_clone, search_info, Arc::clone(&*HASH_TABLE)); });
 
     Some(main_search_thread)
 }
@@ -123,12 +121,13 @@ fn parse_position(input: &String, position: &mut Board) {
         parse_fen(FEN_START, position);
     } else if let Some(fen_index) = input.find("fen") {
         parse_fen(&input[fen_index + 4..moves_index - 1], position);
-        let side;
-        if position.side as usize == WHITE { side = BLACK; }
-        else { side = WHITE; }
-        if square_attacked(position.king_square[position.side as usize] as usize, side, position) {
-            println!("bot in-check");
-        }
+
+        // let side;
+        // if position.side as usize == WHITE { side = BLACK; }
+        // else { side = WHITE; }
+        // if square_attacked(position.king_square[position.side as usize] as usize, side, position) {
+        //     println!("bot in-check");
+        // }
     }
 
     if !(moves_index == input.len()) {
@@ -179,6 +178,7 @@ fn handle_uci_command(input: String, main_search_thread: &mut Option<JoinHandle<
         UciCommand::SetOption(_) => process_setoption(&user_input, info),
         UciCommand::UciNewGame => {
             clear_hash_table(&HASH_TABLE);
+            clear_stats(info);
             parse_position(&"position startpos".to_string(), position);
         }
         UciCommand::Position(_) => parse_position(&user_input, position),
@@ -200,6 +200,14 @@ fn handle_uci_command(input: String, main_search_thread: &mut Option<JoinHandle<
         _ => {}
     }
     true
+}
+fn clear_stats(info: &Arc<SearchInfo>) {
+    if let Ok(mut protected) = info.protected.write() {
+        protected.fail_high = 0.0;
+        protected.fail_high_first = 0.0;
+    }
+    info.set_nodes(0);
+    info.set_null_cut(0);
 }
 fn parse_uci_command(input: &str) -> UciCommand {
     let tokens: Vec<&str> = input.trim().split_whitespace().collect();
@@ -279,6 +287,7 @@ fn testing(input: &str, main_search_thread: &mut Option<JoinHandle<()>>, positio
             perft_test(depth[1].parse::<u8>().unwrap(), position);
         },
         "uci" => uci_test(main_search_thread, position, info),
+        "stats" => stats(info, Arc::clone(&*HASH_TABLE)),
         _ => print!("")
     }
 }
@@ -301,6 +310,17 @@ fn uci_test(main_search_thread: &mut Option<JoinHandle<()>>, position: &mut Boar
 
         thread::sleep(Duration::from_secs_f32(times[i]));
     }
+}
+fn stats(info: &Arc<SearchInfo>, table: Arc<HashTable>) {
+    let mut move_ordering = 0.0;
+    let null_cut = info.get_null_cut() as f32;
+    let cut = table.get_cut() as f32;
+    let nodes = info.get_nodes() as f32;
+    let new_write = table.get_new_write();
+    let overwrite = table.get_over_write();
+    if let Ok(protected) = info.protected.read() { move_ordering = (protected.fail_high_first / protected.fail_high) * 100.0 }
+    
+    println!("threads: {}   TT: {}\nmove_ordering: {}%   null_cut percent: {}%   hash_cut percent: {}%\nnull_cuts: {}   hash_cuts: {}   new_writes: {}   overwrites: {}", TT_SIZE, info.get_thread_num(), move_ordering, (null_cut/nodes) * 100.0, (cut/nodes) * 100.0, null_cut, cut, new_write, overwrite);
 }
 
 fn uci_loo2p() {

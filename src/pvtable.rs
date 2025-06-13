@@ -31,7 +31,20 @@ pub fn hash_test(fen: String) {
 }
     */
 
-pub fn get_pv_line(depth: u8, position: &mut Board, hash_table: &HashTable) -> usize{
+/**
+Retrieves the Principal Variation (PV) line from the `HashTable` for the given position.
+
+The PV is the sequence of moves considered to be best for both sides. This function iteratively probes the hash table to reconstruct this line.
+
+# Parameters
+- `depth`: The maximum number of moves to retrieve for the PV line.
+- `position`: A mutable reference to the `Board` struct. The board state is temporarily modified as moves are made to trace the line.
+- `hash_table`: A reference to the `HashTable`, which stores the PV moves found during the search.
+
+# Returns
+The number of moves in the PV line that were successfully retrieved and stored in `position.pv_array`.
+*/
+pub fn get_pv_line(depth: u8, position: &mut Board, hash_table: &HashTable) -> usize {
     if DEBUG && (depth > MAX_DEPTH as u8 || depth < 1) { eprintln!("{}", "get_pv_line: [depth] greater than MAX_DEPTH or less than 1".red()); }
 
     let mut count: usize = 0;
@@ -44,9 +57,7 @@ pub fn get_pv_line(depth: u8, position: &mut Board, hash_table: &HashTable) -> u
             make_move(position, the_move);
             position.pv_array[count] = the_move;
             count += 1;
-        } else {
-            break;
-        }
+        } else { break; }
 
         the_move = hash_table.probe_pv_move(&position);
     }
@@ -59,5 +70,7 @@ pub fn get_pv_line(depth: u8, position: &mut Board, hash_table: &HashTable) -> u
 pub fn clear_hash_table(hash_table: &HashTable) {
     hash_table.clear();
     hash_table.set_new_write(0);
+    hash_table.set_over_write(0);
     hash_table.set_current_age(0);
+    hash_table.set_cut(0);
 }
