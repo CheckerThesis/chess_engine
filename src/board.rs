@@ -1,8 +1,70 @@
 use std::collections::HashMap;
 use colored::Colorize;
 
-use crate::{bitboards::{count_bits, pop_bit}, data::{PIECE_BIG, PIECE_COLOR, PIECE_MAJOR, PIECE_MINOR, PIECE_VALUE}, defs::{fr2sq, set_bit, sq120, Board, Castling::{*}, Files::*, Pieces::{self, *}, Ranks::*, Squares::{NoSq, OffBoard}, BLACK, BOARD_SQUARE_NUMBER, BOTH, RANKS_BOARD, SQ64_TO_SQ120, WHITE}, hashkeys::generate_position_key};
+use crate::{bitboards::{count_bits, pop_bit}, data::{PIECE_BIG, PIECE_COLOR, PIECE_MAJOR, PIECE_MINOR, PIECE_VALUE}, defs::{fr2sq, set_bit, sq120, Castling::*, Files::*, Pieces::{self, *}, Ranks::*, Squares::{self, NoSq, OffBoard}, BLACK, BOARD_SQUARE_NUMBER, BOTH, MAX_DEPTH, MAX_GAME_MOVES, RANKS_BOARD, SQ64_TO_SQ120, WHITE}, hashkeys::generate_position_key, movegen::Undo};
 use crate::data::{PIECE_CHAR, SIDE_CHAR};
+
+#[derive(Copy, Clone)]
+pub struct Board {
+    pub pieces: [u8; BOARD_SQUARE_NUMBER],
+    pub pawns: [u64; 3], // pawn bitboard
+    pub king_square: [u8; 2],
+
+    pub side: u8,
+    pub en_passent: u8,
+    pub fifty_move: u8,
+
+    pub ply: u8,
+    pub history_ply: usize,
+
+    pub castle_permission: u8,
+    pub position_key: u64,
+
+    pub piece_number: [u8; 13], // number of pieces for each piece type
+    pub big_piece: [u8; 2], // anything that's not a pawn
+    pub major_piece: [u8; 2], // rooks and queens
+    pub minor_piece: [u8; 2], // bishops and knights
+    pub material: [i32; 2], // value of each side
+
+    pub history: [Undo; MAX_GAME_MOVES],
+
+    pub piece_list: [[u8; 10]; 13], // piece_list [WhiteKnight][0] = E1 | for looping through only pieces for move generation
+
+    // principal variation is the best sequence of moves,
+    // ie. the best according to the engine
+    // ie. expected moves played
+    pub pv_array: [u32; MAX_DEPTH],
+
+    // for move ordering, rough way to record non-capture moves that are good enough to cause beta cut-off or good alpha
+    pub search_history: [[u32; BOARD_SQUARE_NUMBER]; 13], // stores when a score has beaten alpha, history heuristic
+    pub search_killers: [[u32; MAX_DEPTH]; 2], // stores when a score has beaten beta but is not a capture, killer moves
+}
+impl Board {
+    pub fn default() -> Self {
+        Board {
+            pieces: [Squares::OffBoard as u8; BOARD_SQUARE_NUMBER],
+            pawns: [0; 3],
+            king_square: [Squares::NoSq as u8; 2],
+            side: BOTH as u8,
+            en_passent: Squares::NoSq as u8,
+            fifty_move: 0,
+            ply: 0,
+            history_ply: 0,
+            castle_permission: 0,
+            position_key: 0,
+            piece_number: [0; 13],
+            big_piece: [0; 2],
+            major_piece: [0; 2],
+            minor_piece: [0; 2],
+            material: [0; 2],
+            history: [Undo::default(); MAX_GAME_MOVES],
+            piece_list: [[0; 10]; 13],
+            pv_array: [0; MAX_DEPTH],
+            search_history: [[0; BOARD_SQUARE_NUMBER]; 13],
+            search_killers: [[0; MAX_DEPTH]; 2],
+        }
+    }
+}
 
 /**
 Verifies the internal consistency of the chess board position.

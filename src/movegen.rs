@@ -1,15 +1,33 @@
-
-/*
-fn move_gen(board, moveList)
-    loop all pieces
-        if slider then loop each dir and add move
-            Add move moveList->moves[moveList->moves] = move
-            moveList->count++
-*/
-
 use colored::Colorize;
 
-use crate::{attack::square_attacked, board::check_board, data::PIECE_COLOR, defs::{captured, extract_movelist_move, from_square, store_movelist_move, store_movelist_score, to_square, Board, Castling::*, MoveList, Pieces::*, Ranks::*, Squares::*, BLACK, DEBUG, FILES_BOARD, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, MVV_LVA_SCORES, RANKS_BOARD, WHITE}, makemove::{make_move, take_move}, validate::{piece_valid, piece_valid_empty, square_on_board}};
+use crate::{attack::square_attacked, board::{check_board, Board}, data::PIECE_COLOR, defs::{captured, from_square, to_square, Castling::*, Pieces::*, Ranks::*, Squares::*, BLACK, DEBUG, FILES_BOARD, MAX_POSITION_MOVES, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, MVV_LVA_SCORES, RANKS_BOARD, WHITE}, makemove::{make_move, take_move}, validate::{piece_valid, piece_valid_empty, square_on_board}};
+
+#[derive(Copy, Clone, Default)]
+pub struct Undo {
+    pub the_move: u32,
+    pub castle_permission: u8,
+    pub en_passent: u8,
+    pub fifty_move: u8,
+    pub position_key: u64,
+}
+
+pub fn extract_movelist_move(data: u64) -> u32 { (data >> 32) as u32 }
+pub fn extract_movelist_score(data: u64) -> u32{ (data & 0xFFFFFFFF) as u32}
+pub fn store_movelist_move(data: &mut u64, the_move: u32) { *data = (*data & 0x00000000FFFFFFFF) | ((the_move as u64) << 32); }
+pub fn store_movelist_score(data: &mut u64, score: u32) { *data = (*data & 0xFFFFFFFF00000000) | (score as u64); }
+/// An array of moves for using bitwise operations to extract information.
+pub struct MoveList {
+    pub moves: [u64; MAX_POSITION_MOVES],
+    pub count: usize,
+}
+impl MoveList {
+    pub fn default() -> Self {
+        MoveList {
+            moves: [0; MAX_POSITION_MOVES],
+            count: 0,
+        }
+    }
+}
 
 const PIECE_DIRECTION: [[i8; 8]; 13] = [
     [0, 0, 0, 0, 0, 0, 0, 0],

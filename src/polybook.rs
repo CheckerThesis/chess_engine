@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use colored::Colorize;
 use rand::{thread_rng, Rng};
 
-use crate::{data::{FILE_CHAR, RANK_CHAR}, defs::{Board, Castling::*, Pieces::*, Squares::*, BOARD_SQUARE_NUMBER, DEBUG, ENGINE_OPTIONS, FILES_BOARD, NO_MOVE, RANKS_BOARD, WHITE}, io::parse_move};
+use crate::{board::Board, data::{FILE_CHAR, RANK_CHAR}, defs::{Castling::*, Pieces::*, Squares::*, BOARD_SQUARE_NUMBER, DEBUG, ENGINE_OPTIONS, FILES_BOARD, NO_MOVE, RANKS_BOARD, WHITE}, io::parse_move};
 
 pub const RANDOM_POLY: [u64; 781] = [
     0x9D39247E33776D41, 0x2AF7398005AAA5C7, 0x44DB015024623547, 0x9C15F73E62A76AE2,

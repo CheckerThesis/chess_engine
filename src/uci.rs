@@ -1,9 +1,9 @@
 use colored::Colorize;
 
 use crate::{
-    attack::square_attacked, board::parse_fen, defs::{
-        extract_movelist_move, Board, HashTable, MoveList, SearchInfo, UciCommand, BLACK, ENGINE_OPTIONS, HASH_TABLE, MAX_DEPTH, MAX_THREADS, TT_SIZE, WHITE
-    }, io::{parse_move, print_move}, makemove::{make_move, take_move}, movegen::generate_all_moves, perft::perft_test, pvtable::clear_hash_table, search::search_position, FEN_START
+    attack::square_attacked, board::{parse_fen, Board}, defs::{
+        SearchInfo, UciCommand, BLACK, ENGINE_OPTIONS, MAX_DEPTH, MAX_THREADS, WHITE
+    }, io::{parse_move, print_move}, makemove::{make_move, take_move}, movegen::{extract_movelist_move, generate_all_moves, MoveList}, perft::{automatic_perft_test, perft_test}, pvtable::{clear_hash_table, HashTable, HASH_TABLE, TT_SIZE}, search::search_position, FEN_START
 };
 use std::{
     i32,
@@ -14,7 +14,7 @@ use std::{
 };
 
 // go depth 6 wtime 1000 btime 1000 binc 1000 winc 1000 movetime 1000 movestogo 40
-fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) -> Option<JoinHandle<()>> {
+fn parse_go(input: &String, info: &Arc<SearchInfo>, position: &mut Board) -> Option<JoinHandle<()>> {
     let tokens: Vec<&str> = input.split_whitespace().collect();
     let mut i = 0;
 
@@ -93,11 +93,8 @@ fn parse_go(input: &String, info: Arc<SearchInfo>, position: &mut Board) -> Opti
             }
         }
 
-        if let Some(d) = depth {
-            info.depth.store(d, Ordering::Relaxed);
-        } else {
-            info.depth.store(MAX_DEPTH as i32, Ordering::Relaxed);
-        }
+        if let Some(d) = depth { info.set_depth(d); }
+        else { info.set_depth(MAX_DEPTH as i32); }
 
         println!("time: {:?}    start: {:?}    stop: {:?}    depth: {}\ntimeset: {}    info.stopped: {}    thread count: {}",
         time, protected.start_time, protected.stop_time, info.depth.load(Ordering::Relaxed), info.time_set.load(Ordering::Relaxed), info.stopped.load(Ordering::Relaxed), info.get_thread_num());
@@ -153,6 +150,10 @@ pub fn uci_loop() {
 
     print_uci_id();
 
+    let hey = "go depth 11".to_string();
+    parse_fen("r4rk1/ppqnpp1p/4bn1b/2pp2p1/3P2P1/1PNQPP2/PBP1N1BP/2KR3R w - - 22 23", position);
+    parse_go(&hey, &info, position);
+
     while handle_uci_command(String::from(""), &mut main_search_thread, position, &info) {}
 
     if let Some(thread) = main_search_thread.take() {
@@ -182,7 +183,7 @@ fn handle_uci_command(input: String, main_search_thread: &mut Option<JoinHandle<
             parse_position(&"position startpos".to_string(), position);
         }
         UciCommand::Position(_) => parse_position(&user_input, position),
-        UciCommand::Go(_) => *main_search_thread = parse_go(&user_input, Arc::clone(info), position),
+        UciCommand::Go(_) => *main_search_thread = parse_go(&user_input, &Arc::clone(info), position),
         UciCommand::Stop => {
             info.stopped.store(true, Ordering::Relaxed);
             if let Some(thread) = main_search_thread.take() {
@@ -223,7 +224,7 @@ fn parse_uci_command(input: &str) -> UciCommand {
         "go" => UciCommand::Go(input.to_string()),
         "stop" => UciCommand::Stop,
         "quit" => UciCommand::Quit,
-        "testing" => UciCommand::Testing(String::from(input)),
+        "t" => UciCommand::Testing(String::from(input)),
         "generate" => UciCommand::Generate,
         _ => UciCommand::Unknown,
     }
@@ -282,12 +283,9 @@ fn testing(input: &str, main_search_thread: &mut Option<JoinHandle<()>>, positio
     let tokens: Vec<&str> = input.trim().split_whitespace().collect();
 
     match tokens[1] {
-        "perft" => {
-            let depth: Vec<&str> = input.split_whitespace().collect();
-            perft_test(depth[1].parse::<u8>().unwrap(), position);
-        },
+        "perft" => { automatic_perft_test(position); },
         "uci" => uci_test(main_search_thread, position, info),
-        "stats" => stats(info, Arc::clone(&*HASH_TABLE)),
+        "s" => stats(info, Arc::clone(&*HASH_TABLE)),
         _ => print!("")
     }
 }
@@ -320,7 +318,17 @@ fn stats(info: &Arc<SearchInfo>, table: Arc<HashTable>) {
     let overwrite = table.get_over_write();
     if let Ok(protected) = info.protected.read() { move_ordering = (protected.fail_high_first / protected.fail_high) * 100.0 }
     
-    println!("threads: {}   TT: {}\nmove_ordering: {}%   null_cut percent: {}%   hash_cut percent: {}%\nnull_cuts: {}   hash_cuts: {}   new_writes: {}   overwrites: {}", TT_SIZE, info.get_thread_num(), move_ordering, (null_cut/nodes) * 100.0, (cut/nodes) * 100.0, null_cut, cut, new_write, overwrite);
+    println!("threads: {}   TT: {}\nmove_ordering: {}%   null_cut percent: {}%   hash_cut percent: {}%\nnull_cuts: {}   hash_cuts: {}   new_writes: {}   overwrites: {}\nnodes: {}",
+        info.get_thread_num(),
+        TT_SIZE,
+        move_ordering,
+        (null_cut/nodes) * 100.0, 
+        (cut/nodes) * 100.0, 
+        null_cut, cut, 
+        new_write, 
+        overwrite,
+        info.get_nodes()
+    );
 }
 
 fn uci_loo2p() {
@@ -378,7 +386,7 @@ fn uci_loo2p() {
             clear_hash_table(&HASH_TABLE);
             parse_position(&"position startpos".to_string(), position);
         } else if user_input.contains("go") {
-            main_search_thread = parse_go(&user_input, Arc::clone(&info), position);
+            main_search_thread = parse_go(&user_input, &Arc::clone(&info), position);
         } else if user_input == "stop" {
             info.stopped.store(true, Ordering::Relaxed);
 
@@ -446,8 +454,6 @@ fn uci_loo2p() {
                 println!("{}", mv);
             }
             println!("movelist end {}", in_check);
-        } else if user_input.contains("data") {
-            position.print_data();
         }
     }
 }

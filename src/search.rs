@@ -2,9 +2,8 @@ use std::{sync::{atomic::{AtomicU32}, Arc}, thread::{self, JoinHandle}};
 
 use colored::Colorize;
 
-use crate::{attack::square_attacked, board::check_board, defs::{extract_movelist_move, extract_movelist_score, from_square, store_movelist_score, to_square, Board, HashFlag::*, HashTable, MoveList, SearchInfo, SearchWorkerData, AB_BOUND, BOARD_SQUARE_NUMBER, DEBUG, ENGINE_OPTIONS, IS_MATE, MAX_DEPTH, MAX_GAME_MOVES, MOVE_FLAG_CAPTURE, NO_MOVE}, evaluate::evaluate_position, io::print_move, makemove::{make_move, make_null_move, take_move, take_null_move}, movegen::{generate_all_capture_moves, generate_all_moves}, polybook::get_book_move, pvtable::get_pv_line};
+use crate::{attack::square_attacked, board::{check_board, Board}, defs::{from_square, to_square, SearchInfo, SearchWorkerData, AB_BOUND, BOARD_SQUARE_NUMBER, DEBUG, ENGINE_OPTIONS, IS_MATE, MAX_DEPTH, MAX_GAME_MOVES, MOVE_FLAG_CAPTURE, NO_MOVE}, evaluate::evaluate_position, io::print_move, makemove::{make_move, make_null_move, take_move, take_null_move}, movegen::{extract_movelist_move, extract_movelist_score, generate_all_capture_moves, generate_all_moves, store_movelist_score, MoveList}, polybook::get_book_move, pvtable::{get_pv_line, HashFlag, HashTable}};
 
-#[inline(always)]
 pub fn pick_next_move(move_number: usize, move_list: &mut MoveList) {
     let mut best_score = 0;
     let mut best_number = move_number;
@@ -254,7 +253,7 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
                         position.search_killers[1][position.ply as usize] = position.search_killers[0][position.ply as usize];
                         position.search_killers[0][position.ply as usize] = extract_movelist_move(move_list.moves[move_number]);
                     }
-                    hash_table.store_hash_entry(position, best_move, beta, HashFlagBeta as u8, depth);
+                    hash_table.store_hash_entry(position, best_move, beta, HashFlag::HashFlagBeta as u8, depth);
                     return *beta;
                 }
                 internal_alpha = score;
@@ -273,9 +272,9 @@ pub fn alpha_beta(alpha: &mut i32, beta: &mut i32, mut depth: i32, position: &mu
 
     // if this, then we've improved alpha and found the best move so we store it in the pv_array
     if internal_alpha != *alpha {
-        hash_table.store_hash_entry(position, best_move, &mut best_score, HashFlagExact as u8, depth);
+        hash_table.store_hash_entry(position, best_move, &mut best_score, HashFlag::HashFlagExact as u8, depth);
     } else {
-        hash_table.store_hash_entry(position, best_move, &mut internal_alpha, HashFlagAlpha as u8, depth);
+        hash_table.store_hash_entry(position, best_move, &mut internal_alpha, HashFlag::HashFlagAlpha as u8, depth);
     }
 
     internal_alpha

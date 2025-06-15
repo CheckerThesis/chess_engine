@@ -19,7 +19,7 @@ mod validate;
 
 use uci::uci_loop;
 
-use crate::defs::HASH_TABLE;
+use crate::pvtable::HASH_TABLE;
 
 // use std::io as std_io;
 
@@ -62,7 +62,12 @@ const FEN_START: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 
 // codegen-units = 1
 
 fn main() {
+    // let doc_content = include_str!("../docs/transposition-table.md");
+    // println!("{}", doc_content); // Print it to see if it reads correctly
     HASH_TABLE.clear();
+    // println!("{}", HASH_TABLE.pv_table.capacity());
+    // let hash = HashEntry::default();
+    // println!("{}", size_of_val(&hash));
     uci_loop();
 }
 /*

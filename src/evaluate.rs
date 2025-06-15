@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use crate::{board::{check_board, reset_board, update_lists_material}, data::{MIRROR64, PIECE_VALUE}, defs::{sq120, sq64, Board, Castling::*, Pieces::*, Squares::*, BLACK, BLACK_PASSED_MASK, BOTH, DEBUG, FILES_BOARD, FILE_BB_MASK, ISOLATED_MASK, RANKS_BOARD, WHITE, WHITE_PASSED_MASK}, hashkeys::generate_position_key, validate::square_on_board};
+use crate::{board::{check_board, reset_board, update_lists_material, Board}, data::{MIRROR64, PIECE_VALUE}, defs::{sq120, sq64, Castling::*, Pieces::*, Squares::*, BLACK, BLACK_PASSED_MASK, BOTH, DEBUG, FILES_BOARD, FILE_BB_MASK, ISOLATED_MASK, RANKS_BOARD, WHITE, WHITE_PASSED_MASK}, hashkeys::generate_position_key, validate::square_on_board};
 
 const PAWN_ISOLATED: i32 = -10;
 const PAWN_PASSED : [i32; 8] = [0 , 5, 10, 20, 35, 60, 100, 200];

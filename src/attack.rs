@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use crate::{board::check_board, data::{IS_BISHOP_QUEEN, IS_KING, IS_KNIGHT, IS_ROOK_QUEEN, PIECE_COLOR}, defs::{Board, Pieces::*, Squares::OffBoard, DEBUG, WHITE}, validate::{side_valid, square_on_board}};
+use crate::{board::{check_board, Board}, data::{IS_BISHOP_QUEEN, IS_KING, IS_KNIGHT, IS_ROOK_QUEEN, PIECE_COLOR}, defs::{Pieces::*, Squares::OffBoard, DEBUG, WHITE}, validate::{side_valid, square_on_board}};
 
 const KNIGHT_DIRECTION: [i8; 8] = [-8, -19, -21, -12, 8, 19, 21, 12];
 const ROOK_DIRECTION: [i8; 4] = [-1, -10, 1, 10];

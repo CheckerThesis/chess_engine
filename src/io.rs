@@ -1,4 +1,4 @@
-use crate::{data::{IS_BISHOP_QUEEN, IS_KNIGHT, IS_ROOK_QUEEN}, defs::{extract_movelist_move, extract_movelist_score, fr2sq, from_square, promoted, to_square, Board, MoveList, Pieces::Empty, DEBUG, FILES_BOARD, NO_MOVE, RANKS_BOARD}, movegen::generate_all_moves, validate::square_on_board};
+use crate::{board::Board, data::{IS_BISHOP_QUEEN, IS_KNIGHT, IS_ROOK_QUEEN}, defs::{fr2sq, from_square, promoted, to_square, Pieces::Empty, DEBUG, FILES_BOARD, NO_MOVE, RANKS_BOARD}, movegen::{extract_movelist_move, extract_movelist_score, generate_all_moves, MoveList}, validate::square_on_board};
 
 use colored::Colorize;
 use std::sync::{LazyLock, Mutex};

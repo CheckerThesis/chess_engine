@@ -1,7 +1,7 @@
 
 use colored::*;
 
-use crate::{attack::square_attacked, board::check_board, data::{IS_KING, IS_PAWN, PIECE_BIG, PIECE_COLOR, PIECE_MAJOR, PIECE_VALUE}, defs::{captured, clear_bit, from_square, promoted, set_bit, to_square, Board, Pieces::*, Ranks::*, Squares::*, BOTH, CASTLE_KEYS, DEBUG, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, NO_MOVE, PIECE_KEYS, RANKS_BOARD, SIDE_KEY, WHITE}, validate::{piece_valid, side_valid, square_on_board}};
+use crate::{attack::square_attacked, board::{check_board, Board}, data::{IS_KING, IS_PAWN, PIECE_BIG, PIECE_COLOR, PIECE_MAJOR, PIECE_VALUE}, defs::{captured, clear_bit, from_square, promoted, set_bit, to_square, Pieces::*, Ranks::*, Squares::*, BOTH, CASTLE_KEYS, DEBUG, MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSENT, MOVE_FLAG_PAWN_START, NO_MOVE, PIECE_KEYS, RANKS_BOARD, SIDE_KEY, WHITE}, validate::{piece_valid, side_valid, square_on_board}};
 
 /*
 1. make move
@@ -19,13 +19,9 @@ use crate::{attack::square_attacked, board::check_board, data::{IS_KING, IS_PAWN
 13. change side, increment ply and history ply
 */
 
-#[inline(always)]
 pub fn hash_piece(position: &mut Board, piece: usize, square: usize) { position.position_key ^= PIECE_KEYS[piece as usize][square as usize]; }
-#[inline(always)]
 pub fn hash_castle(position: &mut Board) { position.position_key ^= CASTLE_KEYS[position.castle_permission as usize]; }
-#[inline(always)]
 pub fn hash_side(position: &mut Board) { position.position_key ^= *SIDE_KEY; }
-#[inline(always)]
 pub fn hash_en_passant(position: &mut Board) { position.position_key ^= PIECE_KEYS[Empty as usize][position.en_passent as usize]; }
 
 // 1111 == 15
@@ -119,11 +115,8 @@ pub fn add_piece(square: usize, position: &mut Board, piece: usize) {
     if PIECE_BIG[piece] {
         position.big_piece[color] += 1;
 
-        if PIECE_MAJOR[piece] {
-            position.major_piece[color] += 1;
-        } else {
-            position.minor_piece[color] += 1;
-        }
+        if PIECE_MAJOR[piece] { position.major_piece[color] += 1; }
+        else { position.minor_piece[color] += 1; }
     } else {
         set_bit(&mut position.pawns[color], square as u8);
         set_bit(&mut position.pawns[BOTH], square as u8);
@@ -158,6 +151,7 @@ pub fn move_piece(from: u8, to: u8, position: &mut Board) {
         set_bit(&mut position.pawns[BOTH], to);
     }
 
+    // if big pieces
     for i in 0..position.piece_number[piece] {
         if position.piece_list[piece][i as usize] == from {
             position.piece_list[piece][i as usize] = to;
@@ -184,31 +178,21 @@ pub fn make_move(position: &mut Board, the_move: u32) -> bool {
 
     // if en passant
     if the_move & MOVE_FLAG_EN_PASSENT != 0 {
-        if side == WHITE as u8 {
-            // to square is diagonal, +-10 gets the square behind/infront of it
-            clear_piece(to as usize - 10, position);
-        } else {
-            clear_piece(to as usize + 10, position);
-        }
+        // to square is diagonal, +-10 gets the square behind/infront of it
+        if side == WHITE as u8 { clear_piece(to as usize - 10, position); } 
+        else { clear_piece(to as usize + 10, position); }
     // if castle
     } else if the_move & MOVE_FLAG_CASTLE != 0 {
-        if to == C1 as u8 {
-            move_piece(A1 as u8, D1 as u8, position);
-        } else if to == C8 as u8 {
-            move_piece(A8 as u8, D8 as u8, position);
-        } else if to == G1 as u8 {
-            move_piece(H1 as u8, F1 as u8, position);
-        } else if to == G8 as u8 {
-            move_piece(H8 as u8, F8 as u8, position);
-        } else {
-            eprintln!("{}", "make_move: castle problem".red());
-        }
+        if to == C1 as u8 { move_piece(A1 as u8, D1 as u8, position); } 
+        else if to == C8 as u8 { move_piece(A8 as u8, D8 as u8, position); } 
+        else if to == G1 as u8 { move_piece(H1 as u8, F1 as u8, position); } 
+        else if to == G8 as u8 { move_piece(H8 as u8, F8 as u8, position); } 
+        else { eprintln!("{}", "make_move: castle problem".red()); }
     }
 
     // if en passent is set, then hash out
     if position.en_passent != NoSq as u8 { hash_en_passant(position); }
-    // hash out current castle
-    hash_castle(position);
+    hash_castle(position); // hash out current castle
 
     position.history[position.history_ply].the_move = the_move;
     position.history[position.history_ply].fifty_move = position.fifty_move;
