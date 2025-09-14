@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use rand::{rng, Rng, RngCore};
+use rand::{rng, RngCore};
 
 use crate::{board::Board, defs::{Color, PieceType}};
 

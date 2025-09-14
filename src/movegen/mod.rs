@@ -2,8 +2,19 @@ pub mod attacks;
 pub mod generate;
 
 use std::sync::LazyLock;
-
-
+/*
+0000 0000 0000 0000 0000 0000 0011 1111 -> From
+0000 0000 0000 0000 0000 1111 1100 0000 -> To
+0000 0000 0000 0001 1111 0000 0000 0000 -> Captured
+0000 0000 0000 0010 0000 0000 0000 0000 -> Is enpassant
+0000 0000 0000 0100 0000 0000 0000 0000 -> Is pawn start
+0000 0000 0000 1000 0000 0000 0000 0000 -> Is castle
+0000 0001 1111 0000 0000 0000 0000 0000 -> Promoted piece
+*/
+pub fn from_square(the_move: u32) -> u8 { (the_move & 0x6F) as u8 }
+pub fn to_square(the_move: u32) -> u8 { (the_move >> 6 & 0x5F) as u8 }
+pub fn captured(the_move: u32) -> u8 { (the_move >> 12 & 0x1F) as u8 }
+pub fn promoted(the_move: u32) -> u8 { (the_move >> 20 & 0x1F) as u8 }
 
 pub static RANK_BB_MASK: LazyLock<[u64; 9]> = LazyLock::new(|| {
     let mut rank_bb_mask: [u64; 9] = [0; 9];
