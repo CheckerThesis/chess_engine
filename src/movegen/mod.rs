@@ -2,6 +2,35 @@ pub mod attacks;
 pub mod generate;
 
 use std::sync::LazyLock;
+
+
+
+pub struct MoveList {
+    moves: [u64; 256],
+    count: usize
+}
+impl MoveList {
+    pub fn new() -> Self {
+        Self {
+            moves: [0; 256],
+            count: 0,
+        }
+    }
+
+    pub fn push(&mut self, mv: u64) {
+        self.moves[self.count] = mv;
+        self.count += 1;
+    }
+
+    pub fn len(&self) -> usize {
+        self.count
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, u64> {
+        self.moves[..self.count].iter()
+    }
+}
+
 /*
 0000 0000 0000 0000 0000 0000 0011 1111 -> From
 0000 0000 0000 0000 0000 1111 1100 0000 -> To
@@ -11,8 +40,8 @@ use std::sync::LazyLock;
 0000 0000 0000 1000 0000 0000 0000 0000 -> Is castle
 0000 0001 1111 0000 0000 0000 0000 0000 -> Promoted piece
 */
-pub fn from_square(the_move: u32) -> u8 { (the_move & 0x6F) as u8 }
-pub fn to_square(the_move: u32) -> u8 { (the_move >> 6 & 0x5F) as u8 }
+pub fn from_square(the_move: u32) -> u8 { (the_move & 0x3F) as u8 }
+pub fn to_square(the_move: u32) -> u8 { (the_move >> 6 & 0x3F) as u8 }
 pub fn captured(the_move: u32) -> u8 { (the_move >> 12 & 0x1F) as u8 }
 pub fn promoted(the_move: u32) -> u8 { (the_move >> 20 & 0x1F) as u8 }
 

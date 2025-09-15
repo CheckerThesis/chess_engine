@@ -98,7 +98,7 @@ impl Board {
         occupancy
     }
 
-    pub fn check_board(&mut self, location_called: &str) {
+    pub fn check_board(&self, location_called: &str) {
         let mut bb_from_pieces: [u64; PieceType::COUNT] = [0; PieceType::COUNT];
 
         // Bb matches pieces

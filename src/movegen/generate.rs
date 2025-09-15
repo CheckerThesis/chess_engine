@@ -1,6 +1,6 @@
 use crate::{board::Board, defs::{Color, PieceType}, movegen::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}};
 
-fn get_up_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
+pub fn get_up_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
     let ray = UP_RAYS[square];
     let blockers = ray & (occupied_bb[Color::White as usize] | occupied_bb[Color::Black as usize]);
 
@@ -17,7 +17,7 @@ fn get_up_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
         return attack_mask & !occupied_bb[side as usize];
     }
 }
-fn get_down_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
+pub fn get_down_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
     let ray = DOWN_RAYS[square];
     let blockers = ray & (occupied_bb[Color::White as usize] | occupied_bb[Color::Black as usize]);
 
@@ -29,7 +29,7 @@ fn get_down_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
         return attack_mask & !occupied_bb[side as usize];
     }
 }
-fn get_left_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
+pub fn get_left_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
     let ray = LEFT_RAYS[square];
     let blockers = ray & (occupied_bb[Color::White as usize] | occupied_bb[Color::Black as usize]);
 
@@ -41,7 +41,7 @@ fn get_left_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
         return attack_mask & !occupied_bb[side as usize];
     }
 }
-fn get_right_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
+pub fn get_right_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
     let ray = RIGHT_RAYS[square];
     let blockers = ray & (occupied_bb[Color::White as usize] | occupied_bb[Color::Black as usize]);
 
@@ -54,7 +54,7 @@ fn get_right_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
     }
 }
 
-fn get_supply_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
+pub fn get_supply_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
     fn get_supply_positive_ray(square: usize) -> u64 {
         let ray = SUPPLY_DIAGONAL_RAYS[square];
         if square >= 63 {
@@ -94,7 +94,7 @@ fn get_supply_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
 
     return (positive_attacks | negative_attacks) & !occupied_bb[side as usize];
 }
-fn get_demand_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
+pub fn get_demand_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
     fn get_demand_positive_ray(square: usize) -> u64 {
         let ray = DEMAND_DIAGONAL_RAYS[square];
         ray & u64::MAX.checked_shl((square + 1) as u32).unwrap_or(0)
@@ -131,7 +131,7 @@ fn get_demand_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
     return (positive_attacks | negative_attacks) & !occupied_bb[side as usize];
 }
 
-fn get_pawn_moves(position: Board, square: usize, side: Color) -> u64 {
+pub fn generate_pawn_moves(position: Board, square: usize, side: Color,) -> u64 {
     let occupied_bb = [position.occupancies(Color::White), position.occupancies(Color::Black)];
     let empty_squares = !(occupied_bb[Color::White as usize] | occupied_bb[Color::Black as usize]);
     let color = side;
