@@ -1,4 +1,8 @@
-use crate::{board::Board, defs::{Color, PieceType}, movegen::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}};
+use crate::{board::Board, defs::{Color, PieceType}, movegen::{MoveList, BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}};
+
+fn add_pawn_move(position: &Board, move_list: &mut MoveList, mv: u32) {
+
+}
 
 pub fn get_up_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
     let ray = UP_RAYS[square];

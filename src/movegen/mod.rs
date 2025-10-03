@@ -3,7 +3,7 @@ pub mod generate;
 
 use std::sync::LazyLock;
 
-
+use crate::board::Board;
 
 pub struct MoveList {
     moves: [u64; 256],
@@ -17,18 +17,40 @@ impl MoveList {
         }
     }
 
-    pub fn push(&mut self, mv: u64) {
+    fn add(&mut self, mv: u64) {
         self.moves[self.count] = mv;
         self.count += 1;
     }
 
-    pub fn len(&self) -> usize {
-        self.count
+    pub fn move_builder(
+        from: usize, 
+        to: usize, 
+        capture: usize, 
+        flags: usize, 
+        promote: usize
+    ) -> u32 { 
+        from as u32 | 
+        ((to as u32) << 6) | 
+        ((capture as u32) << 12) | 
+        ((flags as u32) << 17) | 
+        ((promote as u32) << 20)
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, u64> {
-        self.moves[..self.count].iter()
+    fn set_score(mv: u32, score: u64) -> u64 { return (mv as u64) | (score << 47) } 
+
+    pub fn add_quiet_move(&mut self, position: &Board, mv: u32) {
+        // TODO set score killer move
+        self.add(MoveList::set_score(mv, 0));
     }
+
+    pub fn add_capture_move(&mut self, position: &Board, mv: u32) {
+        // TODO set score MVV_LVA
+        self.add(MoveList::set_score(mv, 10000));
+    }
+
+    pub fn len(&self) -> usize { self.count }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, u64> { self.moves[..self.count].iter() }
 }
 
 /*
