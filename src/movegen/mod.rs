@@ -3,7 +3,7 @@ pub mod generate;
 
 use std::sync::LazyLock;
 
-use crate::board::Board;
+use crate::{board::Board, defs::{Color, Piece, PieceType, Ranks, RANKS_BOARD}};
 
 pub struct MoveList {
     moves: [u64; 256],
@@ -48,6 +48,128 @@ impl MoveList {
         self.add(MoveList::set_score(mv, 10000));
     }
 
+    pub fn add_quiet_pawn_move(&mut self, position: &Board, from: usize, to: usize) {
+        let (promotion_rank, queen, rook, bishop, knight) = if position.side == Color::White {
+            (
+                Ranks::Rank7, 
+                Piece { piece_type: PieceType::Queen, color: Color::White }, 
+                Piece { piece_type: PieceType::Rook, color: Color::White }, 
+                Piece { piece_type: PieceType::Bishop, color: Color::White }, 
+                Piece { piece_type: PieceType::Knight, color: Color::White }
+            )
+        } else {
+            (
+                Ranks::Rank2, 
+                Piece { piece_type: PieceType::Queen, color: Color::Black }, 
+                Piece { piece_type: PieceType::Rook, color: Color::Black }, 
+                Piece { piece_type: PieceType::Bishop, color: Color::Black }, 
+                Piece { piece_type: PieceType::Knight, color: Color::Black }
+            )
+        };
+
+        if RANKS_BOARD[from] == promotion_rank as usize {
+            self.add_quiet_move(position, MoveList::move_builder(
+                from, 
+                to, 
+                0, 
+                1, /*Flags*/
+                Piece::bb_index(&queen)
+            ));
+            self.add_quiet_move(position, MoveList::move_builder(
+                from, 
+                to, 
+                0, 
+                1, /*Flags*/
+                Piece::bb_index(&rook)
+            ));
+            self.add_quiet_move(position, MoveList::move_builder(
+                from, 
+                to, 
+                0, 
+                1, /*Flags*/
+                Piece::bb_index(&bishop)
+            ));
+            self.add_quiet_move(position, MoveList::move_builder(
+                from, 
+                to, 
+                0, 
+                1, /*Flags*/
+                Piece::bb_index(&knight)
+            ));
+        } else {
+            self.add_quiet_move(position, MoveList::move_builder(
+                from, 
+                to, 
+                0, 
+                1, /*Flags*/
+                0
+            ));
+        }
+    }
+
+    pub fn add_capture_pawn_move(&mut self, position: &Board, from: usize, to: usize, captured: usize) {
+        let (promotion_rank, queen, rook, bishop, knight) = if position.side == Color::White {
+            (
+                Ranks::Rank7, 
+                Piece { piece_type: PieceType::Queen, color: Color::White }, 
+                Piece { piece_type: PieceType::Rook, color: Color::White }, 
+                Piece { piece_type: PieceType::Bishop, color: Color::White }, 
+                Piece { piece_type: PieceType::Knight, color: Color::White }
+            )
+        } else {
+            (
+                Ranks::Rank2, 
+                Piece { piece_type: PieceType::Queen, color: Color::Black }, 
+                Piece { piece_type: PieceType::Rook, color: Color::Black }, 
+                Piece { piece_type: PieceType::Bishop, color: Color::Black }, 
+                Piece { piece_type: PieceType::Knight, color: Color::Black }
+            )
+        };
+
+        if RANKS_BOARD[from] == promotion_rank as usize {
+            self.add_capture_move(position, MoveList::move_builder(
+                from, 
+                to, 
+                captured, 
+                1, /*Flags*/
+                Piece::bb_index(&queen)
+            ));
+            self.add_capture_move(position, MoveList::move_builder(
+                from, 
+                to, 
+                captured, 
+                1, /*Flags*/
+                Piece::bb_index(&rook)
+            ));
+            self.add_capture_move(position, MoveList::move_builder(
+                from, 
+                to, 
+                captured, 
+                1, /*Flags*/
+                Piece::bb_index(&bishop)
+            ));
+            self.add_capture_move(position, MoveList::move_builder(
+                from, 
+                to, 
+                captured, 
+                1, /*Flags*/
+                Piece::bb_index(&knight)
+            ));
+        } else {
+            self.add_capture_move(position, MoveList::move_builder(
+                from, 
+                to, 
+                captured, 
+                1, /*Flags*/
+                0
+            ));
+        }
+    }
+
+    pub fn add_en_passant_move(&mut self, position: &Board, from: usize, to: usize, captured: usize) {
+        
+    }
+
     pub fn len(&self) -> usize { self.count }
 
     pub fn iter(&self) -> std::slice::Iter<'_, u64> { self.moves[..self.count].iter() }
@@ -62,10 +184,10 @@ impl MoveList {
 0000 0000 0000 1000 0000 0000 0000 0000 -> Is castle
 0000 0001 1111 0000 0000 0000 0000 0000 -> Promoted piece
 */
-pub fn from_square(the_move: u32) -> u8 { (the_move & 0x3F) as u8 }
-pub fn to_square(the_move: u32) -> u8 { (the_move >> 6 & 0x3F) as u8 }
-pub fn captured(the_move: u32) -> u8 { (the_move >> 12 & 0x1F) as u8 }
-pub fn promoted(the_move: u32) -> u8 { (the_move >> 20 & 0x1F) as u8 }
+pub fn from_square(mv: u32) -> usize { (mv & 0x3F) as usize }
+pub fn to_square(mv: u32) -> usize { (mv >> 6 & 0x3F) as usize }
+pub fn captured(mv: u32) -> usize { (mv >> 12 & 0x1F) as usize }
+pub fn promoted(mv: u32) -> usize { (mv >> 20 & 0x1F) as usize }
 
 pub static RANK_BB_MASK: LazyLock<[u64; 9]> = LazyLock::new(|| {
     let mut rank_bb_mask: [u64; 9] = [0; 9];

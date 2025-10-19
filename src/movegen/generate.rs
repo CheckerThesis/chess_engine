@@ -1,8 +1,4 @@
-use crate::{board::Board, defs::{Color, PieceType}, movegen::{MoveList, BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}};
-
-fn add_pawn_move(position: &Board, move_list: &mut MoveList, mv: u32) {
-
-}
+use crate::{board::Board, defs::{Color, Piece, PieceType}, movegen::{MoveList, BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}};
 
 pub fn get_up_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u64 {
     let ray = UP_RAYS[square];
@@ -135,7 +131,7 @@ pub fn get_demand_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u
     return (positive_attacks | negative_attacks) & !occupied_bb[side as usize];
 }
 
-pub fn generate_pawn_moves(position: Board, square: usize, side: Color,) -> u64 {
+pub fn generate_pawn_moves(position: Board, square: usize, side: Color, move_list: &mut MoveList) -> u64 {
     let occupied_bb = [position.occupancies(Color::White), position.occupancies(Color::Black)];
     let empty_squares = !(occupied_bb[Color::White as usize] | occupied_bb[Color::Black as usize]);
     let color = side;
@@ -186,6 +182,8 @@ pub fn generate_pawn_moves(position: Board, square: usize, side: Color,) -> u64 
         //     sq120(to_square as u8) as usize, 
         //     move_list
         // );
+        move_list.add_quiet_pawn_move(&position, from_square, to_square);
+
         single_pushes &= single_pushes - 1;
     }
 
@@ -200,6 +198,14 @@ pub fn generate_pawn_moves(position: Board, square: usize, side: Color,) -> u64 
         //     MOVE_FLAG_PAWN_START
         // );
         // add_quiet_move(position, the_move, move_list);
+        move_list.add_quiet_move(&position, MoveList::move_builder(
+            from_square, 
+            to_square, 
+            0, 
+            0 /*Pawn start*/, 
+            0
+        ));
+
         double_pushes &= double_pushes - 1;
     }
 
@@ -217,74 +223,21 @@ pub fn generate_pawn_moves(position: Board, square: usize, side: Color,) -> u64 
             //     captured_piece as usize, 
             //     move_list
             // );
+            if let Some(piece) = captured_piece {
+                move_list.add_capture_pawn_move(&position, from_square, to_square, piece.bb_index());
+            }
+
             valid_captures &= valid_captures - 1;
         }
         pawns &= pawns - 1;
     }
 
-    let mut single_pushes = if color == Color::White {
-        our_pawns.wrapping_shl(push_offset as u32) & empty_squares
-    } else {
-        our_pawns.wrapping_shr((-push_offset) as u32) & empty_squares
-    };
-
-    let mut double_pushes = if color == Color::White {
-        (single_pushes & double_push_rank).wrapping_shl(push_offset as u32) & empty_squares
-    } else {
-        (single_pushes & double_push_rank).wrapping_shr((-push_offset) as u32) & empty_squares
-    };
-
-    while single_pushes != 0 {
-        let to_square = single_pushes.trailing_zeros() as usize;
-        let from_square = (to_square as i32 - push_offset) as usize;
-        // add_pawn_move(position, 
-        //     sq120(from_square as u8) as usize, 
-        //     sq120(to_square as u8) as usize, 
-        //     move_list
-        // );
-        single_pushes &= single_pushes - 1;
-    }
-
-    while double_pushes != 0 {
-        let to_square = double_pushes.trailing_zeros() as usize;
-        let from_square = (to_square as i32 - (push_offset * 2)) as usize;
-        // let the_move = move_builder(
-        //     sq120(from_square as u8) as u32,
-        //     sq120(to_square as u8) as u32,
-        //     Empty as u32,
-        //     Empty as u32,
-        //     MOVE_FLAG_PAWN_START
-        // );
-        // add_quiet_move(position, the_move, move_list);
-        double_pushes &= double_pushes - 1;
-    }
-
-    let mut pawns = our_pawns;
-    while pawns != 0 {
-        let from_square = pawns.trailing_zeros() as usize;
-        let mut valid_captures = pawn_attacks[from_square] & their_pieces;
-
-        while valid_captures != 0 {
-            let to_square = valid_captures.trailing_zeros() as usize;
-            let captured_piece = position.pieces[to_square];
-            // add_pawn_capture_move(position, 
-            //     sq120(from_square as u8) as usize, 
-            //     sq120(to_square as u8) as usize, 
-            //     captured_piece as usize, 
-            //     move_list
-            // );
-            valid_captures &= valid_captures - 1;
-        }
-        pawns &= pawns - 1;
-    }
-
-    if let Some(en_passant) = position.en_passant {
-        let en_passant_square = en_passant;
+    if let Some(en_passant_square) = position.en_passant {
         let potential_attackers = en_passant_attackers_table[en_passant_square];
         let mut en_passant_attackers = potential_attackers & our_pawns;
 
         while en_passant_attackers != 0 {
-            let from_square = en_passant_attackers.trailing_zeros();
+            let from_square = en_passant_attackers.trailing_zeros() as usize;
             // let the_move = move_builder(
             //     sq120(from_square as u8) as u32,
             //     position.en_passant as u32,
@@ -293,6 +246,10 @@ pub fn generate_pawn_moves(position: Board, square: usize, side: Color,) -> u64 
             //     MOVE_FLAG_EN_PASSANT
             // );
             // add_en_passant_move(position, the_move, move_list);
+            if let Some(piece) = captured_piece {
+                move_list.add_capture_pawn_move(&position, from_square, en_passant_square, piece.bb_index());
+            }
+
             en_passant_attackers &= en_passant_attackers - 1;
         }
     }
