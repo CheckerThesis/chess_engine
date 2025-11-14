@@ -1,4 +1,5 @@
-use crate::{board::{print_bitboard, Board}, defs::{FILES_BOARD, RANKS_BOARD}, fens::FEN_TRICKY, movegen::WHITE_PAWN_ATTACKS};
+#![allow(warnings)]
+use crate::{board::{Board, print_bitboard}, defs::{FILES_BOARD, RANKS_BOARD, Ranks}, fens::{FEN_ENPASSANT, FEN_PROMOTION_BLACK, FEN_PROMOTION_WHITE, FEN_TRICKY}, movegen::{BLACK_PAWN_ATTACKS, MoveList, RANK_BB_MASK, WHITE_PAWN_ATTACKS}};
 
 mod defs;
 mod board;
@@ -17,7 +18,10 @@ TODO
 */
 
 fn main() {
-    let position: Board = Board::new("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+    let position: Board = Board::new(FEN_PROMOTION_WHITE);
+    let mut move_list: MoveList = MoveList::new();
     println!("{position}");
     position.check_board(fn_name!());
+    move_list.generate_pawn_moves(position);
+    println!("{move_list}")
 }
