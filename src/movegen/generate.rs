@@ -130,3 +130,5 @@ pub fn get_demand_moves(square: usize, occupied_bb: &[u64; 3], side: Color) -> u
 
     return (positive_attacks | negative_attacks) & !occupied_bb[side as usize];
 }
+
+// SLIDING MOVEGEN
