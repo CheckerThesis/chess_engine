@@ -1,5 +1,5 @@
 #![allow(warnings)]
-use crate::{board::{Board, print_bitboard}, defs::{Color, FILES_BOARD, RANKS_BOARD, Ranks}, fens::{FEN_ENPASSANT, FEN_PROMOTION_BLACK, FEN_PROMOTION_WHITE, FEN_TRICKY}, movegen::{BLACK_PAWN_ATTACKS, MoveList, RANK_BB_MASK, SUPPLY_DIAGONAL_RAYS, WHITE_PAWN_ATTACKS}};
+use crate::{board::{Board, print_bitboard}, defs::{Color, FILES_BOARD, RANKS_BOARD, Ranks}, fens::{FEN_ENPASSANT, FEN_PROMOTION_BLACK, FEN_PROMOTION_WHITE, FEN_TRICKY}, movegen::{MoveList}};
 
 mod defs;
 mod board;
@@ -22,7 +22,7 @@ fn main() {
     let mut move_list: MoveList = MoveList::new();
     println!("{position}");
     position.check_board(fn_name!());
-    move_list.generate_sliding_moves(&position);
+    move_list.generate_king_moves(&position);
     println!("{move_list}");
 
     // let side = position.side;

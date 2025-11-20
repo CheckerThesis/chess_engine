@@ -1,4 +1,4 @@
-use crate::{board::Board, defs::{Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, LEFT_RAYS, MoveList, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}};
+use crate::{board::Board, defs::{Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveList, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
 
 impl MoveList {
     pub fn move_builder(
@@ -492,6 +492,86 @@ impl MoveList {
                 movement_bb &= movement_bb - 1;
             }
             queens &= queens - 1;
+        }
+    }
+
+    pub fn generate_knight_moves(&mut self, position: &Board) {
+        let side = position.side;
+        let our_pieces = position.occupancies(side);
+        let their_pieces = position.occupancies(side.opposite());
+
+        let mut knights = position.bitboards[PieceType::Knight.bb_index(side)];
+        while knights != 0 {
+            let from_square_index = knights.trailing_zeros() as usize;
+            let from_square = 1u64 << from_square_index;
+            let mut movement_bb = KNIGHT_RAYS[from_square_index];
+            while movement_bb != 0 {
+                let to_square_index = movement_bb.trailing_zeros() as usize;
+                let to_square = 1 << to_square_index;
+
+                if to_square & their_pieces == 0 && to_square & our_pieces == 0 {
+                    self.add_quiet_move(position, MoveList::move_builder(
+                        from_square_index, 
+                        to_square_index, 
+                        0, 
+                        0, 
+                        0
+                    ));
+                } else if to_square & their_pieces > 0 {
+                    let captured_piece = position.pieces[to_square_index];
+                    if let Some(piece) = captured_piece {
+                        self.add_capture_move(position, MoveList::move_builder(
+                            from_square_index, 
+                            to_square_index, 
+                            piece.bb_index(), 
+                            0, 
+                            0
+                        ));
+                    }
+                }
+                movement_bb &= movement_bb - 1;
+            }
+            knights &= knights - 1;
+        }
+    }
+
+    pub fn generate_king_moves(&mut self, position: &Board) {
+        let side = position.side;
+        let our_pieces = position.occupancies(side);
+        let their_pieces = position.occupancies(side.opposite());
+
+        let mut kings = position.bitboards[PieceType::King.bb_index(side)];
+        while kings != 0 {
+            let from_square_index = kings.trailing_zeros() as usize;
+            let from_square = 1u64 << from_square_index;
+            let mut movement_bb = KING_RAYS[from_square_index];
+            while movement_bb != 0 {
+                let to_square_index = movement_bb.trailing_zeros() as usize;
+                let to_square = 1 << to_square_index;
+
+                if to_square & their_pieces == 0 && to_square & our_pieces == 0 {
+                    self.add_quiet_move(position, MoveList::move_builder(
+                        from_square_index, 
+                        to_square_index, 
+                        0, 
+                        0, 
+                        0
+                    ));
+                } else if to_square & their_pieces > 0 {
+                    let captured_piece = position.pieces[to_square_index];
+                    if let Some(piece) = captured_piece {
+                        self.add_capture_move(position, MoveList::move_builder(
+                            from_square_index, 
+                            to_square_index, 
+                            piece.bb_index(), 
+                            0, 
+                            0
+                        ));
+                    }
+                }
+                movement_bb &= movement_bb - 1;
+            }
+            kings &= kings - 1;
         }
     }
 }
