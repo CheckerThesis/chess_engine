@@ -1,5 +1,5 @@
 #![allow(warnings)]
-use crate::{board::{Board, print_bitboard}, defs::{Color, FILES_BOARD, RANKS_BOARD, Ranks}, fens::{FEN_ENPASSANT, FEN_PROMOTION_BLACK, FEN_PROMOTION_WHITE, FEN_TRICKY}, movegen::{MoveList}};
+use crate::{board::{Board, print_bitboard}, defs::{Color, FILES_BOARD, RANKS_BOARD, Ranks}, fens::{FEN_1, FEN_ENPASSANT, FEN_PROMOTION_BLACK, FEN_PROMOTION_WHITE, FEN_SQUARE_ATTACKED, FEN_TRICKY}, movegen::MoveList};
 
 mod defs;
 mod board;
@@ -22,10 +22,7 @@ fn main() {
     let mut move_list: MoveList = MoveList::new();
     println!("{position}");
     position.check_board(fn_name!());
-    move_list.generate_king_moves(&position);
+    move_list.generate_all_moves(&position);
+    // println!("{}", square_attacked(43, &position));
     println!("{move_list}");
-
-    // let side = position.side;
-    // let our_occupancy = position.occupancies(side);
-    // let their_occupancy = position.occupancies(side.opposite());
 }

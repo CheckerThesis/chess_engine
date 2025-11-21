@@ -1,4 +1,4 @@
-use crate::{board::Board, defs::{Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveList, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
+use crate::{board::Board, defs::{Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveList, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves, square_attacked}, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
 
 impl MoveList {
     pub fn move_builder(
@@ -145,7 +145,39 @@ impl MoveList {
         }
     }
 
-    pub fn generate_pawn_moves(&mut self, position: &Board) {
+    #[inline(always)]
+    fn serialize_moves(&mut self, position: &Board, from_square: usize, attacks: u64) {
+        let side = position.side;
+        let their_occupancy = position.occupancies(side.opposite());
+        let our_occupancy = position.occupancies(side);
+        
+        let valid_moves = attacks & !our_occupancy;
+        let mut captures = valid_moves & their_occupancy;
+        let mut quiets = valid_moves & !their_occupancy;
+
+        while captures != 0 {
+            let to_square = captures.trailing_zeros() as usize;
+            let captured_piece = position.pieces[to_square].unwrap();
+    
+            self.add_capture_move(position, MoveList::move_builder(
+                from_square, to_square, captured_piece.bb_index(), 0, 0
+            ));
+            
+            captures &= captures - 1;
+        }
+
+        while quiets != 0 {
+            let to_square = quiets.trailing_zeros() as usize;
+            
+            self.add_quiet_move(position, MoveList::move_builder(
+                from_square, to_square, 0, 0, 0
+            ));
+            
+            quiets &= quiets - 1;
+        }
+    }
+
+    fn generate_pawn_moves(&mut self, position: &Board) {
         let occupied_bb = [position.occupancies(Color::White), position.occupancies(Color::Black)];
         let empty_squares: u64 = !(occupied_bb[Color::White as usize] | occupied_bb[Color::Black as usize]);
         let color = position.side;
@@ -243,259 +275,7 @@ impl MoveList {
         }
     }
 
-    pub fn generate_sliding_moves(&mut self, position: &Board) {
-        fn get_up_moves(square: usize, our_occupancy: u64, their_occupancy: u64) -> u64 {
-            let ray = UP_RAYS[square];
-            let blockers = ray & (our_occupancy | their_occupancy);
-
-            if blockers == 0 { return ray }
-            else {
-                let first_blocker_square = blockers.trailing_zeros();
-                // let mask_to_blocker = (1 << (first_blocker_square + 1)) - 1;
-                let mask_to_blocker = if first_blocker_square >= 63 {
-                    u64::MAX  // All bits set - no upper limit
-                } else {
-                    (1u64 << (first_blocker_square + 1)) - 1
-                };
-                let attack_mask = (ray & mask_to_blocker) | (1 << first_blocker_square);
-                return attack_mask & !our_occupancy;
-            }
-        }
-        fn get_down_moves(square: usize, our_occupancy: u64, their_occupancy: u64) -> u64 {
-            let ray = DOWN_RAYS[square];
-            let blockers = ray & (our_occupancy | their_occupancy);
-
-            if blockers == 0 { return ray; }
-            else {
-                let first_blocker_square = 63 - blockers.leading_zeros();
-                let mask_to_blocker = u64::MAX << first_blocker_square;
-                let attack_mask = (ray & mask_to_blocker) | (1 << first_blocker_square);
-                return attack_mask & !our_occupancy;
-            }
-        }
-        fn get_left_moves(square: usize, our_occupancy: u64, their_occupancy: u64) -> u64 {
-            let ray = LEFT_RAYS[square];
-            let blockers = ray & (our_occupancy | their_occupancy);
-
-            if blockers == 0 { return ray }
-            else {
-                let first_blocker_square = 63 - blockers.leading_zeros();
-                let mask_to_blocker = RIGHT_RAYS[first_blocker_square as usize] & ray;
-                let attack_mask = (ray & mask_to_blocker) | (1 << first_blocker_square);
-                return attack_mask & !our_occupancy;
-            }
-        }
-        fn get_right_moves(square: usize, our_occupancy: u64, their_occupancy: u64) -> u64 {
-            let ray = RIGHT_RAYS[square];
-            let blockers = ray & (our_occupancy | their_occupancy);
-
-            if blockers == 0 { return ray; }
-            else {
-                let first_blocker_square = blockers.trailing_zeros();
-                let mask_to_blocker = LEFT_RAYS[first_blocker_square as usize] & ray;
-                let attack_mask = (ray & mask_to_blocker) | (1 << first_blocker_square);
-                return attack_mask & !our_occupancy;
-            }
-        }
-
-        fn get_supply_moves(square: usize, our_occupancy: u64, their_occupancy: u64) -> u64 {
-            fn get_supply_positive_ray(square: usize) -> u64 {
-                let ray = SUPPLY_DIAGONAL_RAYS[square];
-                if square >= 63 {
-                    0  // No positive ray from squares 63 and above
-                } else {
-                    ray & (u64::MAX.wrapping_shl((square + 1) as u32))
-                }
-            }
-            fn get_supply_negative_ray(square: usize) -> u64 {
-                let ray = SUPPLY_DIAGONAL_RAYS[square];
-                ray & ((1 << square) - 1)
-            }
-            
-            let ray = SUPPLY_DIAGONAL_RAYS[square];
-            let blockers = ray & (our_occupancy | their_occupancy);
-
-            let positive_ray = get_supply_positive_ray(square);
-            let negative_ray = get_supply_negative_ray(square);
-
-            // Up right (positive)
-            let positive_blockers = blockers & positive_ray;
-            let mut positive_attacks = positive_ray;
-            if positive_blockers != 0 {
-                let first_blocker_square = positive_blockers.trailing_zeros();
-                let mask_to_blocker = positive_ray & get_supply_negative_ray(first_blocker_square as usize);
-                positive_attacks = (positive_ray & mask_to_blocker) | (1 << first_blocker_square);
-            }
-
-            // Down left (negative)
-            let negative_blockers = blockers & negative_ray;
-            let mut negative_attacks = negative_ray;
-            if negative_blockers != 0 {
-                let first_blocker_square = 63 - negative_blockers.leading_zeros();
-                let mask_to_blocker = negative_ray & get_supply_positive_ray(first_blocker_square as usize);
-                negative_attacks = (negative_ray & mask_to_blocker) | (1 << first_blocker_square);
-            }
-
-            return (positive_attacks | negative_attacks) & !our_occupancy;
-        }
-        fn get_demand_moves(square: usize, our_occupancy: u64, their_occupancy: u64) -> u64 {
-            fn get_demand_positive_ray(square: usize) -> u64 {
-                let ray = DEMAND_DIAGONAL_RAYS[square];
-                ray & u64::MAX.checked_shl((square + 1) as u32).unwrap_or(0)
-            }
-            fn get_demand_negative_ray(square: usize) -> u64 {
-                let ray = DEMAND_DIAGONAL_RAYS[square];
-                ray & ((1 << square) - 1)
-            }
-
-            let ray = DEMAND_DIAGONAL_RAYS[square];
-            let blockers = ray & (our_occupancy | their_occupancy);
-
-            let positive_ray = get_demand_positive_ray(square);
-            let negative_ray = get_demand_negative_ray(square);
-            
-            // Up left (positive)
-            let positive_blockers = blockers & positive_ray;
-            let mut positive_attacks = positive_ray;
-            if positive_blockers != 0 {
-                let first_blocker_square = positive_blockers.trailing_zeros();
-                let mask_to_blocker = positive_ray & get_demand_negative_ray(first_blocker_square as usize);
-                positive_attacks = (positive_ray & mask_to_blocker) | (1 << first_blocker_square);
-            }
-
-            // Down right (negative)
-            let negative_blockers = blockers & negative_ray;
-            let mut negative_attacks = negative_ray;
-            if negative_blockers != 0 {
-                let first_blocker_square = 63 - negative_blockers.leading_zeros();
-                let mask_to_blocker = negative_ray & get_demand_positive_ray(first_blocker_square as usize);
-                negative_attacks = (negative_ray & mask_to_blocker) | (1 << first_blocker_square);
-            }
-
-            return (positive_attacks | negative_attacks) & !our_occupancy;
-        }
-
-        let side = position.side;
-        let our_occupancy = position.occupancies(side);
-        let their_occupancy = position.occupancies(side.opposite());
-        let all_occupancy = our_occupancy | their_occupancy;
-
-        let mut bishops = position.bitboards[PieceType::Bishop.bb_index(side)];
-        while bishops != 0 {
-            let from_square_index = bishops.trailing_zeros() as usize;
-            let from_square = 1u64 << from_square_index;
-            let mut movement_bb = 
-                get_supply_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_demand_moves(from_square_index, our_occupancy, their_occupancy);
-            while movement_bb != 0 {
-                let to_square_index = movement_bb.trailing_zeros() as usize;
-                let to_square = 1 << to_square_index;
-
-                if to_square & their_occupancy == 0 {
-                    self.add_quiet_move(position, MoveList::move_builder(
-                        from_square_index, 
-                        to_square_index, 
-                        0, 
-                        0, 
-                        0
-                    ));
-                } else {
-                    let captured_piece = position.pieces[to_square_index];
-                    if let Some(piece) = captured_piece {
-                        self.add_capture_move(position, MoveList::move_builder(
-                            from_square_index, 
-                            to_square_index, 
-                            piece.bb_index(), 
-                            0, 
-                            0
-                        ));
-                    }
-                }
-                movement_bb &= movement_bb - 1;
-            }
-            bishops &= bishops - 1;
-        }
-
-        let mut rooks = position.bitboards[PieceType::Rook.bb_index(side)];
-        while rooks != 0 {
-            let from_square_index = rooks.trailing_zeros() as usize;
-            let from_square = 1u64 << from_square_index;
-            let mut movement_bb = 
-                get_up_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_down_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_left_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_right_moves(from_square_index, our_occupancy, their_occupancy);
-            while movement_bb != 0 {
-                let to_square_index = movement_bb.trailing_zeros() as usize;
-                let to_square = 1 << to_square_index;
-
-                if to_square & their_occupancy == 0 {
-                    self.add_quiet_move(position, MoveList::move_builder(
-                        from_square_index, 
-                        to_square_index, 
-                        0, 
-                        0, 
-                        0
-                    ));
-                } else {
-                    let captured_piece = position.pieces[to_square_index];
-                    if let Some(piece) = captured_piece {
-                        self.add_capture_move(position, MoveList::move_builder(
-                            from_square_index, 
-                            to_square_index, 
-                            piece.bb_index(), 
-                            0, 
-                            0
-                        ));
-                    }
-                }
-                movement_bb &= movement_bb - 1;
-            }
-            rooks &= rooks - 1;
-        }
-
-        let mut queens = position.bitboards[PieceType::Queen.bb_index(side)];
-        while queens != 0 {
-            let from_square_index = queens.trailing_zeros() as usize;
-            let from_square = 1u64 << from_square_index;
-            let mut movement_bb = 
-                get_supply_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_demand_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_up_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_down_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_left_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_right_moves(from_square_index, our_occupancy, their_occupancy);
-            while movement_bb != 0 {
-                let to_square_index = movement_bb.trailing_zeros() as usize;
-                let to_square = 1 << to_square_index;
-
-                if to_square & their_occupancy == 0 {
-                    self.add_quiet_move(position, MoveList::move_builder(
-                        from_square_index, 
-                        to_square_index, 
-                        0, 
-                        0, 
-                        0
-                    ));
-                } else {
-                    let captured_piece = position.pieces[to_square_index];
-                    if let Some(piece) = captured_piece {
-                        self.add_capture_move(position, MoveList::move_builder(
-                            from_square_index, 
-                            to_square_index, 
-                            piece.bb_index(), 
-                            0, 
-                            0
-                        ));
-                    }
-                }
-                movement_bb &= movement_bb - 1;
-            }
-            queens &= queens - 1;
-        }
-    }
-
-    pub fn generate_knight_moves(&mut self, position: &Board) {
+    fn generate_knight_moves(&mut self, position: &Board) {
         let side = position.side;
         let our_pieces = position.occupancies(side);
         let their_pieces = position.occupancies(side.opposite());
@@ -503,75 +283,91 @@ impl MoveList {
         let mut knights = position.bitboards[PieceType::Knight.bb_index(side)];
         while knights != 0 {
             let from_square_index = knights.trailing_zeros() as usize;
-            let from_square = 1u64 << from_square_index;
-            let mut movement_bb = KNIGHT_RAYS[from_square_index];
-            while movement_bb != 0 {
-                let to_square_index = movement_bb.trailing_zeros() as usize;
-                let to_square = 1 << to_square_index;
-
-                if to_square & their_pieces == 0 && to_square & our_pieces == 0 {
-                    self.add_quiet_move(position, MoveList::move_builder(
-                        from_square_index, 
-                        to_square_index, 
-                        0, 
-                        0, 
-                        0
-                    ));
-                } else if to_square & their_pieces > 0 {
-                    let captured_piece = position.pieces[to_square_index];
-                    if let Some(piece) = captured_piece {
-                        self.add_capture_move(position, MoveList::move_builder(
-                            from_square_index, 
-                            to_square_index, 
-                            piece.bb_index(), 
-                            0, 
-                            0
-                        ));
-                    }
-                }
-                movement_bb &= movement_bb - 1;
-            }
+            self.serialize_moves(position, from_square_index, KNIGHT_RAYS[from_square_index]);
             knights &= knights - 1;
         }
     }
 
-    pub fn generate_king_moves(&mut self, position: &Board) {
+    fn generate_sliding_moves(&mut self, position: &Board) {
+        let side = position.side;
+        let our_occupancy = position.occupancies(side);
+        let their_occupancy = position.occupancies(side.opposite());
+
+        let mut bishops = position.bitboards[PieceType::Bishop.bb_index(side)];
+        while bishops != 0 {
+            let from_square_index = bishops.trailing_zeros() as usize;
+            let movement_bb = 
+                get_supply_moves(from_square_index, our_occupancy, their_occupancy) |
+                get_demand_moves(from_square_index, our_occupancy, their_occupancy);
+            self.serialize_moves(position, from_square_index, movement_bb);
+            bishops &= bishops - 1;
+        }
+
+        let mut rooks = position.bitboards[PieceType::Rook.bb_index(side)];
+        while rooks != 0 {
+            let from_square_index = rooks.trailing_zeros() as usize;
+            let movement_bb = 
+                get_up_moves(from_square_index, our_occupancy, their_occupancy) |
+                get_down_moves(from_square_index, our_occupancy, their_occupancy) |
+                get_left_moves(from_square_index, our_occupancy, their_occupancy) |
+                get_right_moves(from_square_index, our_occupancy, their_occupancy);
+            self.serialize_moves(position, from_square_index, movement_bb);
+            rooks &= rooks - 1;
+        }
+
+        let mut queens = position.bitboards[PieceType::Queen.bb_index(side)];
+        while queens != 0 {
+            let from_square_index = queens.trailing_zeros() as usize;
+            let movement_bb = 
+                get_supply_moves(from_square_index, our_occupancy, their_occupancy) |
+                get_demand_moves(from_square_index, our_occupancy, their_occupancy) |
+                get_up_moves(from_square_index, our_occupancy, their_occupancy) |
+                get_down_moves(from_square_index, our_occupancy, their_occupancy) |
+                get_left_moves(from_square_index, our_occupancy, their_occupancy) |
+                get_right_moves(from_square_index, our_occupancy, their_occupancy);
+            self.serialize_moves(position, from_square_index, movement_bb);
+            queens &= queens - 1;
+        }
+    }
+
+    fn generate_king_moves(&mut self, position: &Board) {
         let side = position.side;
         let our_pieces = position.occupancies(side);
         let their_pieces = position.occupancies(side.opposite());
 
         let mut kings = position.bitboards[PieceType::King.bb_index(side)];
         while kings != 0 {
-            let from_square_index = kings.trailing_zeros() as usize;
-            let from_square = 1u64 << from_square_index;
-            let mut movement_bb = KING_RAYS[from_square_index];
-            while movement_bb != 0 {
-                let to_square_index = movement_bb.trailing_zeros() as usize;
-                let to_square = 1 << to_square_index;
+            let from_sq = kings.trailing_zeros() as usize;
+            let mut moves = KING_RAYS[from_sq] & !our_pieces;
 
-                if to_square & their_pieces == 0 && to_square & our_pieces == 0 {
-                    self.add_quiet_move(position, MoveList::move_builder(
-                        from_square_index, 
-                        to_square_index, 
-                        0, 
-                        0, 
-                        0
-                    ));
-                } else if to_square & their_pieces > 0 {
-                    let captured_piece = position.pieces[to_square_index];
-                    if let Some(piece) = captured_piece {
+            while moves != 0 {
+                let to_sq = moves.trailing_zeros() as usize;
+                
+                if !square_attacked(to_sq as u64, position) {
+                    let to_bb = 1u64 << to_sq;
+
+                    if (to_bb & their_pieces) != 0 {
+                        let captured_piece = position.pieces[to_sq].unwrap();
                         self.add_capture_move(position, MoveList::move_builder(
-                            from_square_index, 
-                            to_square_index, 
-                            piece.bb_index(), 
-                            0, 
-                            0
+                            from_sq, to_sq, captured_piece.bb_index(), 0, 0
+                        ));
+                    } else {
+                        self.add_quiet_move(position, MoveList::move_builder(
+                            from_sq, to_sq, 0, 0, 0
                         ));
                     }
                 }
-                movement_bb &= movement_bb - 1;
+
+                moves &= moves - 1;
             }
             kings &= kings - 1;
         }
+    }
+
+    pub fn generate_all_moves(&mut self, position: &Board) {
+        self.generate_pawn_moves(position);
+        self.generate_knight_moves(position);
+        self.generate_sliding_moves(position);
+        self.generate_king_moves(position);
     }
 }
