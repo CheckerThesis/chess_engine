@@ -1,4 +1,4 @@
-use crate::{board::Board, defs::{Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveList, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves, square_attacked}, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
+use crate::{board::Board, defs::{Castling, Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveFlag, MoveList, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves, square_attacked}, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
 
 impl MoveList {
     pub fn move_builder(
@@ -364,10 +364,98 @@ impl MoveList {
         }
     }
 
+    fn generate_castle_moves(&mut self, position: &Board) {
+        let side = position.side;
+        let occupancies = position.occupancies(Color::Both);
+
+        match side {
+            Color::White => {
+                // King Side (e1 -> g1)
+                if (position.castle_permission & Castling::WhiteKingCastle as u8) != 0 {
+                    if (occupancies & ((1 << 5) | (1 << 6))) == 0 {
+                        // If e1, f1, g1 not under attack
+                        if !square_attacked(4, position) &&
+                           !square_attacked(5, position) &&
+                           !square_attacked(6, position)
+                        {
+                            self.add_quiet_move(position, MoveList::move_builder(
+                                4,
+                                6,
+                                0,
+                                MoveFlag::CASTLE,
+                                0
+                            ));
+                        }
+                    }
+                }
+
+                // Queen Side (e1 -> c1)
+                if (position.castle_permission & Castling::WhiteQueenCastle as u8) != 0 {
+                    if (occupancies & ((1 << 1) | (1 << 2) | (1 << 3))) == 0 {
+                        // If e1, d1, c1 not under attack
+                        if !square_attacked(4, position) &&
+                           !square_attacked(3, position) && 
+                           !square_attacked(2, position)
+                        {
+                            self.add_quiet_move(position, MoveList::move_builder(
+                                4,
+                                2,
+                                0,
+                                MoveFlag::CASTLE,
+                                0
+                            ));
+                        }
+                    }
+                }
+            },
+            Color::Black => {
+                // King Side (e8 -> g8)
+                if (position.castle_permission & Castling::BlackKingCastle as u8) != 0 {
+                    if (occupancies & ((1 << 61) | (1 << 62))) == 0 {
+                        // If e8, f8, g8 not under attack
+                        if !square_attacked(60, position) &&
+                           !square_attacked(61, position) &&
+                           !square_attacked(62, position)
+                        {
+                            self.add_quiet_move(position, MoveList::move_builder(
+                                60,
+                                62,
+                                0,
+                                MoveFlag::CASTLE,
+                                0
+                            ));
+                        }
+                    }
+                }
+
+                // Queen Side (e8 -> c8)
+                if (position.castle_permission & Castling::BlackQueenCastle as u8) != 0 {
+                    if (occupancies & ((1 << 57) | (1 << 58) | (1 << 59))) == 0 {
+                        // If e8, d8, c8 not under attack
+                        if !square_attacked(60, position) &&
+                           !square_attacked(59, position) &&
+                           !square_attacked(58, position)    
+                        {
+                            self.add_quiet_move(position, MoveList::move_builder(
+                                60,
+                                58,
+                                0,
+                                MoveFlag::CASTLE,
+                                0
+                            ));
+                        }
+                    }
+                }
+            },
+            _ => {}
+        }
+    }
+
     pub fn generate_all_moves(&mut self, position: &Board) {
         self.generate_pawn_moves(position);
         self.generate_knight_moves(position);
         self.generate_sliding_moves(position);
         self.generate_king_moves(position);
+        self.generate_castle_moves(position);
     }
 }
