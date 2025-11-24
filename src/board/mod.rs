@@ -88,7 +88,7 @@ impl Board {
             Color::White => Piece::WHITE,
             Color::Black => Piece::BLACK,
             _ => {
-                eprintln!("{}", "parse_fen: incorrect side in FEN".red());
+                eprintln!("{}", "occupancies: incorrect side in FEN".red());
                 Piece::WHITE
             },
         };
@@ -216,7 +216,7 @@ impl Board {
                 eprintln!("{}", "parse_fen: incorrect char in FEN".red());
             }
         }
-
+        
         self.side = match fen_split[1] {
             "w" => Color::White,
             "b" => Color::Black,
