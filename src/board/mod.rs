@@ -1,4 +1,5 @@
 pub mod position_keys;
+pub mod makemove;
 
 use std::{collections::HashMap, fmt, ops::Index};
 
@@ -9,8 +10,8 @@ use crate::defs::{fr2sq, Castling, Color, Files, Piece, PieceType, Ranks};
 pub const MAX_GAME_MOVES: usize = 2048;
 pub const MAX_DEPTH: usize = 32;
 
-fn set_bit(bb: &mut u64, square: usize) { *bb |= 1u64 << square; }
-fn clear_bit(bb: &mut u64, square: usize) { *bb &= !(1u64 << square); }
+pub fn set_bit(bb: &mut u64, square: usize) { *bb |= 1u64 << square; }
+pub fn clear_bit(bb: &mut u64, square: usize) { *bb &= !(1u64 << square); }
 
 #[macro_export]
 macro_rules! fn_name {
@@ -63,23 +64,6 @@ impl Board {
         let mut board = Board::default();
         board.parse_fen(fen);
         board
-    }
-
-    fn add_piece(&mut self, square: usize, piece: Piece) {
-        set_bit(&mut self.bitboards[piece.bb_index()], square);
-        self.pieces[square] = Some(piece);
-    }
-    fn remove_piece(&mut self, square: usize) -> Option<Piece> {
-        if let Some(piece) = self.pieces[square] {
-            clear_bit(&mut self.bitboards[piece.bb_index()], square);
-            self.pieces[square] = None;
-            return Some(piece)
-        }
-        eprintln!("{}", "remove_piece: No piece to remove".red());
-        None
-    }
-    fn move_piece(&mut self, from: usize, to: usize) {
-        if let Some(piece) = self.remove_piece(from) { self.add_piece(to, piece); }
     }
 
     pub fn occupancies(&self, side: Color) -> u64 {        
@@ -165,6 +149,11 @@ impl Board {
     }
 
     pub fn parse_fen(&mut self, fen: &str) {
+        fn add_piece(position: &mut Board, square: usize, piece: Piece) {
+            set_bit(&mut position.bitboards[piece.bb_index()], square);
+            position.pieces[square] = Some(piece);
+        }
+
         fn reset_board(position: &mut Board) {
             for square in 0..64 { position.pieces[square] = None; }
             position.bitboards.fill(0);
@@ -203,7 +192,7 @@ impl Board {
         let mut file = Files::FileA as usize;
         for character in fen_split[0].chars() {
             if let Some(&piece) = piece_map.get(&character) {
-                self.add_piece(fr2sq(file, rank as usize), piece);
+                add_piece(self, fr2sq(file, rank as usize), piece);
                 file += 1;
             } else if let Some(empty_squares) = character.to_digit(10) {
                 file += empty_squares as usize;

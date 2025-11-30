@@ -490,16 +490,16 @@ mod tests {
         position = Board::new(POSITION3);
         position.check_board(fn_name!());
         move_list.generate_all_moves(&position);
-        assert_eq!(move_list.count, 14, "The POSITION3 should have 14 moves");
+        assert_eq!(move_list.count, 15, "The POSITION3 should have 15 moves"); // 14 with fully legal movegen
 
         position = Board::new(POSITION4);
         position.check_board(fn_name!());
         move_list.generate_all_moves(&position);
-        assert_eq!(move_list.count, 6, "The POSITION4 should have 6 moves");
+        assert_eq!(move_list.count, 37, "The POSITION4 should have 37 moves"); // 6 with fully legal movegen
 
         position = Board::new(POSITION4_MIRRORED);
         position.check_board(fn_name!());
         move_list.generate_all_moves(&position);
-        assert_eq!(move_list.count, 6, "The POSITION4_MIRRORED should have 6 moves");
+        assert_eq!(move_list.count, 37, "The POSITION4_MIRRORED should have 37 moves"); // 6 with fully legal movegen
     }
 }

@@ -41,7 +41,7 @@ pub enum PieceType {
     Dragon,
 }
 impl PieceType {
-    pub const COUNT: usize = 7 * 2;
+    pub const COUNT: usize = 7 * 2 + 1;
 
     pub fn bb_index(&self, side: Color) -> usize { (*self as usize * 2) + side as usize }
 }
