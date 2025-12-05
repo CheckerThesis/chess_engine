@@ -7,12 +7,7 @@ pub fn get_up_moves(square: usize, our_occupancy: u64, their_occupancy: u64) -> 
     if blockers == 0 { return ray }
     else {
         let first_blocker_square = blockers.trailing_zeros();
-        // let mask_to_blocker = (1 << (first_blocker_square + 1)) - 1;
-        let mask_to_blocker = if first_blocker_square >= 63 {
-            u64::MAX  // All bits set - no upper limit
-        } else {
-            (1u64 << (first_blocker_square + 1)) - 1
-        };
+        let mask_to_blocker = (1 << (first_blocker_square + 1)) - 1;
         let attack_mask = (ray & mask_to_blocker) | (1 << first_blocker_square);
         return attack_mask & !our_occupancy;
     }

@@ -1,4 +1,17 @@
-use crate::{board::{Board, clear_bit, position_keys::{CASTLE_KEYS, EN_PASSANT_KEYS, PIECE_KEYS, SIDE_KEY}, set_bit}, defs::Piece};
+use colored::Colorize;
+
+use crate::{board::{Board, Undo, clear_bit, position_keys::{self, CASTLE_KEYS, EN_PASSANT_KEYS, PIECE_KEYS, SIDE_KEY}, set_bit}, defs::{Color, Piece}, movegen::{from_square, is_castling, is_en_passant, to_square}};
+
+pub const CASTLE_PERMISSION: [u8; 64] = [
+    13, 15, 15, 15, 12, 15, 15, 14, 
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    7,  15, 15, 15, 3,  15, 15, 11
+];
 
 impl Board {
     fn hash_piece(&mut self, piece: Piece, square: usize) { self.position_key ^= PIECE_KEYS[piece.bb_index()][square]; }
@@ -35,7 +48,53 @@ impl Board {
     }
 
     fn make_move(&mut self, mv: u32) {
+        let from = from_square(mv);
+        let to = to_square(mv);
+        let side = self.side;
+
+        // Store history before modifying
+        self.history[self.history_ply] = Undo {
+            mv: mv,
+            castle_permission: self.castle_permission,
+            en_passant: self.en_passant.unwrap_or(64),
+            fifty_move: self.fifty_move,
+            position_key: self.position_key,
+        };
+
+        // Handle special moves
+        if is_en_passant(mv) {
+            // `to` is diagonal, +-8 gets the square behind/infront
+            if side == Color::White { self.clear_piece(to - 8); }
+            else { self.clear_piece(to + 8); }
+        } else if is_castling(mv) {
+            match to {
+                6 => self.move_piece(7, 5), // White Kingside => Rook H1 to F1
+                2 => self.move_piece(0, 3), // White Queenside => Rook A1 to D1
+                62 => self.move_piece(63, 61), // Black Kingside => Rook H8 to F8
+                58 => self.move_piece(56, 59), // Black Queenside => Rook A8 to D8
+                _ => eprintln!("{}", "make_move: Invalid castle move".red()),
+            }
+        }
+
+        // Update hashes
+        self.hash_en_passant();
+        self.en_passant = None;
+
+        let mask = CASTLE_PERMISSION[from] & CASTLE_PERMISSION[to];
+        let old_permission = self.castle_permission;
+        let new_permission = old_permission & mask;
+
+        if old_permission != new_permission {
+            let xor_diff = CASTLE_KEYS[old_permission as usize] ^ CASTLE_KEYS[new_permission as usize];
+            self.position_key ^= xor_diff;
+            self.castle_permission = new_permission;
+        }
+
+        self.fifty_move += 1;
+
+        // Move piece
         
+
     }
 
     // fn remove_piece(&mut self, square: usize) -> Option<Piece> {

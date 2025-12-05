@@ -30,10 +30,10 @@ macro_rules! fn_name {
 
 #[derive(Default, Copy, Clone)]
 pub struct Undo {
-    pub the_move: u32,
+    pub mv: u32,
     pub castle_permission: u8,
     pub en_passant: usize,
-    pub fifty_move: u8,
+    pub fifty_move: usize,
     pub position_key: u64,
 }
 pub struct Board {

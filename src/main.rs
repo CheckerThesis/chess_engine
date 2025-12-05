@@ -14,6 +14,7 @@ TODO
 - Test difference between packing bits for moves and a full struct
     - Change the move bit flags to bools
 
+TODO Move the LazyLock to a build.rs file that generates the random at compile time
 
 */
 
