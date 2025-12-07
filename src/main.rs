@@ -19,34 +19,19 @@ TODO Move the LazyLock to a build.rs file that generates the random at compile t
 */
 
 fn main() {
-    pub const WHITE_KINGSIDE: &str = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
-    let e1: usize = 4;
-    let g1: usize = 6;
-    let h1: usize = 7;
-    let f1: usize = 5;
+    pub const KING_INTO_CHECK: &str = "k7/8/8/8/8/8/4r3/4K3 w - - 0 1";
+    let e1: usize = 4; // King
+    let f2: usize = 13; // Square attacked by Rook on e2
 
-    let mut position: Board = Board::new(WHITE_KINGSIDE);
-    let old_key = position.position_key;
-
-    let mv = MoveList::move_builder(e1, g1, 0, MoveFlag::CASTLE, 0);
-
+    let mut position: Board = Board::new(KING_INTO_CHECK);
     println!("{position}");
+    let old_side = position.side;
 
-    assert!(position.make_move(mv));
+    // Move King E1 -> F2 (Illegal because e2 Rook attacks rank 2)
+    let mv = MoveList::move_builder(
+        e1, f2, 0, 0, 0
+    );
 
-    // King moved
-    assert!(position.pieces[e1].is_none());
-    assert_eq!(position.pieces[g1], Some(Piece { piece_type: PieceType::King, color: Color::White }));
-    
-    // Rook moved automatically
-    assert!(position.pieces[h1].is_none());
-    assert_eq!(position.pieces[f1], Some(Piece { piece_type: PieceType::Rook, color: Color::White }));
-
-    assert_eq!(position.side, Color::Black);
-    assert_ne!(position.position_key, old_key);
-    
-    let white_rights_mask = (Castling::WhiteKingCastle as u8) | (Castling::WhiteQueenCastle as u8);
-    assert_eq!(position.castle_permission & white_rights_mask, 0); 
-    
-    position.check_board(fn_name!());
+    // Expect make_move to return false
+    assert!(!position.make_move(mv));
 }

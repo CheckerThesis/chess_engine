@@ -1,6 +1,7 @@
 pub mod attacks;
 pub mod generate;
 pub mod bitboards;
+pub mod test;
 
 use core::fmt;
 use std::sync::LazyLock;
