@@ -1,4 +1,4 @@
-use crate::{board::Board, defs::{Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveList, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
+use crate::{board::{Board, print_bitboard}, defs::{Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveList, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
 
 pub fn get_up_moves(square: usize, our_occupancy: u64, their_occupancy: u64) -> u64 {
     let ray = UP_RAYS[square];
@@ -126,9 +126,7 @@ pub fn get_demand_moves(square: usize, our_occupancy: u64, their_occupancy: u64)
     return (positive_attacks | negative_attacks) & !our_occupancy;
 }
 
-pub fn square_attacked(square_index: u64, position: &Board) -> bool {
-    let square = square_index as usize;
-    let side = position.side;
+pub fn square_attacked(square: usize, side: Color, position: &Board) -> bool {
     let enemy_side = side.opposite();
     
     // Pawns

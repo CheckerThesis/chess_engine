@@ -1,3 +1,5 @@
+use colored::Colorize;
+
 use crate::{board::Board, defs::{Castling, Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveFlag, MoveList, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves, square_attacked}, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
 
 impl MoveList {
@@ -51,28 +53,28 @@ impl MoveList {
                 from, 
                 to, 
                 0, 
-                1, /*Flags*/
+                MoveFlag::NONE,
                 Piece::bb_index(&queen)
             ));
             self.add_quiet_move(position, MoveList::move_builder(
                 from, 
                 to, 
                 0, 
-                1, /*Flags*/
+                0,
                 Piece::bb_index(&rook)
             ));
             self.add_quiet_move(position, MoveList::move_builder(
                 from, 
                 to, 
                 0, 
-                1, /*Flags*/
+                MoveFlag::NONE,
                 Piece::bb_index(&bishop)
             ));
             self.add_quiet_move(position, MoveList::move_builder(
                 from, 
                 to, 
                 0, 
-                1, /*Flags*/
+                MoveFlag::NONE,
                 Piece::bb_index(&knight)
             ));
         } else {
@@ -80,7 +82,7 @@ impl MoveList {
                 from, 
                 to, 
                 0, 
-                1, /*Flags*/
+                MoveFlag::NONE,
                 0
             ));
         }
@@ -110,28 +112,28 @@ impl MoveList {
                 from, 
                 to, 
                 captured, 
-                1, /*Flags*/
+                MoveFlag::NONE,
                 Piece::bb_index(&queen)
             ));
             self.add_capture_move(position, MoveList::move_builder(
                 from, 
                 to, 
                 captured, 
-                1, /*Flags*/
+                MoveFlag::NONE,
                 Piece::bb_index(&rook)
             ));
             self.add_capture_move(position, MoveList::move_builder(
                 from, 
                 to, 
                 captured, 
-                1, /*Flags*/
+                MoveFlag::NONE,
                 Piece::bb_index(&bishop)
             ));
             self.add_capture_move(position, MoveList::move_builder(
                 from, 
                 to, 
                 captured, 
-                1, /*Flags*/
+                MoveFlag::NONE,
                 Piece::bb_index(&knight)
             ));
         } else {
@@ -139,10 +141,29 @@ impl MoveList {
                 from, 
                 to, 
                 captured, 
-                1, /*Flags*/
+                MoveFlag::NONE,
                 0
             ));
         }
+    }
+
+    fn add_enpassant_move(&mut self, position: &Board, from: usize, to: usize) {
+        let enemy_pawn = match position.side {
+        Color::White => PieceType::Pawn.bb_index(Color::Black),
+        Color::Black => PieceType::Pawn.bb_index(Color::White),
+        _ => {
+            eprintln!("{}", "add_enpassant_move: Invalid side".red());
+            panic!()
+        }
+    };
+        
+        self.add_capture_move(position, MoveList::move_builder(
+            from, 
+            to, 
+            enemy_pawn, 
+            MoveFlag::EN_PASSANT, 
+            0
+        ));
     }
 
     #[inline(always)]
@@ -160,7 +181,7 @@ impl MoveList {
             let captured_piece = position.pieces[to_square].unwrap();
     
             self.add_capture_move(position, MoveList::move_builder(
-                from_square, to_square, captured_piece.bb_index(), 0, 0
+                from_square, to_square, captured_piece.bb_index(), MoveFlag::NONE, 0
             ));
             
             captures &= captures - 1;
@@ -170,7 +191,7 @@ impl MoveList {
             let to_square = quiets.trailing_zeros() as usize;
             
             self.add_quiet_move(position, MoveList::move_builder(
-                from_square, to_square, 0, 0, 0
+                from_square, to_square, 0, MoveFlag::NONE, 0
             ));
             
             quiets &= quiets - 1;
@@ -235,7 +256,7 @@ impl MoveList {
                 from_square, 
                 to_square, 
                 0, 
-                0 /*Pawn start*/, 
+                MoveFlag::PAWN_START, 
                 0
             ));
 
@@ -266,10 +287,8 @@ impl MoveList {
 
             while en_passant_attackers != 0 {
                 let from_square = en_passant_attackers.trailing_zeros() as usize;
-                if let Some(piece) = position.pieces[from_square] {
-                    self.add_capture_pawn_move(&position, from_square, en_passant_square, piece.bb_index());
-                }
-
+                self.add_enpassant_move(position, from_square, en_passant_square);
+        
                 en_passant_attackers &= en_passant_attackers - 1;
             }
         }
@@ -343,7 +362,7 @@ impl MoveList {
             while moves != 0 {
                 let to_sq = moves.trailing_zeros() as usize;
                 
-                if !square_attacked(to_sq as u64, position) {
+                if !square_attacked(to_sq, position.side, position) {
                     let to_bb = 1u64 << to_sq;
 
                     if (to_bb & their_pieces) != 0 {
@@ -374,9 +393,9 @@ impl MoveList {
                 if (position.castle_permission & Castling::WhiteKingCastle as u8) != 0 {
                     if (occupancies & ((1 << 5) | (1 << 6))) == 0 {
                         // If e1, f1, g1 not under attack
-                        if !square_attacked(4, position) &&
-                           !square_attacked(5, position) &&
-                           !square_attacked(6, position)
+                        if !square_attacked(4, position.side, position) &&
+                           !square_attacked(5, position.side, position) &&
+                           !square_attacked(6, position.side, position)
                         {
                             self.add_quiet_move(position, MoveList::move_builder(
                                 4,
@@ -393,9 +412,9 @@ impl MoveList {
                 if (position.castle_permission & Castling::WhiteQueenCastle as u8) != 0 {
                     if (occupancies & ((1 << 1) | (1 << 2) | (1 << 3))) == 0 {
                         // If e1, d1, c1 not under attack
-                        if !square_attacked(4, position) &&
-                           !square_attacked(3, position) && 
-                           !square_attacked(2, position)
+                        if !square_attacked(4, position.side, position) &&
+                           !square_attacked(3, position.side, position) && 
+                           !square_attacked(2, position.side, position)
                         {
                             self.add_quiet_move(position, MoveList::move_builder(
                                 4,
@@ -413,9 +432,9 @@ impl MoveList {
                 if (position.castle_permission & Castling::BlackKingCastle as u8) != 0 {
                     if (occupancies & ((1 << 61) | (1 << 62))) == 0 {
                         // If e8, f8, g8 not under attack
-                        if !square_attacked(60, position) &&
-                           !square_attacked(61, position) &&
-                           !square_attacked(62, position)
+                        if !square_attacked(60, position.side, position) &&
+                           !square_attacked(61, position.side, position) &&
+                           !square_attacked(62, position.side, position)
                         {
                             self.add_quiet_move(position, MoveList::move_builder(
                                 60,
@@ -432,9 +451,9 @@ impl MoveList {
                 if (position.castle_permission & Castling::BlackQueenCastle as u8) != 0 {
                     if (occupancies & ((1 << 57) | (1 << 58) | (1 << 59))) == 0 {
                         // If e8, d8, c8 not under attack
-                        if !square_attacked(60, position) &&
-                           !square_attacked(59, position) &&
-                           !square_attacked(58, position)    
+                        if !square_attacked(60, position.side, position) &&
+                           !square_attacked(59, position.side, position) &&
+                           !square_attacked(58, position.side, position)    
                         {
                             self.add_quiet_move(position, MoveList::move_builder(
                                 60,

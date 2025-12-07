@@ -1,5 +1,6 @@
 pub mod position_keys;
 pub mod makemove;
+pub mod makemove_helpers;
 
 use std::{collections::HashMap, fmt, ops::Index};
 
@@ -82,6 +83,7 @@ impl Board {
         occupancy
     }
 
+    #[cfg(debug_assertions)]
     pub fn check_board(&self, location_called: &str) {
         let mut bb_from_pieces: [u64; PieceType::COUNT] = [0; PieceType::COUNT];
 
@@ -107,7 +109,7 @@ impl Board {
                         eprintln!("{}", format!("check_board ({}): piece at square {} has wrong bitboard index", location_called, square).red());
                     }
                 } else {
-                    eprintln!("{}", format!("check_board ({}): bitboard {} has bit set at square {} but no piece exists", location_called, bb_index, square).red());
+                    eprintln!("{}", format!("check_board ({}): bitboard[{}] has bit set at square {} but no piece exists", location_called, bb_index, square).red());
                 }
                 
                 bb_copy &= bb_copy - 1;

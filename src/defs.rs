@@ -11,7 +11,7 @@ use std::sync::LazyLock;
 1  00 01 02 03 04 05 06 07
    A  B  C  D  E  F  G  H
 */
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(usize)]
 pub enum Color {
     White = 0,
@@ -29,16 +29,16 @@ impl Color {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(usize)]
 pub enum PieceType {
-    Pawn,
-    Knight,
-    Bishop,
-    Rook,
-    Queen,
-    King,
-    Dragon,
+    Pawn, // 0 1
+    Knight, // 2 3
+    Bishop, // 4 5
+    Rook, // 6 7
+    Queen, // 8 9
+    King, // 10 11
+    Dragon, // 12 13
 }
 impl PieceType {
     pub const COUNT: usize = 7 * 2 + 1;
@@ -46,7 +46,7 @@ impl PieceType {
     pub fn bb_index(&self, side: Color) -> usize { (*self as usize * 2) + side as usize }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Piece {
     pub piece_type: PieceType,
     pub color: Color,

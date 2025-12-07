@@ -131,14 +131,13 @@ pub fn to_square(mv: u32) -> usize { (mv >> 6 & 0x3F) as usize }
 pub fn captured(mv: u32) -> usize { (mv >> 12 & 0x1F) as usize }
 pub fn promoted(mv: u32) -> usize { (mv >> 20 & 0x1F) as usize }
 
-pub mod MoveFlag {
-    pub const QUIET: usize      = 0;
-    pub const EN_PASSANT: usize = 1; // Will become 1 << 17
-    pub const PAWN_START: usize = 2; // Will become 1 << 18
-    pub const CASTLE: usize     = 4; // Will become 1 << 19
-}
 pub fn is_en_passant(mv: u32) -> bool { (mv & (1 << 17)) != 0 }
-
 pub fn is_double_push(mv: u32) -> bool { (mv & (1 << 18)) != 0 }
-
 pub fn is_castling(mv: u32) -> bool { (mv & (1 << 19)) != 0 }
+
+pub mod MoveFlag {
+    pub const NONE: usize       = 0;
+    pub const EN_PASSANT: usize = 0b0001; // Will become 1 << 17
+    pub const PAWN_START: usize = 0b0010; // Will become 1 << 18
+    pub const CASTLE: usize     = 0b0100; // Will become 1 << 19
+}
