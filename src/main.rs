@@ -8,14 +8,11 @@ mod io;
 mod movegen;
 mod transposition_table;
 /*
-TODO
-- Determine what struct to use to handle movelist
-    - Determine what struct to use to handle move
-- Test difference between packing bits for moves and a full struct
-    - Change the move bit flags to bools
+NEXT: PERFT
 
+TODO Test difference between packing bits for moves and a full struct
 TODO Move the LazyLock to a build.rs file that generates the random at compile time
-
+TODO Optimize make_move function
 */
 
 fn main() {
