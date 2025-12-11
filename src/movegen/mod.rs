@@ -9,7 +9,7 @@ use std::sync::LazyLock;
 use crate::{board::Board, defs::{Color, Piece, PieceType, Ranks, RANKS_BOARD}};
 
 pub struct MoveList {
-    moves: [u64; 256],
+    pub moves: [u64; 256],
     pub count: usize
 }
 impl MoveList {

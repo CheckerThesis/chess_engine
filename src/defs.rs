@@ -41,7 +41,7 @@ pub enum PieceType {
     Dragon, // 12 13
 }
 impl PieceType {
-    pub const COUNT: usize = 7 * 2 + 1;
+    pub const COUNT: usize = 7 * 2;
 
     pub fn bb_index(&self, side: Color) -> usize { (*self as usize * 2) + side as usize }
 }
@@ -68,6 +68,22 @@ impl Piece {
         Piece { piece_type: PieceType::Rook, color: Color::Black },
         Piece { piece_type: PieceType::Queen, color: Color::Black },
         Piece { piece_type: PieceType::King, color: Color::Black },
+        Piece { piece_type: PieceType::Dragon, color: Color::Black },
+    ];
+    pub const MV_TO_PIECE: [Piece; PieceType::COUNT] = [
+        Piece { piece_type: PieceType::Pawn, color: Color::White },
+        Piece { piece_type: PieceType::Pawn, color: Color::Black },
+        Piece { piece_type: PieceType::Knight, color: Color::White },
+        Piece { piece_type: PieceType::Knight, color: Color::Black },
+        Piece { piece_type: PieceType::Bishop, color: Color::White },
+        Piece { piece_type: PieceType::Bishop, color: Color::Black },
+        Piece { piece_type: PieceType::Rook, color: Color::White },
+        Piece { piece_type: PieceType::Rook, color: Color::Black },
+        Piece { piece_type: PieceType::Queen, color: Color::White },
+        Piece { piece_type: PieceType::Queen, color: Color::Black },
+        Piece { piece_type: PieceType::King, color: Color::White },
+        Piece { piece_type: PieceType::King, color: Color::Black },
+        Piece { piece_type: PieceType::Dragon, color: Color::White },
         Piece { piece_type: PieceType::Dragon, color: Color::Black },
     ];
 

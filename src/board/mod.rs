@@ -34,7 +34,7 @@ macro_rules! fn_name {
 pub struct Undo {
     pub mv: u32,
     pub castle_permission: u8,
-    pub en_passant: usize,
+    pub en_passant: Option<usize>,
     pub fifty_move: usize,
     pub position_key: u64,
 }
@@ -97,6 +97,9 @@ impl Board {
         for i in 0..PieceType::COUNT {
             if bb_from_pieces[i] != self.bitboards[i] {
                 eprintln!("{}", format!("check_board ({}): bitboard[{}] and pieces array not synced!", location_called, i).red());
+                println!("{self}");
+                self.print_bitboards(Some(&[Piece { piece_type: PieceType::Pawn, color: Color::White }, Piece { piece_type: PieceType::Bishop, color: Color::White }]));
+                panic!();
             }
         }
         

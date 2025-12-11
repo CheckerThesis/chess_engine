@@ -1,5 +1,5 @@
 #![allow(warnings)]
-use crate::{board::{Board, print_bitboard}, defs::{Castling, Color, FILES_BOARD, Piece, PieceType, RANKS_BOARD, Ranks}, fens::{FEN_1, FEN_ENPASSANT, FEN_PROMOTION_BLACK, FEN_PROMOTION_WHITE, FEN_SQUARE_ATTACKED, FEN_START, KIWIPETE}, movegen::{MoveFlag, MoveList}};
+use crate::{board::{Board, print_bitboard}, defs::{Castling, Color, FILES_BOARD, Piece, PieceType, RANKS_BOARD, Ranks}, fens::{FEN_1, FEN_ENPASSANT, FEN_PROMOTION_BLACK, FEN_PROMOTION_WHITE, FEN_SQUARE_ATTACKED, FEN_START, KIWIPETE}, movegen::{MoveFlag, MoveList}, perft::perft};
 
 mod defs;
 mod board;
@@ -7,6 +7,8 @@ mod fens;
 mod io;
 mod movegen;
 mod transposition_table;
+mod perft;
+mod squares;
 /*
 NEXT: PERFT
 
@@ -16,19 +18,12 @@ TODO Optimize make_move function
 */
 
 fn main() {
-    pub const KING_INTO_CHECK: &str = "k7/8/8/8/8/8/4r3/4K3 w - - 0 1";
-    let e1: usize = 4; // King
-    let f2: usize = 13; // Square attacked by Rook on e2
-
-    let mut position: Board = Board::new(KING_INTO_CHECK);
-    println!("{position}");
-    let old_side = position.side;
-
-    // Move King E1 -> F2 (Illegal because e2 Rook attacks rank 2)
-    let mv = MoveList::move_builder(
-        e1, f2, 0, 0, 0
-    );
-
-    // Expect make_move to return false
-    assert!(!position.make_move(mv));
+    let mut position = Board::new(FEN_START);
+    println!("{}", perft(&mut position, 2));
+    let mut position = Board::new(FEN_START);
+    println!("{}", perft(&mut position, 3));
+    let mut position = Board::new(FEN_START);
+    println!("{}", perft(&mut position, 4));
+    let mut position = Board::new(FEN_START);
+    println!("{}", perft(&mut position, 5));
 }
