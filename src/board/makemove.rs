@@ -166,6 +166,17 @@ impl Board {
             self.check_board(fn_name!()); 
         }
 
+        if (bean == 11173) {
+            let fen = self.get_fen();
+            println!("{fen}");
+            println!("{self}");
+            self.print_bitboards(Some(&[
+                Piece { piece_type: PieceType::Pawn, color: Color::White }, 
+                Piece { piece_type: PieceType::Bishop, color: Color::White },
+                Piece { piece_type: PieceType::Pawn, color: Color::Black },
+            ]));
+        }
+
         let from = from_square(mv);
         let to = to_square(mv);
         let side = self.side;
@@ -221,6 +232,14 @@ impl Board {
         }
 
         self.move_piece(from, to);
+        if (bean == 11173) {
+            println!("{self}");
+            self.print_bitboards(Some(&[
+                Piece { piece_type: PieceType::Pawn, color: Color::White }, 
+                Piece { piece_type: PieceType::Bishop, color: Color::White },
+                Piece { piece_type: PieceType::Pawn, color: Color::Black },
+            ]));
+        }
 
         let promote_piece = promoted(mv);
         if promote_piece != 0 {
@@ -325,6 +344,20 @@ impl Board {
     pub fn take_move(&mut self) {
         if cfg!(debug_assertions) { self.check_board(fn_name!()); }
 
+        let bean;
+        unsafe { 
+            bean = hi; 
+        }
+
+        if (bean == 11173) {
+            println!("{self}");
+            self.print_bitboards(Some(&[
+                Piece { piece_type: PieceType::Pawn, color: Color::White }, 
+                Piece { piece_type: PieceType::Bishop, color: Color::White },
+                Piece { piece_type: PieceType::Pawn, color: Color::Black },
+            ]));
+        }
+
         self.history_ply -= 1;
         self.ply -= 1;
 
@@ -359,6 +392,14 @@ impl Board {
         }
 
         self.move_piece(to, from);
+        if (bean == 11172) {
+            println!("{self}");
+            self.print_bitboards(Some(&[
+                Piece { piece_type: PieceType::Pawn, color: Color::White }, 
+                Piece { piece_type: PieceType::Bishop, color: Color::White },
+                Piece { piece_type: PieceType::Pawn, color: Color::Black },
+            ]));
+        }
 
         let captured = captured(mv);
         if captured != 0 {

@@ -241,6 +241,104 @@ impl Board {
         self.position_key = self.generate_position_key();
     }
 
+    pub fn get_fen(&self) -> String {
+        let mut fen = String::new();
+
+        // 1. Piece Placement
+        // Iterate Ranks 8 -> 1
+        for rank in (0..8).rev() {
+            let mut empty_squares = 0;
+            
+            // Iterate Files A -> H
+            for file in 0..8 {
+                let square = rank * 8 + file;
+                
+                match self.pieces[square] {
+                    None => empty_squares += 1,
+                    Some(piece) => {
+                        if empty_squares > 0 {
+                            fen.push_str(&empty_squares.to_string());
+                            empty_squares = 0;
+                        }
+
+                        let char_type = match piece.piece_type {
+                            PieceType::Pawn => 'p',
+                            PieceType::Knight => 'n',
+                            PieceType::Bishop => 'b',
+                            PieceType::Rook => 'r',
+                            PieceType::Queen => 'q',
+                            PieceType::King => 'k',
+                            // Custom piece handling based on your fmt impl
+                            PieceType::Dragon => 'd', 
+                            // Fallback if generic/count is hit
+                            _ => '?', 
+                        };
+
+                        fen.push(if piece.color == Color::White {
+                            char_type.to_ascii_uppercase()
+                        } else {
+                            char_type
+                        });
+                    }
+                }
+            }
+            
+            if empty_squares > 0 {
+                fen.push_str(&empty_squares.to_string());
+            }
+
+            if rank > 0 {
+                fen.push('/');
+            }
+        }
+
+        // 2. Active Color
+        fen.push(' ');
+        fen.push(match self.side {
+            Color::White => 'w',
+            Color::Black => 'b',
+            _ => '-',
+        });
+
+        // 3. Castling Rights
+        fen.push(' ');
+        let mut castling = String::new();
+        if self.castle_permission & Castling::WhiteKingCastle as u8 != 0 { castling.push('K'); }
+        if self.castle_permission & Castling::WhiteQueenCastle as u8 != 0 { castling.push('Q'); }
+        if self.castle_permission & Castling::BlackKingCastle as u8 != 0 { castling.push('k'); }
+        if self.castle_permission & Castling::BlackQueenCastle as u8 != 0 { castling.push('q'); }
+
+        if castling.is_empty() {
+            fen.push('-');
+        } else {
+            fen.push_str(&castling);
+        }
+
+        // 4. En Passant Target
+        fen.push(' ');
+        match self.en_passant {
+            Some(sq) => {
+                let file = (sq % 8) as u8 + b'a';
+                let rank = (sq / 8) as u8 + b'1';
+                fen.push(file as char);
+                fen.push(rank as char);
+            }
+            None => fen.push('-'),
+        }
+
+        // 5. Halfmove Clock (50-move rule counter)
+        fen.push(' ');
+        fen.push_str(&self.fifty_move.to_string());
+
+        // 6. Fullmove Number
+        // Standard calculation: (total_plies / 2) + 1
+        fen.push(' ');
+        let fullmove = (self.history_ply / 2) + 1;
+        fen.push_str(&fullmove.to_string());
+
+        fen
+    }
+
     pub fn print_bitboards(&self, pieces_to_print: Option<&[Piece]>) {
         fn index_to_piece_name(index: usize) -> String {
             let color = if index % 2 == 0 { "White" } else { "Black" };

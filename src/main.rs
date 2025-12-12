@@ -18,12 +18,18 @@ TODO Optimize make_move function
 */
 
 fn main() {
-    let mut position = Board::new(FEN_START);
-    println!("{}", perft(&mut position, 2));
-    let mut position = Board::new(FEN_START);
-    println!("{}", perft(&mut position, 3));
-    let mut position = Board::new(FEN_START);
-    println!("{}", perft(&mut position, 4));
-    let mut position = Board::new(FEN_START);
-    println!("{}", perft(&mut position, 5));
+    // let mut position = Board::new(FEN_START);
+    // println!("{}", perft(&mut position, 2));
+    // let mut position = Board::new(FEN_START);
+    // println!("{}", perft(&mut position, 3));
+    // let mut position = Board::new(FEN_START);
+    // println!("{}", perft(&mut position, 4));
+    // let mut position = Board::new(FEN_START);
+    // println!("{}", perft(&mut position, 5));
+
+    let mut position = Board::new("rnbqkbnr/ppp1pppp/3p4/8/8/P6P/1PPPPPP1/RNBQKBNR b KQkq - 0 2");
+    println!("{position}");
+    let mut move_list = MoveList::new();
+    move_list.generate_all_moves(&position);
+    println!("{move_list}");
 }
