@@ -1,16 +1,16 @@
 use crate::{board::{Board, print_bitboard}, defs::{Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveList, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
 
+pub static mut hi: usize = 0; 
+
 pub fn get_up_moves(square: usize, our_occupancy: u64, their_occupancy: u64) -> u64 {
     let ray = UP_RAYS[square];
     let blockers = ray & (our_occupancy | their_occupancy);
 
-    if blockers == 0 { return ray }
-    else {
-        let first_blocker_square = blockers.trailing_zeros();
-        let mask_to_blocker = (1 << (first_blocker_square + 1)) - 1;
-        let attack_mask = (ray & mask_to_blocker) | (1 << first_blocker_square);
-        return attack_mask & !our_occupancy;
-    }
+    if blockers == 0 { return ray; }
+    let mask_to_blocker = blockers ^ (blockers - 1);
+    let attack_mask = ray & mask_to_blocker;
+
+    attack_mask & !our_occupancy
 }
 pub fn get_down_moves(square: usize, our_occupancy: u64, their_occupancy: u64) -> u64 {
     let ray = DOWN_RAYS[square];
@@ -152,6 +152,10 @@ pub fn square_attacked(square: usize, side: Color, position: &Board) -> bool {
     let bishop_attacks = 
         get_demand_moves(square, our_occupancy, their_occupancy) |
         get_supply_moves(square, our_occupancy, their_occupancy);
+    println!("------");
+    print_bitboard(our_occupancy);
+    print_bitboard(their_occupancy);
+    print_bitboard(bishop_attacks);
     if (bishop_attacks & diagonal_attackers) != 0 { return true; }
 
     // Orthogonal

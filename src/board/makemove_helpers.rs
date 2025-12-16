@@ -32,6 +32,11 @@ impl Board {
             clear_bit(&mut self.bitboards[piece.bb_index()], from);
             self.pieces[from] = None;
 
+            if let Some(captured_piece) = self.pieces[to] {
+                self.hash_piece(captured_piece, to);
+                clear_bit(&mut self.bitboards[captured_piece.bb_index()], to);
+            }
+
             self.hash_piece(piece, to);
             set_bit(&mut self.bitboards[piece.bb_index()], to);
             self.pieces[to] = Some(piece);

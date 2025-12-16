@@ -73,7 +73,7 @@ mod tests {
     }
 
     #[test]
-    fn test_in_check_castle() {
+    fn test_make_move_in_check_castle() {
         const WHITE_IN_CHECK_CASTLE: &str = "4k2r/8/8/8/8/8/8/Rr2K2R w KQ - 0 1";
         let e1: usize = 4;
         let g1: usize = 6;
@@ -165,7 +165,7 @@ mod tests {
 
         // Promote to Queen (Index 5 based on your logic)
         let mv = MoveList::move_builder(
-            e7, e8, 0, 0, 5 
+            e7, e8, 0, 0, 8
         );
 
         assert!(position.make_move(mv));
@@ -189,7 +189,7 @@ mod tests {
 
         // Promote to Black Queen (Index 11 based on your logic)
         let mv = MoveList::move_builder(
-            e2, e1, 0, 0, 11
+            e2, e1, 0, 0, 9
         );
 
         assert!(position.make_move(mv));
@@ -308,8 +308,8 @@ mod tests {
         
         let b7: usize = 49;
         let a8: usize = 56;
-        let rook_type = 4; // Integer representation for Rook capture
-        let promoted_queen = 5; // Integer for White Queen promotion
+        let rook_type = 7; // Integer representation for Rook capture
+        let promoted_queen = 8; // Integer for White Queen promotion
 
         let mut position: Board = Board::new(CAPTURE_PROMO_W);
         let old_key = position.position_key;
@@ -342,8 +342,8 @@ mod tests {
 
         let g2: usize = 14;
         let h1: usize = 7;
-        let rook_type = 4; // Captured White Rook
-        let promoted_knight = 8; // Integer for Black Knight promotion (based on your helper logic)
+        let rook_type = 6; // Captured White Rook
+        let promoted_knight = 3; // Integer for Black Knight promotion (based on your helper logic)
 
         let mut position: Board = Board::new(CAPTURE_PROMO_B);
         let old_key = position.position_key;

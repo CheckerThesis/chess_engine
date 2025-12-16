@@ -16,7 +16,6 @@
             },
             "args": []
         },
-        
         {
             "type": "lldb",
             "request": "launch",
@@ -33,7 +32,7 @@
                     "kind": "bin" // Change to "bin" if testing a binary
                 }
             },
-            "args": ["test_make_move_white_castle_kingside"], // Arguments to pass to the test executable itself
+            "args": ["test_make_move_fail_illegal"], // Arguments to pass to the test executable itself
             "cwd": "${workspaceFolder}"
         }
     ]

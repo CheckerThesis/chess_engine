@@ -60,7 +60,7 @@ impl MoveList {
                 from, 
                 to, 
                 0, 
-                0,
+                MoveFlag::NONE,
                 Piece::bb_index(&rook)
             ));
             self.add_quiet_move(position, MoveList::move_builder(
@@ -147,20 +147,11 @@ impl MoveList {
         }
     }
 
-    fn add_enpassant_move(&mut self, position: &Board, from: usize, to: usize) {
-        let enemy_pawn = match position.side {
-        Color::White => PieceType::Pawn.bb_index(Color::Black),
-        Color::Black => PieceType::Pawn.bb_index(Color::White),
-        _ => {
-            eprintln!("{}", "add_enpassant_move: Invalid side".red());
-            panic!()
-        }
-    };
-        
-        self.add_capture_move(position, MoveList::move_builder(
+    fn add_enpassant_move(&mut self, position: &Board, from: usize, to: usize) {        
+        self.add_quiet_move(position, MoveList::move_builder(
             from, 
             to, 
-            enemy_pawn, 
+            0, 
             MoveFlag::EN_PASSANT, 
             0
         ));
@@ -368,11 +359,11 @@ impl MoveList {
                     if (to_bb & their_pieces) != 0 {
                         let captured_piece = position.pieces[to_sq].unwrap();
                         self.add_capture_move(position, MoveList::move_builder(
-                            from_sq, to_sq, captured_piece.bb_index(), 0, 0
+                            from_sq, to_sq, captured_piece.bb_index(), MoveFlag::NONE, 0
                         ));
                     } else {
                         self.add_quiet_move(position, MoveList::move_builder(
-                            from_sq, to_sq, 0, 0, 0
+                            from_sq, to_sq, 0, MoveFlag::NONE, 0
                         ));
                     }
                 }

@@ -30,7 +30,7 @@ impl MoveList {
     pub fn iter(&self) -> std::slice::Iter<'_, u64> { self.moves[..self.count].iter() }
 }
 
-const SQUARE_TO_STRING: [&str; 64] = [
+pub const SQUARE_TO_STRING: [&str; 64] = [
     "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
     "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
     "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
@@ -106,12 +106,13 @@ impl fmt::Display for MoveList {
             // Write the formatted move string
             // Example: "  1: e2e4 (Score: 0)"
             // Example: " 12: e7e8q (Score: 10000)"
-            writeln!(f, "  {:>2}: {}{}{} (Score: {})",
+            writeln!(f, "  {:>2}: {}{}{} (Score: {}, Raw: {})",
                      i + 1,
                      from_sq_str,
                      to_sq_str,
                      promo_str,
-                     score)?;
+                     score,
+                     move_data)?;
         }
         
         Ok(())
@@ -137,8 +138,8 @@ pub fn is_double_push(mv: u32) -> bool { (mv & (1 << 18)) != 0 }
 pub fn is_castling(mv: u32) -> bool { (mv & (1 << 19)) != 0 }
 
 pub mod MoveFlag {
-    pub const NONE: usize       = 0;
-    pub const EN_PASSANT: usize = 0b0001; // Will become 1 << 17
-    pub const PAWN_START: usize = 0b0010; // Will become 1 << 18
-    pub const CASTLE: usize     = 0b0100; // Will become 1 << 19
+    pub const NONE:       usize = 0;
+    pub const EN_PASSANT: usize = 1 << 0;
+    pub const PAWN_START: usize = 1 << 1;
+    pub const CASTLE:     usize = 1 << 2;
 }
