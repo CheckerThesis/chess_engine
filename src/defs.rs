@@ -32,16 +32,17 @@ impl Color {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(usize)]
 pub enum PieceType {
-    Pawn, // 0 1
-    Knight, // 2 3
-    Bishop, // 4 5
-    Rook, // 6 7
-    Queen, // 8 9
-    King, // 10 11
-    Dragon, // 12 13
+    None   = 0,
+    Pawn   = 1,
+    Knight = 2,
+    Bishop = 3,
+    Rook   = 4,
+    Queen  = 5,
+    King   = 6,
+    Dragon = 7,
 }
 impl PieceType {
-    pub const COUNT: usize = 7 * 2;
+    pub const COUNT: usize = 8 * 2;
 
     pub fn bb_index(&self, side: Color) -> usize { (*self as usize * 2) + side as usize }
 }
@@ -52,6 +53,8 @@ pub struct Piece {
     pub color: Color,
 }
 impl Piece {
+    pub const NONE: Piece = Piece { piece_type: PieceType::None, color: Color::Neither };
+
     pub const WHITE: [Piece; 7] = [
         Piece { piece_type: PieceType::Pawn, color: Color::White },
         Piece { piece_type: PieceType::Knight, color: Color::White },
@@ -71,6 +74,7 @@ impl Piece {
         Piece { piece_type: PieceType::Dragon, color: Color::Black },
     ];
     pub const MV_TO_PIECE: [Piece; PieceType::COUNT] = [
+        Piece::NONE, Piece::NONE,
         Piece { piece_type: PieceType::Pawn, color: Color::White },
         Piece { piece_type: PieceType::Pawn, color: Color::Black },
         Piece { piece_type: PieceType::Knight, color: Color::White },

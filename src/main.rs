@@ -24,8 +24,8 @@ fn main() {
     // println!("{}", perft(&mut position, 3));
     let mut position = Board::new("rnbqk1nr/pppp1ppp/4p3/8/1b6/PP6/2PPPPPP/RNBQKBNR w KQkq - 0 1");
     println!("{position}");
-    let mut movelist = MoveList::new();
-    movelist.generate_all_moves(&position);
-    println!("{movelist}");
+    // let mut movelist = MoveList::new();
+    // movelist.generate_all_moves(&position);
+    // println!("{movelist}");
     perft_divide(&mut position, 2);
 }

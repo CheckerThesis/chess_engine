@@ -41,7 +41,7 @@ pub struct Undo {
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Board {
     pub bitboards: [u64; PieceType::COUNT],
-    pub pieces: [Option<Piece>; 64],
+    pub pieces: [Piece; 64],
     pub side: Color,
 
     pub en_passant: Option<usize>,
@@ -80,8 +80,14 @@ impl Board {
             },
         };
 
+        // println!("---------------");
+        // print_bitboard(self.bitboards[PieceType::Pawn.bb_index(side)]);
+        // print_bitboard(self.bitboards[PieceType::Rook.bb_index(side)]);
+
         for piece in pieces { occupancy |= self.bitboards[piece.bb_index()]; }
 
+        // print_bitboard(occupancy);
+        // println!("{self}");
         occupancy
     }
 
@@ -90,8 +96,9 @@ impl Board {
         let mut bb_from_pieces: [u64; PieceType::COUNT] = [0; PieceType::COUNT];
 
         // Bb matches pieces
-        for (square, piece_option) in self.pieces.iter().enumerate() {
-            if let Some(piece) = piece_option {
+        for (square, piece) in self.pieces.iter().enumerate() {
+            
+            if piece.piece_type != PieceType::None {
                 set_bit(&mut bb_from_pieces[piece.bb_index()], square);
             }
         }
@@ -109,7 +116,8 @@ impl Board {
             let mut bb_copy = bb;
             while bb_copy != 0 {
                 let square = bb_copy.trailing_zeros() as usize;
-                if let Some(piece) = self.pieces[square] {
+                let piece = self.pieces[square];
+                if piece.piece_type != PieceType::None {
                     if piece.bb_index() != bb_index {
                         eprintln!("{}", format!("check_board ({}): piece at square {} has wrong bitboard index", location_called, square).red());
                     }
@@ -158,11 +166,11 @@ impl Board {
     pub fn parse_fen(&mut self, fen: &str) {
         fn add_piece(position: &mut Board, square: usize, piece: Piece) {
             set_bit(&mut position.bitboards[piece.bb_index()], square);
-            position.pieces[square] = Some(piece);
+            position.pieces[square] = piece;
         }
 
         fn reset_board(position: &mut Board) {
-            for square in 0..64 { position.pieces[square] = None; }
+            for square in 0..64 { position.pieces[square] = Piece::NONE; }
             position.bitboards.fill(0);
             position.en_passant = None;
             position.fifty_move = 0;
@@ -392,6 +400,7 @@ impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn piece_to_char(piece: Piece) -> char {
             match piece.piece_type {
+                PieceType::None => '.',
                 PieceType::Pawn => if piece.color == Color::White { '♙' } else { '♟' },
                 PieceType::Knight => if piece.color == Color::White { '♘' } else { '♞' },
                 PieceType::Bishop => if piece.color == Color::White { '♗' } else { '♝' },
@@ -406,10 +415,7 @@ impl fmt::Display for Board {
             write!(f, "{}  ", rank + 1)?;
             for file in Files::FileA as usize..=Files::FileH as usize {
                 let square = fr2sq(file, rank);
-                let piece_char = match self.pieces[square] {
-                    Some(piece) => piece_to_char(piece),
-                    None => '.',
-                };
+                let piece_char = piece_to_char(self.pieces[square]);
                 write!(f, "{:>2}", piece_char)?;
             }
             writeln!(f)?;

@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use crate::{board::Board, defs::{Castling, Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveFlag, MoveList, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves, square_attacked}, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
+use crate::{board::{Board, print_bitboard}, defs::{Castling, Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveFlag, MoveList, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves, square_attacked}, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
 
 impl MoveList {
     pub fn move_builder(
@@ -167,6 +167,18 @@ impl MoveList {
         let mut captures = valid_moves & their_occupancy;
         let mut quiets = valid_moves & !their_occupancy;
 
+        println!("their_occupancy");
+        print_bitboard(their_occupancy);
+        println!("our_occupancy");
+        print_bitboard(our_occupancy);
+        println!("valid_moves");
+        print_bitboard(valid_moves);
+        println!("captures");
+        print_bitboard(captures);
+        println!("quiets");
+        print_bitboard(quiets);
+        // In my chess bitboards, my piece representation has white pawns as 0
+
         while captures != 0 {
             let to_square = captures.trailing_zeros() as usize;
             let captured_piece = position.pieces[to_square].unwrap();
@@ -304,6 +316,7 @@ impl MoveList {
         let their_occupancy = position.occupancies(side.opposite());
 
         let mut bishops = position.bitboards[PieceType::Bishop.bb_index(side)];
+        print_bitboard(bishops);
         while bishops != 0 {
             let from_square_index = bishops.trailing_zeros() as usize;
             let movement_bb = 
@@ -467,6 +480,8 @@ impl MoveList {
         self.generate_pawn_moves(position);
         self.generate_knight_moves(position);
         self.generate_sliding_moves(position);
+        println!("sliding");
+        println!("{self}");
         self.generate_king_moves(position);
         self.generate_castle_moves(position);
     }

@@ -173,7 +173,6 @@ impl Board {
             self.add_piece(from, Piece { piece_type: PieceType::Pawn, color: pawn_color });
         }
 
-
         if cfg!(debug_assertions) { self.check_board(fn_name!()); }
     }
 }

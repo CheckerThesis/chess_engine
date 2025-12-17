@@ -1,37 +1,29 @@
-   1: a6a5 (Score: 0, Raw: 2088)
-   2: b7b6 (Score: 0, Raw: 2673)
-   3: c7c6 (Score: 0, Raw: 2738)
-   4: d7d6 (Score: 0, Raw: 2803)
-   5: e7e6 (Score: 0, Raw: 2868)
-   6: f7f6 (Score: 0, Raw: 2933)
-   7: g7g6 (Score: 0, Raw: 2998)
-   8: h7h6 (Score: 0, Raw: 3063)
-   9: b7b5 (Score: 0, Raw: 264305)
-  10: c7c5 (Score: 0, Raw: 264370)
-  11: d7d5 (Score: 0, Raw: 264435)
-  12: e7e5 (Score: 0, Raw: 264500)
-  13: f7f5 (Score: 0, Raw: 264565)
-  14: g7g5 (Score: 0, Raw: 264630)
-  15: h7h5 (Score: 0, Raw: 264695)
-  16: b8c6 (Score: 0, Raw: 2745)
-  17: g8f6 (Score: 0, Raw: 2942)
-  18: g8h6 (Score: 0, Raw: 3070)
-  19: a8a7 (Score: 0, Raw: 3128)
+our_occupancy
+- - - - - - - - 
+- - - - - - - - 
+- - - - - - - - 
+- - - - - - - - 
+- - - - - - - - 
+- X - - - - - - 
+X - - - X X X X 
+- X X X X X X X 
 
-a6a5: 1
-b7b6: 1
-c7c6: 1
-a8a7: 1
-e7e6: 1
-f7f6: 1
-g7g6: 1
-h7h6: 1
-b7b5: 1
-c7c5: 1
-g8h6: 1
-e7e5: 1
-f7f5: 1
-g7g5: 1
-h7h5: 1
-b8c6: 1
-g8f6: 1
+their_occupancy
+X X X X X - X X 
+X X X X - X X X 
+- - - - X - - - 
+- - - - - - - - 
+- X - - - - - - 
+- - - - - - - - 
+- - - - - - - - 
+- - - - - - - - 
+
+bishop_attacks
+- - - - - - - - 
+- - - - - - - - 
+- - - - - - - - 
+- - - - - - - - 
+- X - - - - - - 
+- - X - - - - - 
+- - - X - - - - 
+- - - - - - - - 
