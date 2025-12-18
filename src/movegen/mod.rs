@@ -8,49 +8,81 @@ use std::sync::LazyLock;
 
 use crate::{board::Board, defs::{Color, Piece, PieceType, Ranks, RANKS_BOARD}};
 
+pub const MOVE_FLAG_NONE: usize = 0;
+pub const MOVE_FLAG_EN_PASSANT: usize = 1 << 0;
+pub const MOVE_FLAG_PAWN_START: usize = 1 << 1;
+pub const MOVE_FLAG_CASTLE: usize = 1 << 2;
+
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct Move(u32);
+impl Move {
+    pub fn new(
+        from: usize, 
+        to: usize, 
+        capture: usize, 
+        flags: usize, 
+        promote: usize
+    ) -> Self { 
+        Self (from as u32 | 
+        ((to as u32) << 6) | 
+        ((capture as u32) << 12) | 
+        ((flags as u32) << 17) | 
+        ((promote as u32) << 20))
+    }
+
+    /*
+    0000 0000 0000 0000 0000 0000 0011 1111 -> From
+    0000 0000 0000 0000 0000 1111 1100 0000 -> To
+    0000 0000 0000 0001 1111 0000 0000 0000 -> Captured
+    0000 0000 0000 0010 0000 0000 0000 0000 -> Is enpassant
+    0000 0000 0000 0100 0000 0000 0000 0000 -> Is pawn start
+    0000 0000 0000 1000 0000 0000 0000 0000 -> Is castle
+    0000 0001 1111 0000 0000 0000 0000 0000 -> Promoted piece
+    */
+    pub fn from_square(&self) -> usize { (self.0 & 0x3F) as usize }
+    pub fn to_square(&self) -> usize { (self.0 >> 6 & 0x3F) as usize }
+    pub fn captured(&self) -> usize { (self.0 >> 12 & 0x1F) as usize }
+    pub fn promoted(&self) -> usize { (self.0 >> 20 & 0x1F) as usize }
+
+    pub fn is_en_passant(&self) -> bool { (self.0 & (1 << 17)) != 0 }
+    pub fn is_double_push(&self) -> bool { (self.0 & (1 << 18)) != 0 }
+    pub fn is_castling(&self) -> bool { (self.0 & (1 << 19)) != 0 }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct ScoredMove {
+    pub mv: Move,
+    pub score: i16, 
+}
+impl ScoredMove {
+    pub fn new(mv: Move, score: i16) -> Self {
+        Self { mv, score }
+    }
+}
+
 pub struct MoveList {
-    pub moves: [u64; 256],
+    pub moves: [ScoredMove; 256],
     pub count: usize
 }
 impl MoveList {
     pub fn new() -> Self {
         Self {
-            moves: [0; 256],
+            moves: [ScoredMove::new(Move::new(0, 0, 0, 0, 0), 0); 256],
             count: 0,
         }
     }
 
-    fn add(&mut self, mv: u64) {
+    fn add(&mut self, mv: ScoredMove) {
         self.moves[self.count] = mv;
         self.count += 1;
     }
 
     pub fn len(&self) -> usize { self.count }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, u64> { self.moves[..self.count].iter() }
+    pub fn iter(&self) -> std::slice::Iter<'_, ScoredMove> { self.moves[..self.count].iter() }
 }
 
-pub const SQUARE_TO_STRING: [&str; 64] = [
-    "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
-    "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
-    "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
-    "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
-    "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
-    "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
-    "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
-    "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
-];
-
-/// Returns the promotion piece character based on the piece index.
-///
-/// This function makes assumptions based on your `add_..._pawn_move` functions:
-/// 1. `promote: 0` is used for no-promotion.
-/// 2. The piece indices for Q, R, B, N are passed for promotion.
-/// 3. We assume a common encoding like:
-///    W_Q=5, W_R=4, W_B=3, W_N=2
-///    B_Q=11, B_R=10, B_B=9, B_N=8
-///    (This order matches your `queen`, `rook`, `bishop`, `knight` calls)
-fn get_promo_char(promo_index: u32) -> &'static str {
+fn get_promo_char(promo_index: usize) -> &'static str {
     match promo_index {
         // White pieces (assuming N=2, B=3, R=4, Q=5)
         2 => "n",
@@ -68,78 +100,31 @@ fn get_promo_char(promo_index: u32) -> &'static str {
 }
 
 impl fmt::Display for MoveList {
-    /// Formats the move list for printing.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Write a header
+        const SQUARE_TO_STRING: [&str; 64] = [
+            "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+            "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
+            "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
+            "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
+            "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
+            "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
+            "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
+            "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
+        ];
+
         writeln!(f, "Move List ({} moves found):", self.count)?;
-        
-        // Iterate over all moves in the list
-        for i in 0..self.count {
-            // Get the 64-bit move entry
-            let move_with_score = self.moves[i];
 
-            // Extract the 32-bit move data (lower 32 bits)
-            let move_data = move_with_score as u32;
-
-            // Extract the score (upper bits)
-            let score = move_with_score >> 47;
-
-            // --- Decode the 32-bit move data ---
-            // Based on: move_builder(from, to, capture, flags, promote)
-            
-            // from: bits 0-5 (mask 0x3F)
-            let from = (move_data & 0x3F) as usize;
-            
-            // to: bits 6-11 (mask 0x3F)
-            let to = ((move_data >> 6) & 0x3F) as usize;
-            
-            // promote: bits 20-24 (mask 0x1F)
-            let promote = (move_data >> 20) & 0x1F;
-
-            // Convert square indices to algebraic notation
-            let from_sq_str = SQUARE_TO_STRING[from];
-            let to_sq_str = SQUARE_TO_STRING[to];
-            
-            // Get the promotion character (e.g., "q", "r", or "")
-            let promo_str = get_promo_char(promote as u32);
-
-            // Write the formatted move string
-            // Example: "  1: e2e4 (Score: 0)"
-            // Example: " 12: e7e8q (Score: 10000)"
-            writeln!(f, "  {:>2}: {}{}{} (Score: {}, Raw: {})",
+        for (i, scored_move) in self.iter().enumerate() {
+            let mv = scored_move.mv;
+            writeln!(f, "  {:>2}: {}{}{} (Score: {}, Raw: {:?})",
                      i + 1,
-                     from_sq_str,
-                     to_sq_str,
-                     promo_str,
-                     score,
-                     move_data)?;
+                     SQUARE_TO_STRING[mv.from_square()],
+                     SQUARE_TO_STRING[mv.to_square()],
+                     get_promo_char(mv.promoted()),
+                     scored_move.score,
+                     scored_move.mv)?;
         }
         
         Ok(())
     }
-}
-
-/*
-0000 0000 0000 0000 0000 0000 0011 1111 -> From
-0000 0000 0000 0000 0000 1111 1100 0000 -> To
-0000 0000 0000 0001 1111 0000 0000 0000 -> Captured
-0000 0000 0000 0010 0000 0000 0000 0000 -> Is enpassant
-0000 0000 0000 0100 0000 0000 0000 0000 -> Is pawn start
-0000 0000 0000 1000 0000 0000 0000 0000 -> Is castle
-0000 0001 1111 0000 0000 0000 0000 0000 -> Promoted piece
-*/
-pub fn from_square(mv: u32) -> usize { (mv & 0x3F) as usize }
-pub fn to_square(mv: u32) -> usize { (mv >> 6 & 0x3F) as usize }
-pub fn captured(mv: u32) -> usize { (mv >> 12 & 0x1F) as usize }
-pub fn promoted(mv: u32) -> usize { (mv >> 20 & 0x1F) as usize }
-
-pub fn is_en_passant(mv: u32) -> bool { (mv & (1 << 17)) != 0 }
-pub fn is_double_push(mv: u32) -> bool { (mv & (1 << 18)) != 0 }
-pub fn is_castling(mv: u32) -> bool { (mv & (1 << 19)) != 0 }
-
-pub mod MoveFlag {
-    pub const NONE:       usize = 0;
-    pub const EN_PASSANT: usize = 1 << 0;
-    pub const PAWN_START: usize = 1 << 1;
-    pub const CASTLE:     usize = 1 << 2;
 }

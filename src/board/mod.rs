@@ -7,7 +7,7 @@ use std::{collections::HashMap, fmt, ops::Index};
 
 use colored::Colorize;
 
-use crate::defs::{fr2sq, Castling, Color, Files, Piece, PieceType, Ranks};
+use crate::defs::{fr2sq, Color, Files, Piece, PieceType, Ranks};
 
 pub const MAX_GAME_MOVES: usize = 2048;
 pub const MAX_DEPTH: usize = 32;
@@ -34,19 +34,19 @@ macro_rules! fn_name {
 pub struct Undo {
     pub mv: u32,
     pub castle_permission: u8,
-    pub en_passant: Option<usize>,
-    pub fifty_move: usize,
+    pub en_passant: Option<u8>,
+    pub fifty_move: u8,
     pub position_key: u64,
 }
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Board {
-    pub bitboards: [u64; PieceType::COUNT],
-    pub pieces: [Piece; 64],
+    pub bitboards: [u64; Piece::COUNT],
+    pub pieces: [Piece; Piece::COUNT],
     pub side: Color,
 
-    pub en_passant: Option<usize>,
-    pub fifty_move: usize,
-    pub ply: usize,
+    pub en_passant: Option<u8>,
+    pub fifty_move: u8,
+    pub ply: u8,
     pub history_ply: usize,
     pub castle_permission: u8,
     pub position_key: u64,
@@ -165,7 +165,7 @@ impl Board {
 
     pub fn parse_fen(&mut self, fen: &str) {
         fn add_piece(position: &mut Board, square: usize, piece: Piece) {
-            set_bit(&mut position.bitboards[piece.bb_index()], square);
+            set_bit(&mut position.bitboards[piece.index()], square);
             position.pieces[square] = piece;
         }
 
@@ -183,21 +183,21 @@ impl Board {
         reset_board(self);
         
         let piece_map: HashMap<char, Piece> = HashMap::from([
-            ('p', Piece { piece_type: PieceType::Pawn, color: Color::Black}), 
-            ('r', Piece { piece_type: PieceType::Rook, color: Color::Black}), 
-            ('n', Piece { piece_type: PieceType::Knight, color: Color::Black}),
-            ('b', Piece { piece_type: PieceType::Bishop, color: Color::Black}), 
-            ('k', Piece { piece_type: PieceType::King, color: Color::Black}), 
-            ('q', Piece { piece_type: PieceType::Queen, color: Color::Black}),
-            ('P', Piece { piece_type: PieceType::Pawn, color: Color::White}), 
-            ('R', Piece { piece_type: PieceType::Rook, color: Color::White}), 
-            ('N', Piece { piece_type: PieceType::Knight, color: Color::White}),
-            ('B', Piece { piece_type: PieceType::Bishop, color: Color::White}), 
-            ('K', Piece { piece_type: PieceType::King, color: Color::White}), 
-            ('Q', Piece { piece_type: PieceType::Queen, color: Color::White}),
+            ('p', Piece::BLACK_PAWN), 
+            ('r', Piece::BLACK_ROOK), 
+            ('n', Piece::BLACK_KNIGHT),
+            ('b', Piece::BLACK_BISHOP), 
+            ('k', Piece::BLACK_KING), 
+            ('q', Piece::BLACK_QUEEN),
+            ('P', Piece::WHITE_PAWN), 
+            ('R', Piece::WHITE_ROOK), 
+            ('N', Piece::WHITE_KNIGHT),
+            ('B', Piece::WHITE_BISHOP), 
+            ('K', Piece::WHITE_KING), 
+            ('Q', Piece::WHITE_QUEEN),
 
-            ('D', Piece { piece_type: PieceType::King, color: Color::White}), 
-            ('d', Piece { piece_type: PieceType::Queen, color: Color::Black}),
+            ('d', Piece::BLACK_DRAGON), 
+            ('D', Piece::WHITE_DRAGON),
         ]);
 
         let fen_split: Vec<&str> = fen.split_whitespace().collect();

@@ -1,158 +1,144 @@
 use colored::Colorize;
 
-use crate::{board::{Board, print_bitboard}, defs::{Castling, Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveFlag, MoveList, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves, square_attacked}, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
+use crate::{board::{Board, print_bitboard}, defs::{Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MOVE_FLAG_EN_PASSANT, MOVE_FLAG_NONE, Move, MoveList, ScoredMove, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves, square_attacked}, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
 
 impl MoveList {
-    pub fn move_builder(
-        from: usize, 
-        to: usize, 
-        capture: usize, 
-        flags: usize, 
-        promote: usize
-    ) -> u32 { 
-        from as u32 | 
-        ((to as u32) << 6) | 
-        ((capture as u32) << 12) | 
-        ((flags as u32) << 17) | 
-        ((promote as u32) << 20)
-    }
 
-    fn set_score(mv: u32, score: u64) -> u64 { return (mv as u64) | (score << 47) } 
 
-    fn add_quiet_move(&mut self, position: &Board, mv: u32) {
+    fn add_quiet_move(&mut self, position: &Board, mv: Move) {
         // TODO set score killer move
-        self.add(MoveList::set_score(mv, 0));
+        self.add(ScoredMove::new(mv, 0));
     }
 
-    fn add_capture_move(&mut self, position: &Board, mv: u32) {
+    fn add_capture_move(&mut self, position: &Board, mv: Move) {
         // TODO set score MVV_LVA
-        self.add(MoveList::set_score(mv, 10000));
+        self.add(ScoredMove::new(mv, 10000));
     }
 
     fn add_quiet_pawn_move(&mut self, position: &Board, from: usize, to: usize) {
-        let (promotion_rank, queen, rook, bishop, knight) = if position.side == Color::White {
+        let (promotion_rank, queen, rook, bishop, knight) = if position.side == Color::WHITE {
             (
                 Ranks::Rank7, 
-                Piece { piece_type: PieceType::Queen, color: Color::White }, 
-                Piece { piece_type: PieceType::Rook, color: Color::White }, 
-                Piece { piece_type: PieceType::Bishop, color: Color::White }, 
-                Piece { piece_type: PieceType::Knight, color: Color::White }
+                Piece::WHITE_QUEEN, 
+                Piece::WHITE_ROOK, 
+                Piece::WHITE_BISHOP, 
+                Piece::WHITE_KNIGHT
             )
         } else {
             (
                 Ranks::Rank2, 
-                Piece { piece_type: PieceType::Queen, color: Color::Black }, 
-                Piece { piece_type: PieceType::Rook, color: Color::Black }, 
-                Piece { piece_type: PieceType::Bishop, color: Color::Black }, 
-                Piece { piece_type: PieceType::Knight, color: Color::Black }
+                Piece::BLACK_QUEEN, 
+                Piece::BLACK_ROOK, 
+                Piece::BLACK_BISHOP, 
+                Piece::BLACK_KNIGHT
             )
         };
 
         if RANKS_BOARD[from] == promotion_rank as usize {
-            self.add_quiet_move(position, MoveList::move_builder(
+            self.add_quiet_move(position, Move::new(
                 from, 
                 to, 
                 0, 
-                MoveFlag::NONE,
-                Piece::bb_index(&queen)
+                MOVE_FLAG_NONE,
+                queen.index()
             ));
-            self.add_quiet_move(position, MoveList::move_builder(
+            self.add_quiet_move(position, Move::new(
                 from, 
                 to, 
                 0, 
-                MoveFlag::NONE,
-                Piece::bb_index(&rook)
+                MOVE_FLAG_NONE,
+                rook.index()
             ));
-            self.add_quiet_move(position, MoveList::move_builder(
+            self.add_quiet_move(position, Move::new(
                 from, 
                 to, 
                 0, 
-                MoveFlag::NONE,
-                Piece::bb_index(&bishop)
+                MOVE_FLAG_NONE,
+                bishop.index()
             ));
-            self.add_quiet_move(position, MoveList::move_builder(
+            self.add_quiet_move(position, Move::new(
                 from, 
                 to, 
                 0, 
-                MoveFlag::NONE,
-                Piece::bb_index(&knight)
+                MOVE_FLAG_NONE,
+                knight.index()
             ));
         } else {
-            self.add_quiet_move(position, MoveList::move_builder(
+            self.add_quiet_move(position, Move::new(
                 from, 
                 to, 
                 0, 
-                MoveFlag::NONE,
+                MOVE_FLAG_NONE,
                 0
             ));
         }
     }
 
     fn add_capture_pawn_move(&mut self, position: &Board, from: usize, to: usize, captured: usize) {
-        let (promotion_rank, queen, rook, bishop, knight) = if position.side == Color::White {
+        let (promotion_rank, queen, rook, bishop, knight) = if position.side == Color::WHITE {
             (
                 Ranks::Rank7, 
-                Piece { piece_type: PieceType::Queen, color: Color::White }, 
-                Piece { piece_type: PieceType::Rook, color: Color::White }, 
-                Piece { piece_type: PieceType::Bishop, color: Color::White }, 
-                Piece { piece_type: PieceType::Knight, color: Color::White }
+                Piece::WHITE_QUEEN, 
+                Piece::WHITE_ROOK, 
+                Piece::WHITE_BISHOP, 
+                Piece::WHITE_KNIGHT
             )
         } else {
             (
                 Ranks::Rank2, 
-                Piece { piece_type: PieceType::Queen, color: Color::Black }, 
-                Piece { piece_type: PieceType::Rook, color: Color::Black }, 
-                Piece { piece_type: PieceType::Bishop, color: Color::Black }, 
-                Piece { piece_type: PieceType::Knight, color: Color::Black }
+                Piece::BLACK_QUEEN, 
+                Piece::BLACK_ROOK, 
+                Piece::BLACK_BISHOP, 
+                Piece::BLACK_KNIGHT
             )
         };
 
         if RANKS_BOARD[from] == promotion_rank as usize {
-            self.add_capture_move(position, MoveList::move_builder(
+            self.add_capture_move(position, Move::new(
                 from, 
                 to, 
                 captured, 
-                MoveFlag::NONE,
-                Piece::bb_index(&queen)
+                MOVE_FLAG_NONE,
+                queen.index()
             ));
-            self.add_capture_move(position, MoveList::move_builder(
+            self.add_capture_move(position, Move::new(
                 from, 
                 to, 
                 captured, 
-                MoveFlag::NONE,
-                Piece::bb_index(&rook)
+                MOVE_FLAG_NONE,
+                rook.index()
             ));
-            self.add_capture_move(position, MoveList::move_builder(
+            self.add_capture_move(position, Move::new(
                 from, 
                 to, 
                 captured, 
-                MoveFlag::NONE,
-                Piece::bb_index(&bishop)
+                MOVE_FLAG_NONE,
+                bishop.index()
             ));
-            self.add_capture_move(position, MoveList::move_builder(
+            self.add_capture_move(position, Move::new(
                 from, 
                 to, 
                 captured, 
-                MoveFlag::NONE,
-                Piece::bb_index(&knight)
+                MOVE_FLAG_NONE,
+                knight.index()
             ));
         } else {
-            self.add_capture_move(position, MoveList::move_builder(
+            self.add_capture_move(position, Move::new(
                 from, 
                 to, 
                 captured, 
-                MoveFlag::NONE,
+                MOVE_FLAG_NONE,
                 0
             ));
         }
     }
 
     fn add_enpassant_move(&mut self, position: &Board, from: usize, to: usize) {        
-        self.add_quiet_move(position, MoveList::move_builder(
+        self.add_quiet_move(position, Move::new(
             from, 
             to, 
             0, 
-            MoveFlag::EN_PASSANT, 
+            MOVE_FLAG_EN_PASSANT, 
             0
         ));
     }
@@ -183,8 +169,8 @@ impl MoveList {
             let to_square = captures.trailing_zeros() as usize;
             let captured_piece = position.pieces[to_square].unwrap();
     
-            self.add_capture_move(position, MoveList::move_builder(
-                from_square, to_square, captured_piece.bb_index(), MoveFlag::NONE, 0
+            self.add_capture_move(position, Move::new(
+                from_square, to_square, captured_piece.bb_index(), MOVE_FLAG_NONE, 0
             ));
             
             captures &= captures - 1;
@@ -193,8 +179,8 @@ impl MoveList {
         while quiets != 0 {
             let to_square = quiets.trailing_zeros() as usize;
             
-            self.add_quiet_move(position, MoveList::move_builder(
-                from_square, to_square, 0, MoveFlag::NONE, 0
+            self.add_quiet_move(position, Move::new(
+                from_square, to_square, 0, MOVE_FLAG_NONE, 0
             ));
             
             quiets &= quiets - 1;
@@ -255,7 +241,7 @@ impl MoveList {
         while double_pushes != 0 {
             let to_square = double_pushes.trailing_zeros() as usize;
             let from_square = (to_square as i32 - (push_offset * 2)) as usize;
-            self.add_quiet_move(&position, MoveList::move_builder(
+            self.add_quiet_move(&position, Move::new(
                 from_square, 
                 to_square, 
                 0, 
@@ -371,12 +357,12 @@ impl MoveList {
 
                     if (to_bb & their_pieces) != 0 {
                         let captured_piece = position.pieces[to_sq].unwrap();
-                        self.add_capture_move(position, MoveList::move_builder(
-                            from_sq, to_sq, captured_piece.bb_index(), MoveFlag::NONE, 0
+                        self.add_capture_move(position, Move::new(
+                            from_sq, to_sq, captured_piece.bb_index(), MOVE_FLAG_NONE, 0
                         ));
                     } else {
-                        self.add_quiet_move(position, MoveList::move_builder(
-                            from_sq, to_sq, 0, MoveFlag::NONE, 0
+                        self.add_quiet_move(position, Move::new(
+                            from_sq, to_sq, 0, MOVE_FLAG_NONE, 0
                         ));
                     }
                 }
@@ -401,7 +387,7 @@ impl MoveList {
                            !square_attacked(5, position.side, position) &&
                            !square_attacked(6, position.side, position)
                         {
-                            self.add_quiet_move(position, MoveList::move_builder(
+                            self.add_quiet_move(position, Move::new(
                                 4,
                                 6,
                                 0,
@@ -420,7 +406,7 @@ impl MoveList {
                            !square_attacked(3, position.side, position) && 
                            !square_attacked(2, position.side, position)
                         {
-                            self.add_quiet_move(position, MoveList::move_builder(
+                            self.add_quiet_move(position, Move::new(
                                 4,
                                 2,
                                 0,
@@ -440,7 +426,7 @@ impl MoveList {
                            !square_attacked(61, position.side, position) &&
                            !square_attacked(62, position.side, position)
                         {
-                            self.add_quiet_move(position, MoveList::move_builder(
+                            self.add_quiet_move(position, Move::new(
                                 60,
                                 62,
                                 0,
@@ -459,7 +445,7 @@ impl MoveList {
                            !square_attacked(59, position.side, position) &&
                            !square_attacked(58, position.side, position)    
                         {
-                            self.add_quiet_move(position, MoveList::move_builder(
+                            self.add_quiet_move(position, Move::new(
                                 60,
                                 58,
                                 0,
