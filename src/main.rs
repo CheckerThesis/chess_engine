@@ -1,5 +1,5 @@
 #![allow(warnings)]
-use crate::{board::{Board, print_bitboard}, defs::{Color, FILES_BOARD, Piece, PieceType, RANKS_BOARD, Ranks}, fens::{FEN_1, FEN_ENPASSANT, FEN_PROMOTION_BLACK, FEN_PROMOTION_WHITE, FEN_SQUARE_ATTACKED, FEN_START, KIWIPETE}, movegen::{MoveFlag, MoveList, bitboards::RANK_BB_MASK}, perft::{perft, perft_divide}};
+use crate::{board::{Board, print_bitboard}, defs::{Color, FILES_BOARD, Piece, PieceType, RANKS_BOARD, Ranks}, fens::{FEN_1, FEN_ENPASSANT, FEN_PROMOTION_BLACK, FEN_PROMOTION_WHITE, FEN_SQUARE_ATTACKED, FEN_START, KIWIPETE}, movegen::{MoveList, bitboards::RANK_BB_MASK}, perft::{perft, perft_divide}};
 
 mod defs;
 mod board;
@@ -28,4 +28,10 @@ fn main() {
     // movelist.generate_all_moves(&position);
     // println!("{movelist}");
     // perft_divide(&mut position, 2);
+    let mut position: Board = Board::new(KIWIPETE);
+    // println!("{position}");
+    println!("{}", perft(&mut position, 1));
+    println!("{}", perft(&mut position, 2));
+    println!("{}", perft(&mut position, 3));
+    // perft_divide(&mut position, 4);
 }

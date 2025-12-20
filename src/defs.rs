@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::{fmt, sync::LazyLock};
 
 /*
 8  56 57 58 59 60 61 62 63
@@ -20,11 +20,12 @@ pub const BLACK_QUEEN_CASTLE: u8 = 0b1000;
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Color(pub u8);
 impl Color {
-    pub const WHITE:   Self = Self(0); // 00
-    pub const BLACK:   Self = Self(1); // 01
-    pub const NEITHER: Self = Self(2); // 10
-    pub const BOTH:    Self = Self(3); // 11
+    pub const WHITE:  Self = Self(0); // 00
+    pub const BLACK:  Self = Self(1); // 01
+    pub const BOTH:   Self = Self(2); // 10
+    pub const EITHER: Self = Self(3); // 11
 
+    #[inline(always)] pub fn index(&self) -> usize { self.0 as usize }
     pub fn opposite(&self) -> Color { Self(self.0 ^ 1) }
 }
 
@@ -41,6 +42,7 @@ impl PieceType {
     pub const DRAGON: Self = Self(7);
 
     #[inline(always)] pub fn index(&self) -> usize { self.0 as usize }
+    pub fn bb_index(&self, side: Color) -> usize { ((self.0 as usize) << 2) | (side.0 as usize) }
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -64,9 +66,60 @@ impl Piece { //                           PieceType Color
 
     pub const COUNT: usize = 32;
 
+    pub const WHITE_PIECES: &'static [Self] = &[
+        Self::WHITE_PAWN, Self::WHITE_KNIGHT, Self::WHITE_BISHOP, 
+        Self::WHITE_ROOK, Self::WHITE_QUEEN, Self::WHITE_KING, 
+        Self::WHITE_DRAGON
+    ];
+
+    pub const BLACK_PIECES: &'static [Self] = &[
+        Self::BLACK_PAWN, Self::BLACK_KNIGHT, Self::BLACK_BISHOP, 
+        Self::BLACK_ROOK, Self::BLACK_QUEEN, Self::BLACK_KING, 
+        Self::BLACK_DRAGON
+    ];
+
+    pub const ALL: &'static [Self] = &[
+        Self::NONE,
+        Self::WHITE_PAWN,   Self::BLACK_PAWN,
+        Self::WHITE_KNIGHT, Self::BLACK_KNIGHT,
+        Self::WHITE_BISHOP, Self::BLACK_BISHOP,
+        Self::WHITE_ROOK,   Self::BLACK_ROOK,
+        Self::WHITE_QUEEN,  Self::BLACK_QUEEN,
+        Self::WHITE_KING,   Self::BLACK_KING,
+        Self::WHITE_DRAGON, Self::BLACK_DRAGON,
+    ];
+
+    pub fn iter() -> impl Iterator<Item = &'static Self> {
+        Self::ALL.iter()
+    }
+
     #[inline(always)] pub fn index(&self) -> usize { self.0 as usize }
     #[inline(always)] pub fn piece_type(&self) -> PieceType { PieceType(self.0 >> 2) }
     #[inline(always)] pub fn color(&self) -> Color { Color(self.0 & 0b11) }
+    #[inline(always)] pub fn make(piece_type: PieceType, color: Color) -> Self { Self((piece_type.0 << 2)| color.0) }
+}
+impl fmt::Display for Piece {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let name = match *self {
+            Piece::NONE         => "NONE",
+            Piece::WHITE_PAWN   => "WHITE_PAWN",
+            Piece::BLACK_PAWN   => "BLACK_PAWN",
+            Piece::WHITE_KNIGHT => "WHITE_KNIGHT",
+            Piece::BLACK_KNIGHT => "BLACK_KNIGHT",
+            Piece::WHITE_BISHOP => "WHITE_BISHOP",
+            Piece::BLACK_BISHOP => "BLACK_BISHOP",
+            Piece::WHITE_ROOK   => "WHITE_ROOK",
+            Piece::BLACK_ROOK   => "BLACK_ROOK",
+            Piece::WHITE_QUEEN  => "WHITE_QUEEN",
+            Piece::BLACK_QUEEN  => "BLACK_QUEEN",
+            Piece::WHITE_KING   => "WHITE_KING",
+            Piece::BLACK_KING   => "BLACK_KING",
+            Piece::WHITE_DRAGON => "WHITE_DRAGON",
+            Piece::BLACK_DRAGON => "BLACK_DRAGON",
+            _                   => "No const",
+        };
+        write!(f, "{}", name)
+    }
 }
 
 pub enum Files {

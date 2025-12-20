@@ -130,24 +130,25 @@ pub fn square_attacked(square: usize, side: Color, position: &Board) -> bool {
     let enemy_side = side.opposite();
     
     // Pawns
-    let enemy_pawns = position.bitboards[PieceType::Pawn.bb_index(enemy_side)];
+    let enemy_pawns = position.bitboards[PieceType::PAWN.bb_index(enemy_side)];
     
-    let capturing_offsets = if side == Color::White { &WHITE_PAWN_ATTACKS[square] } 
+    let capturing_offsets = if side == Color::WHITE { &WHITE_PAWN_ATTACKS[square] } 
     else { &BLACK_PAWN_ATTACKS[square] };
 
     if (capturing_offsets & enemy_pawns) != 0 { return true }
 
     // Knights
-    let enemy_knights = position.bitboards[PieceType::Knight.bb_index(enemy_side)];
+    let enemy_knights = position.bitboards[PieceType::KNIGHT.bb_index(enemy_side)];
+    // print_bitboard(enemy_knights);
     if (KNIGHT_RAYS[square] & enemy_knights) != 0 { return true; }
 
-    let our_occupancy = position.occupancies(side);
+    let our_occupancy = position.occupancies[side.index()];
     // print_bitboard(our_occupancy);
-    let their_occupancy = position.occupancies(enemy_side);
+    let their_occupancy = position.occupancies[enemy_side.index()];
     
     // Diagonal
-    let enemy_bishops = position.bitboards[PieceType::Bishop.bb_index(enemy_side)];
-    let enemy_queens = position.bitboards[PieceType::Queen.bb_index(enemy_side)];
+    let enemy_bishops = position.bitboards[PieceType::BISHOP.bb_index(enemy_side)];
+    let enemy_queens = position.bitboards[PieceType::QUEEN.bb_index(enemy_side)];
     let diagonal_attackers = enemy_bishops | enemy_queens;
 
     let bishop_attacks = 
@@ -160,7 +161,7 @@ pub fn square_attacked(square: usize, side: Color, position: &Board) -> bool {
     if (bishop_attacks & diagonal_attackers) != 0 { return true; }
 
     // Orthogonal
-    let enemy_rooks = position.bitboards[PieceType::Rook.bb_index(enemy_side)];
+    let enemy_rooks = position.bitboards[PieceType::ROOK.bb_index(enemy_side)];
     let orthogonal_attackers = enemy_rooks | enemy_queens;
 
     let rook_attacks = 
@@ -171,7 +172,7 @@ pub fn square_attacked(square: usize, side: Color, position: &Board) -> bool {
     if (rook_attacks & orthogonal_attackers) != 0 { return true; }
 
     // Kings
-    let enemy_kings = position.bitboards[PieceType::King.bb_index(enemy_side)];
+    let enemy_kings = position.bitboards[PieceType::KING.bb_index(enemy_side)];
     if (KING_RAYS[square] & enemy_kings) != 0 { return true; }
 
     false

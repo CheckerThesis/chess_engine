@@ -16,13 +16,7 @@ pub const MOVE_FLAG_CASTLE: usize = 1 << 2;
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Move(u32);
 impl Move {
-    pub fn new(
-        from: usize, 
-        to: usize, 
-        capture: usize, 
-        flags: usize, 
-        promote: usize
-    ) -> Self { 
+    pub fn new(from: usize, to: usize, capture: usize, flags: usize, promote: usize) -> Self { 
         Self (from as u32 | 
         ((to as u32) << 6) | 
         ((capture as u32) << 12) | 
@@ -30,15 +24,13 @@ impl Move {
         ((promote as u32) << 20))
     }
 
-    /*
-    0000 0000 0000 0000 0000 0000 0011 1111 -> From
+ /* 0000 0000 0000 0000 0000 0000 0011 1111 -> From
     0000 0000 0000 0000 0000 1111 1100 0000 -> To
     0000 0000 0000 0001 1111 0000 0000 0000 -> Captured
     0000 0000 0000 0010 0000 0000 0000 0000 -> Is enpassant
     0000 0000 0000 0100 0000 0000 0000 0000 -> Is pawn start
     0000 0000 0000 1000 0000 0000 0000 0000 -> Is castle
-    0000 0001 1111 0000 0000 0000 0000 0000 -> Promoted piece
-    */
+    0000 0001 1111 0000 0000 0000 0000 0000 -> Promoted piece */
     pub fn from_square(&self) -> usize { (self.0 & 0x3F) as usize }
     pub fn to_square(&self) -> usize { (self.0 >> 6 & 0x3F) as usize }
     pub fn captured(&self) -> usize { (self.0 >> 12 & 0x1F) as usize }
@@ -48,6 +40,9 @@ impl Move {
     pub fn is_double_push(&self) -> bool { (self.0 & (1 << 18)) != 0 }
     pub fn is_castling(&self) -> bool { (self.0 & (1 << 19)) != 0 }
 }
+impl Default for Move {
+    fn default() -> Self { Self(0) }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct ScoredMove {
@@ -55,9 +50,9 @@ pub struct ScoredMove {
     pub score: i16, 
 }
 impl ScoredMove {
-    pub fn new(mv: Move, score: i16) -> Self {
-        Self { mv, score }
-    }
+    pub fn new(mv: Move, score: i16) -> Self { Self { mv, score } }
+
+    pub fn default() -> Self { Self { mv: Move::default(), score: 0 } } 
 }
 
 pub struct MoveList {
@@ -99,19 +94,19 @@ fn get_promo_char(promo_index: usize) -> &'static str {
     }
 }
 
+pub const SQUARE_TO_STRING: [&str; 64] = [
+    "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+    "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
+    "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
+    "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
+    "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
+    "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
+    "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
+    "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
+];
+
 impl fmt::Display for MoveList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        const SQUARE_TO_STRING: [&str; 64] = [
-            "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
-            "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
-            "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
-            "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
-            "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
-            "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
-            "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
-            "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
-        ];
-
         writeln!(f, "Move List ({} moves found):", self.count)?;
 
         for (i, scored_move) in self.iter().enumerate() {

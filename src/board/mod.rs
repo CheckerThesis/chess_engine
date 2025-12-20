@@ -7,7 +7,7 @@ use std::{collections::HashMap, fmt, ops::Index};
 
 use colored::Colorize;
 
-use crate::defs::{fr2sq, Color, Files, Piece, PieceType, Ranks};
+use crate::{defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Files, Piece, PieceType, Ranks, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE, fr2sq}, movegen::Move};
 
 pub const MAX_GAME_MOVES: usize = 2048;
 pub const MAX_DEPTH: usize = 32;
@@ -32,7 +32,7 @@ macro_rules! fn_name {
 
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 pub struct Undo {
-    pub mv: u32,
+    pub mv: Move,
     pub castle_permission: u8,
     pub en_passant: Option<u8>,
     pub fifty_move: u8,
@@ -40,8 +40,9 @@ pub struct Undo {
 }
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Board {
+    pub occupancies: [u64; 3],
     pub bitboards: [u64; Piece::COUNT],
-    pub pieces: [Piece; Piece::COUNT],
+    pub pieces: [Piece; 64],
     pub side: Color,
 
     pub en_passant: Option<u8>,
@@ -69,40 +70,17 @@ impl Board {
         board
     }
 
-    pub fn occupancies(&self, side: Color) -> u64 {        
-        let mut occupancy: u64 = 0;
-        let pieces = match side {
-            Color::White => Piece::WHITE,
-            Color::Black => Piece::BLACK,
-            _ => {
-                eprintln!("{}", "occupancies: incorrect side in FEN".red());
-                Piece::WHITE
-            },
-        };
-
-        // println!("---------------");
-        // print_bitboard(self.bitboards[PieceType::Pawn.bb_index(side)]);
-        // print_bitboard(self.bitboards[PieceType::Rook.bb_index(side)]);
-
-        for piece in pieces { occupancy |= self.bitboards[piece.bb_index()]; }
-
-        // print_bitboard(occupancy);
-        // println!("{self}");
-        occupancy
-    }
-
     #[cfg(debug_assertions)]
     pub fn check_board(&self, location_called: &str) {
-        let mut bb_from_pieces: [u64; PieceType::COUNT] = [0; PieceType::COUNT];
+        let mut bb_from_pieces: [u64; Piece::COUNT] = [0; Piece::COUNT];
 
         // Bb matches pieces
         for (square, piece) in self.pieces.iter().enumerate() {
-            
-            if piece.piece_type != PieceType::None {
-                set_bit(&mut bb_from_pieces[piece.bb_index()], square);
+            if *piece != Piece::NONE {
+                set_bit(&mut bb_from_pieces[piece.index()], square);
             }
         }
-        for i in 0..PieceType::COUNT {
+        for i in 0..Piece::COUNT {
             if bb_from_pieces[i] != self.bitboards[i] {
                 eprintln!("{}", format!("check_board ({}): bitboard[{}] and pieces array not synced!", location_called, i).red());
                 // println!("{self}");
@@ -117,8 +95,8 @@ impl Board {
             while bb_copy != 0 {
                 let square = bb_copy.trailing_zeros() as usize;
                 let piece = self.pieces[square];
-                if piece.piece_type != PieceType::None {
-                    if piece.bb_index() != bb_index {
+                if piece != Piece::NONE {
+                    if piece.index() != bb_index {
                         eprintln!("{}", format!("check_board ({}): piece at square {} has wrong bitboard index", location_called, square).red());
                     }
                 } else {
@@ -130,12 +108,12 @@ impl Board {
         }
 
         // Occupancy matches bb
-        let white_occupancy = self.occupancies(Color::White);
-        let black_occupancy = self.occupancies(Color::Black);
+        let white_occupancy = self.occupancies[Color::WHITE.index()];
+        let black_occupancy = self.occupancies[Color::BLACK.index()];
         let mut computed_white_occupancy = 0u64;
         let mut computed_black_occupancy = 0u64;
-        for piece in Piece::WHITE { computed_white_occupancy |= self.bitboards[piece.bb_index()]; }
-        for piece in Piece::BLACK { computed_black_occupancy |= self.bitboards[piece.bb_index()]; }
+        for piece in Piece::WHITE_PIECES { computed_white_occupancy |= self.bitboards[piece.index()]; }
+        for piece in Piece::BLACK_PIECES { computed_black_occupancy |= self.bitboards[piece.index()]; }
         if white_occupancy != computed_white_occupancy { eprintln!("{}", format!("check_board ({}): white occupancy mismatch", location_called).red()); }
         if black_occupancy != computed_black_occupancy { eprintln!("{}", format!("check_board ({}): black occupancy mismatch", location_called).red()); }
         if (white_occupancy & black_occupancy) != 0 { eprintln!("{}", format!("check_board ({}): white and black occupancies overlap", location_called).red()); }
@@ -146,15 +124,15 @@ impl Board {
                 eprintln!("{}", format!("check_board ({}): en passant square out of bounds", location_called).red());
             } else {
                 let rank = ep_square / 8;
-                if (self.side == Color::White && rank != 5) || (self.side == Color::Black && rank != 2) {
+                if (self.side == Color::WHITE && rank != 5) || (self.side == Color::BLACK && rank != 2) {
                     eprintln!("{}", format!("check_board ({}): en passant square on wrong rank for current side", location_called).red());
                 }
             }
         }
         
         // King exists
-        let white_king_bb = self.bitboards[Piece::WHITE[PieceType::King as usize].bb_index()];
-        let black_king_bb = self.bitboards[Piece::BLACK[PieceType::King as usize].bb_index()];
+        let white_king_bb = self.bitboards[Piece::WHITE_KING.index()];
+        let black_king_bb = self.bitboards[Piece::BLACK_KING.index()];
         let white_king_count = white_king_bb.count_ones();
         let black_king_count = black_king_bb.count_ones();
         if white_king_count != 1 { eprintln!("{}", format!("check_board ({}): expected 1 white king, found {}", location_called, white_king_count).red()); }
@@ -166,6 +144,8 @@ impl Board {
     pub fn parse_fen(&mut self, fen: &str) {
         fn add_piece(position: &mut Board, square: usize, piece: Piece) {
             set_bit(&mut position.bitboards[piece.index()], square);
+            set_bit(&mut position.occupancies[piece.color().index()], square);
+            set_bit(&mut position.occupancies[Color::BOTH.index()], square);
             position.pieces[square] = piece;
         }
 
@@ -222,20 +202,20 @@ impl Board {
         }
         
         self.side = match fen_split[1] {
-            "w" => Color::White,
-            "b" => Color::Black,
+            "w" => Color::WHITE,
+            "b" => Color::BLACK,
             _ => {
                 eprintln!("{}", "parse_fen: incorrect side in FEN".red());
-                Color::Neither
+                Color::EITHER
             },
         };
 
         for i in fen_split[2].chars() {
             match i {
-                'K' => self.castle_permission |= Castling::WhiteKingCastle as u8,
-                'Q' => self.castle_permission |= Castling::WhiteQueenCastle as u8,
-                'k' => self.castle_permission |= Castling::BlackKingCastle as u8,
-                'q' => self.castle_permission |= Castling::BlackQueenCastle as u8,
+                'K' => self.castle_permission |= WHITE_KING_CASTLE,
+                'Q' => self.castle_permission |= WHITE_QUEEN_CASTLE,
+                'k' => self.castle_permission |= BLACK_KING_CASTLE,
+                'q' => self.castle_permission |= BLACK_QUEEN_CASTLE,
                 '-' => break,
                 _ => eprintln!("{}", "parse_fen: invalid castling permission".red()),
             }
@@ -244,7 +224,7 @@ impl Board {
         if fen_split[3] != "-" {
             let file = fen_split[3].chars().next().unwrap() as usize - 'a' as usize;
             let rank = fen_split[3].chars().nth(1).unwrap().to_digit(10).unwrap() as usize - 1;
-            self.en_passant = Some(fr2sq(file, rank));
+            self.en_passant = Some(fr2sq(file, rank) as u8);
         }
 
         self.position_key = self.generate_position_key();
@@ -263,30 +243,29 @@ impl Board {
                 let square = rank * 8 + file;
                 
                 match self.pieces[square] {
-                    None => empty_squares += 1,
-                    Some(piece) => {
+                    Piece::NONE => empty_squares += 1,
+                    piece => {
                         if empty_squares > 0 {
                             fen.push_str(&empty_squares.to_string());
                             empty_squares = 0;
                         }
 
-                        let char_type = match piece.piece_type {
-                            PieceType::Pawn => 'p',
-                            PieceType::Knight => 'n',
-                            PieceType::Bishop => 'b',
-                            PieceType::Rook => 'r',
-                            PieceType::Queen => 'q',
-                            PieceType::King => 'k',
-                            // Custom piece handling based on your fmt impl
-                            PieceType::Dragon => 'd', 
-                            // Fallback if generic/count is hit
-                            _ => '?', 
-                        };
-
-                        fen.push(if piece.color == Color::White {
-                            char_type.to_ascii_uppercase()
-                        } else {
-                            char_type
+                        fen.push(match piece {
+                            Piece::WHITE_PAWN => 'P',
+                            Piece::BLACK_PAWN => 'p',
+                            Piece::WHITE_KNIGHT => 'N',
+                            Piece::BLACK_KNIGHT => 'n',
+                            Piece::WHITE_BISHOP => 'B',
+                            Piece::BLACK_BISHOP => 'b',
+                            Piece::WHITE_ROOK => 'R',
+                            Piece::BLACK_ROOK => 'r',
+                            Piece::WHITE_QUEEN => 'Q',
+                            Piece::BLACK_QUEEN => 'q',
+                            Piece::WHITE_KING => 'K',
+                            Piece::BLACK_KING => 'k',
+                            Piece::WHITE_DRAGON => 'D',
+                            Piece::BLACK_DRAGON => 'd',
+                            _ => '?',
                         });
                     }
                 }
@@ -304,18 +283,18 @@ impl Board {
         // 2. Active Color
         fen.push(' ');
         fen.push(match self.side {
-            Color::White => 'w',
-            Color::Black => 'b',
+            Color::WHITE => 'w',
+            Color::BLACK => 'b',
             _ => '-',
         });
 
         // 3. Castling Rights
         fen.push(' ');
         let mut castling = String::new();
-        if self.castle_permission & Castling::WhiteKingCastle as u8 != 0 { castling.push('K'); }
-        if self.castle_permission & Castling::WhiteQueenCastle as u8 != 0 { castling.push('Q'); }
-        if self.castle_permission & Castling::BlackKingCastle as u8 != 0 { castling.push('k'); }
-        if self.castle_permission & Castling::BlackQueenCastle as u8 != 0 { castling.push('q'); }
+        if self.castle_permission & WHITE_KING_CASTLE != 0 { castling.push('K'); }
+        if self.castle_permission & WHITE_QUEEN_CASTLE != 0 { castling.push('Q'); }
+        if self.castle_permission & BLACK_KING_CASTLE != 0 { castling.push('k'); }
+        if self.castle_permission & BLACK_QUEEN_CASTLE != 0 { castling.push('q'); }
 
         if castling.is_empty() {
             fen.push('-');
@@ -348,66 +327,39 @@ impl Board {
         fen
     }
 
-    pub fn print_bitboards(&self, pieces_to_print: Option<&[Piece]>) {
-        fn index_to_piece_name(index: usize) -> String {
-            let color = if index % 2 == 0 { "White" } else { "Black" };
-            let piece_type = match index / 2 {
-                0 => "Pawn",
-                1 => "Knight",
-                2 => "Bishop",
-                3 => "Rook",
-                4 => "Queen",
-                5 => "King",
-                6 => "Dragon",
-                _ => "Unknown",
-            };
-            format!("{} {}", color, piece_type)
-        }
-        fn print_single_bitboard(index: usize, bitboard: u64) {
-            println!("\nPiece: {}", index_to_piece_name(index));
+    pub fn print_bitboards(&self) {
+        println!("White");
+        print_bitboard(self.occupancies[Color::WHITE.index()]);
+        println!("Black");
+        print_bitboard(self.occupancies[Color::BLACK.index()]);
+        println!("Both");
+        print_bitboard(self.occupancies[Color::BOTH.index()]);
 
-            for rank in (Ranks::Rank1 as usize..=Ranks::Rank8 as usize).rev() {
-                print!("{}  ", rank + 1);
-                for file in Files::FileA as usize..=Files::FileH as usize {
-                    let square = fr2sq(file, rank);
-                    if (bitboard >> square) & 1 == 1 { print!("X "); } 
-                    else { print!(". "); }
-                }
-                println!();
-            }
-            print!("\n   A B C D E F G H\n");
+        for piece in Piece::iter() {
+            println!("{}", piece); 
+            print_bitboard(self.bitboards[piece.index()]);
         }
-
-        println!("\n===================\n     BITBOARDS\n===================");
-
-        match pieces_to_print {
-            Some(pieces) => {
-                for piece in pieces {
-                    let index = piece.bb_index();
-                    print_single_bitboard(index, self.bitboards[index]);
-                }
-            }
-            None => {
-                for i in 0..PieceType::COUNT {
-                    print_single_bitboard(i, self.bitboards[i]);
-                }
-            }
-        }
-        println!("===================\n");
     }
 }
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn piece_to_char(piece: Piece) -> char {
-            match piece.piece_type {
-                PieceType::None => '.',
-                PieceType::Pawn => if piece.color == Color::White { '♙' } else { '♟' },
-                PieceType::Knight => if piece.color == Color::White { '♘' } else { '♞' },
-                PieceType::Bishop => if piece.color == Color::White { '♗' } else { '♝' },
-                PieceType::Rook => if piece.color == Color::White { '♖' } else { '♜' },
-                PieceType::Queen => if piece.color == Color::White { '♕' } else { '♛' },
-                PieceType::King => if piece.color == Color::White { '♔' } else { '♚' },
-                PieceType::Dragon => if piece.color == Color::White { 'D' } else { 'D' },
+            match piece {
+                Piece::WHITE_PAWN => '♙',
+                Piece::BLACK_PAWN => '♟',
+                Piece::WHITE_KNIGHT => '♘',
+                Piece::BLACK_KNIGHT => '♞',
+                Piece::WHITE_BISHOP => '♗',
+                Piece::BLACK_BISHOP => '♝',
+                Piece::WHITE_ROOK => '♖',
+                Piece::BLACK_ROOK => '♜',
+                Piece::WHITE_QUEEN => '♕',
+                Piece::BLACK_QUEEN => '♛',
+                Piece::WHITE_KING => '♔',
+                Piece::BLACK_KING => '♚',
+                Piece::WHITE_DRAGON => 'D',
+                Piece::BLACK_DRAGON => 'D',
+                _ => '.',
             }
         }
 
@@ -425,7 +377,7 @@ impl fmt::Display for Board {
         for file in 'A'..='H' { write!(f, "{:>2}", file)?; }
         writeln!(f, "\n")?;
 
-        let side_str = if self.side == Color::White { "White" } else { "Black" };
+        let side_str = if self.side == Color::WHITE { "White" } else { "Black" };
         writeln!(f, "Side to move: {}", side_str)?;
 
         let en_passant_str = match self.en_passant {
@@ -438,10 +390,10 @@ impl fmt::Display for Board {
         };
         writeln!(f, "En Passant: {}", en_passant_str)?;
 
-        let wkc = if self.castle_permission & Castling::WhiteKingCastle as u8 != 0 { "K" } else { "-" };
-        let wqc = if self.castle_permission & Castling::WhiteQueenCastle as u8 != 0 { "Q" } else { "-" };
-        let bkc = if self.castle_permission & Castling::BlackKingCastle as u8 != 0 { "k" } else { "-" };
-        let bqc = if self.castle_permission & Castling::BlackQueenCastle as u8 != 0 { "q" } else { "-" };
+        let wkc = if self.castle_permission & WHITE_KING_CASTLE as u8 != 0 { "K" } else { "-" };
+        let wqc = if self.castle_permission & WHITE_QUEEN_CASTLE as u8 != 0 { "Q" } else { "-" };
+        let bkc = if self.castle_permission & BLACK_KING_CASTLE as u8 != 0 { "k" } else { "-" };
+        let bqc = if self.castle_permission & BLACK_QUEEN_CASTLE as u8 != 0 { "q" } else { "-" };
         writeln!(f, "Castling Rights: {}{}{}{}", wkc, wqc, bkc, bqc)?;
 
         writeln!(f, "Position Key: {:X}", self.position_key)?;
@@ -452,9 +404,10 @@ impl fmt::Display for Board {
 impl Default for Board {
     fn default() -> Self {
         Board {
-            bitboards: [0; PieceType::COUNT],
-            pieces: [None; 64],
-            side: Color::Neither,
+            occupancies: [0; 3],
+            bitboards: [0; Piece::COUNT],
+            pieces: [Piece::NONE; 64],
+            side: Color::EITHER,
             en_passant: None,
             fifty_move: 0,
             ply: 0,

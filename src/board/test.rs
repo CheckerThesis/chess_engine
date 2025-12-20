@@ -1,10 +1,11 @@
-use crate::{board::{Board, Undo, clear_bit, position_keys::{self, CASTLE_KEYS, EN_PASSANT_KEYS, PIECE_KEYS, SIDE_KEY}, set_bit}, defs::{Color, Piece, PieceType}, fn_name, movegen::{attacks::square_attacked, captured, from_square, is_castling, is_double_push, is_en_passant, promoted, to_square}};
+use crate::{board::{Board, Undo, clear_bit, position_keys::{self, CASTLE_KEYS, EN_PASSANT_KEYS, PIECE_KEYS, SIDE_KEY}, set_bit}, defs::{Color, Piece, PieceType}, fn_name, movegen::{attacks::square_attacked}};
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::movegen::{MoveList, MoveFlag};
-    use crate::defs::{Castling, Color, Piece, PieceType};
+    use crate::board::print_bitboard;
+    use crate::movegen::{MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSANT, Move, MoveList};
+    use crate::defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Piece, PieceType, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE};
     
     #[test]
     fn test_make_move_white_castle_kingside() {
@@ -17,25 +18,25 @@ mod tests {
         let mut position: Board = Board::new(WHITE_KINGSIDE);
         let old_key = position.position_key;
 
-        let mv = MoveList::move_builder(e1, g1, 0, MoveFlag::CASTLE, 0);
+        let mv = Move::new(e1, g1, 0, MOVE_FLAG_CASTLE, 0);
 
         assert!(position.make_move(mv));
 
         // King moved
-        assert!(position.pieces[e1].is_none());
-        assert_eq!(position.pieces[g1], Some(Piece { piece_type: PieceType::King, color: Color::White }));
+        assert!(position.pieces[e1] == Piece::NONE);
+        assert_eq!(position.pieces[g1], Piece::WHITE_KING);
         
         // Rook moved automatically
-        assert!(position.pieces[h1].is_none());
-        assert_eq!(position.pieces[f1], Some(Piece { piece_type: PieceType::Rook, color: Color::White }));
+        assert!(position.pieces[h1] == Piece::NONE);
+        assert_eq!(position.pieces[f1], Piece::WHITE_ROOK);
 
-        assert_eq!(position.side, Color::Black);
+        assert_eq!(position.side, Color::BLACK);
         assert_ne!(position.position_key, old_key);
         
-        let white_rights_mask = (Castling::WhiteKingCastle as u8) | (Castling::WhiteQueenCastle as u8);
+        let white_rights_mask = WHITE_KING_CASTLE | WHITE_QUEEN_CASTLE;
         assert_eq!(position.castle_permission & white_rights_mask, 0); 
         
-        position.check_board(fn_name!());
+        #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
     }
 
     #[test]
@@ -49,27 +50,25 @@ mod tests {
         let mut position: Board = Board::new(BLACK_KINGSIDE);
         let old_key = position.position_key;
 
-        let mv = MoveList::move_builder(
-            e8, g8, 0, MoveFlag::CASTLE, 0
-        );
+        let mv = Move::new(e8, g8, 0, MOVE_FLAG_CASTLE, 0);
 
         assert!(position.make_move(mv));
 
         // King moved
-        assert!(position.pieces[e8].is_none());
-        assert_eq!(position.pieces[g8], Some(Piece { piece_type: PieceType::King, color: Color::Black }));
+        assert!(position.pieces[e8] == Piece::NONE);
+        assert_eq!(position.pieces[g8], Piece::BLACK_KING);
         
         // Rook moved automatically
-        assert!(position.pieces[h8].is_none());
-        assert_eq!(position.pieces[f8], Some(Piece { piece_type: PieceType::Rook, color: Color::Black }));
+        assert!(position.pieces[h8] == Piece::NONE);
+        assert_eq!(position.pieces[f8], Piece::BLACK_ROOK);
 
-        assert_eq!(position.side, Color::White);
+        assert_eq!(position.side, Color::WHITE);
         assert_ne!(position.position_key, old_key);
 
-        let black_rights_mask = (Castling::BlackKingCastle as u8) | (Castling::BlackQueenCastle as u8);
+        let black_rights_mask = BLACK_KING_CASTLE | BLACK_QUEEN_CASTLE;
         assert_eq!(position.castle_permission & black_rights_mask, 0);
 
-        position.check_board(fn_name!());
+        #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
     }
 
     #[test]
@@ -84,7 +83,7 @@ mod tests {
         let old_key = position.position_key;
         let old_side = position.side;
 
-        let mv = MoveList::move_builder(e1, g1, 0, MoveFlag::CASTLE, 0);
+        let mv = Move::new(e1, g1, 0, MOVE_FLAG_CASTLE, 0);
 
         assert_eq!(position.make_move(mv), false);
 
@@ -92,14 +91,14 @@ mod tests {
         assert_eq!(position.position_key, old_key);
 
         // King is back at E1
-        assert_eq!(position.pieces[e1], Some(Piece { piece_type: PieceType::King, color: Color::White }));
-        assert!(position.pieces[g1].is_none());
+        assert_eq!(position.pieces[e1], Piece::WHITE_KING);
+        assert!(position.pieces[g1] == Piece::NONE);
         
         // Rook is back at H1
-        assert_eq!(position.pieces[h1], Some(Piece { piece_type: PieceType::Rook, color: Color::White }));
-        assert!(position.pieces[f1].is_none());
+        assert_eq!(position.pieces[h1], Piece::WHITE_ROOK);
+        assert!(position.pieces[f1] == Piece::NONE);
         
-        position.check_board(fn_name!());
+        #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
     }
     
     #[test]
@@ -114,21 +113,21 @@ mod tests {
 
         // Capture bits are usually 0 for EP in move_builder because the target square is empty
         // The flag tells make_move to handle the special capture logic.
-        let mv = MoveList::move_builder(
-            e5, d6, 0, MoveFlag::EN_PASSANT, 0
+        let mv = Move::new(
+            e5, d6, 0, MOVE_FLAG_EN_PASSANT, 0
         );
 
         assert!(position.make_move(mv));
 
         // Topology
-        assert!(position.pieces[e5].is_none()); // Start empty
-        assert_eq!(position.pieces[d6], Some(Piece { piece_type: PieceType::Pawn, color: Color::White })); // End occupied
-        assert!(position.pieces[d5].is_none()); // Victim captured!
+        assert!(position.pieces[e5] == Piece::NONE); // Start empty
+        assert_eq!(position.pieces[d6], Piece::WHITE_PAWN); // End occupied
+        assert!(position.pieces[d5] == Piece::NONE); // Victim captured!
 
-        assert_eq!(position.side, Color::Black);
+        assert_eq!(position.side, Color::BLACK);
         assert_ne!(position.position_key, old_key);
 
-        position.check_board(fn_name!());
+        #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
     }
 
     #[test]
@@ -140,19 +139,19 @@ mod tests {
 
         let mut position: Board = Board::new(EN_PASSANT_B);
 
-        let mv = MoveList::move_builder(
-            d4, e3, 0, MoveFlag::EN_PASSANT, 0
+        let mv = Move::new(
+            d4, e3, 0, MOVE_FLAG_EN_PASSANT, 0
         );
 
         assert!(position.make_move(mv));
 
-        assert!(position.pieces[e4].is_none());
-        assert_eq!(position.pieces[e3], Some(Piece { piece_type: PieceType::Pawn, color: Color::Black }));
-        assert!(position.pieces[d4].is_none()); // White pawn gone
+        assert!(position.pieces[e4] == Piece::NONE);
+        assert_eq!(position.pieces[e3], Piece::BLACK_PAWN);
+        assert!(position.pieces[d4] == Piece::NONE); // White pawn gone
 
-        assert_eq!(position.side, Color::White);
+        assert_eq!(position.side, Color::WHITE);
 
-        position.check_board(fn_name!());
+        #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
     }
 
     #[test]
@@ -164,18 +163,18 @@ mod tests {
         let mut position: Board = Board::new(PROMOTION_W);
 
         // Promote to Queen (Index 5 based on your logic)
-        let mv = MoveList::move_builder(
-            e7, e8, 0, 0, 8
+        let mv = Move::new(
+            e7, e8, 0, 0, Piece::WHITE_QUEEN.index()
         );
 
         assert!(position.make_move(mv));
 
-        assert!(position.pieces[e7].is_none());
-        assert_eq!(position.pieces[e8], Some(Piece { piece_type: PieceType::Queen, color: Color::White }));
+        assert!(position.pieces[e7] == Piece::NONE);
+        assert_eq!(position.pieces[e8], Piece::WHITE_QUEEN);
         
-        assert_eq!(position.side, Color::Black);
+        assert_eq!(position.side, Color::BLACK);
 
-        position.check_board(fn_name!());
+        #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
     }
 
     #[test]
@@ -188,19 +187,19 @@ mod tests {
         println!("{position}");
 
         // Promote to Black Queen (Index 11 based on your logic)
-        let mv = MoveList::move_builder(
-            e2, e1, 0, 0, 9
+        let mv = Move::new(
+            e2, e1, 0, 0, Piece::BLACK_QUEEN.index()
         );
 
         assert!(position.make_move(mv));
         println!("{position}");
 
-        assert!(position.pieces[e2].is_none());
-        assert_eq!(position.pieces[e1], Some(Piece { piece_type: PieceType::Queen, color: Color::Black }));
+        assert!(position.pieces[e2] == Piece::NONE);
+        assert_eq!(position.pieces[e1], Piece::BLACK_QUEEN);
 
-        assert_eq!(position.side, Color::White);
+        assert_eq!(position.side, Color::WHITE);
 
-        position.check_board(fn_name!());
+        #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
     }
 
     #[test]
@@ -213,7 +212,7 @@ mod tests {
         let old_side = position.side;
 
         // Move King E1 -> F2 (Illegal because e2 Rook attacks rank 2)
-        let mv = MoveList::move_builder(
+        let mv = Move::new(
             e1, f2, 0, 0, 0
         );
 
@@ -226,10 +225,10 @@ mod tests {
         assert_eq!(position.side, old_side);
         
         // Pieces didn't move
-        assert_eq!(position.pieces[e1], Some(Piece { piece_type: PieceType::King, color: Color::White }));
-        assert!(position.pieces[f2].is_none());
+        assert_eq!(position.pieces[e1], Piece::WHITE_KING);
+        assert!(position.pieces[f2] == Piece::NONE);
         
-        position.check_board(fn_name!());
+        #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
     }
 
     #[test]
@@ -245,7 +244,7 @@ mod tests {
         let old_side = position.side;
         
         // Move Rook e2 -> h2 (Illegal: Exposes King to e8 Rook)
-        let mv = MoveList::move_builder(
+        let mv = Move::new(
             e2, h2, 0, 0, 0
         );
 
@@ -257,16 +256,16 @@ mod tests {
         assert_eq!(position.side, old_side);
 
         // Rook is still at e2
-        assert_eq!(position.pieces[e2], Some(Piece { piece_type: PieceType::Rook, color: Color::White }));
+        assert_eq!(position.pieces[e2], Piece::WHITE_ROOK);
         // Target square empty
-        assert!(position.pieces[h2].is_none());
+        assert!(position.pieces[h2] == Piece::NONE);
 
-        position.check_board(fn_name!());
+        #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
     }
 
     #[test]
     fn test_make_move_fail_en_passant_discovered_check() {
-        const EP_DISCOVERED_CHECK: &str = "8/8/8/K2pP2r/8/8/8/8 w - d6 0 1";
+        const EP_DISCOVERED_CHECK: &str = "8/8/8/K2pP2r/8/8/8/k7 w - d6 0 1";
 
         let e5: usize = 36;
         let d6: usize = 43; // Target
@@ -277,27 +276,18 @@ mod tests {
 
         // Move e5xd6 (En Passant)
         // If this moves happens, the 5th rank clears (e5 and d5 gone), exposing Ka5 to Rh5.
-        let mv = MoveList::move_builder(
-            e5, d6, 0, MoveFlag::EN_PASSANT, 0
+        let mv = Move::new(
+            e5, d6, 0, MOVE_FLAG_EN_PASSANT, 0
         );
 
         assert_eq!(position.make_move(mv), false, "Should return false if EP capture reveals check");
 
-        // --- Verify Reversal ---
-
-        // Side restored
         assert_eq!(position.side, old_side);
+        assert_eq!(position.pieces[e5], Piece::WHITE_PAWN); // white Pawn back at start
+        assert_eq!(position.pieces[d5], Piece::BLACK_PAWN); // victim (Black Pawn) restored at d5
+        assert!(position.pieces[d6] == Piece::NONE); // target square empty
 
-        // White Pawn back at start
-        assert_eq!(position.pieces[e5], Some(Piece { piece_type: PieceType::Pawn, color: Color::White }));
-        
-        // Victim (Black Pawn) restored at d5 (Critical check for EP reversal)
-        assert_eq!(position.pieces[d5], Some(Piece { piece_type: PieceType::Pawn, color: Color::Black }));
-        
-        // Target square empty
-        assert!(position.pieces[d6].is_none());
-
-        position.check_board(fn_name!());
+        #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
     }
 
     #[test]
@@ -308,30 +298,28 @@ mod tests {
         
         let b7: usize = 49;
         let a8: usize = 56;
-        let rook_type = 7; // Integer representation for Rook capture
-        let promoted_queen = 8; // Integer for White Queen promotion
 
         let mut position: Board = Board::new(CAPTURE_PROMO_W);
         let old_key = position.position_key;
 
         // Move builder usually takes: from, to, captured_piece, flag, promoted_piece
-        let mv = MoveList::move_builder(
-            b7, a8, rook_type, 0, promoted_queen
+        let mv = Move::new(
+            b7, a8, Piece::BLACK_ROOK.index(), 0, Piece::WHITE_QUEEN.index()
         );
 
         assert!(position.make_move(mv));
 
         // 1. Check Source is empty
-        assert!(position.pieces[b7].is_none());
+        assert!(position.pieces[b7] == Piece::NONE);
 
         // 2. Check Target has Promoted Piece (White Queen), not the captured Rook
-        assert_eq!(position.pieces[a8], Some(Piece { piece_type: PieceType::Queen, color: Color::White }));
+        assert_eq!(position.pieces[a8], Piece::WHITE_QUEEN);
         
         // 3. Check Side Flipped
-        assert_eq!(position.side, Color::Black);
+        assert_eq!(position.side, Color::BLACK);
         assert_ne!(position.position_key, old_key);
 
-        position.check_board(fn_name!());
+        #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
     }
 
     #[test]
@@ -342,28 +330,26 @@ mod tests {
 
         let g2: usize = 14;
         let h1: usize = 7;
-        let rook_type = 6; // Captured White Rook
-        let promoted_knight = 3; // Integer for Black Knight promotion (based on your helper logic)
 
         let mut position: Board = Board::new(CAPTURE_PROMO_B);
         let old_key = position.position_key;
 
-        let mv = MoveList::move_builder(
-            g2, h1, rook_type, 0, promoted_knight
+        let mv = Move::new(
+            g2, h1, Piece::WHITE_ROOK.index(), 0, Piece::BLACK_KNIGHT.index()
         );
 
         assert!(position.make_move(mv));
 
         // 1. Check Source is empty
-        assert!(position.pieces[g2].is_none());
+        assert!(position.pieces[g2] == Piece::NONE);
 
         // 2. Check Target has Promoted Piece (Black Knight)
-        assert_eq!(position.pieces[h1], Some(Piece { piece_type: PieceType::Knight, color: Color::Black }));
+        assert_eq!(position.pieces[h1], Piece::BLACK_KNIGHT);
 
         // 3. Check Side Flipped
-        assert_eq!(position.side, Color::White);
+        assert_eq!(position.side, Color::WHITE);
         assert_ne!(position.position_key, old_key);
 
-        position.check_board(fn_name!());
+        #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
     }
 }

@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use crate::{board::{Board, print_bitboard}, defs::{Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MOVE_FLAG_EN_PASSANT, MOVE_FLAG_NONE, Move, MoveList, ScoredMove, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves, square_attacked}, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
+use crate::{board::{Board, print_bitboard}, defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Piece, PieceType, RANKS_BOARD, Ranks, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE}, movegen::{MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSANT, MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, ScoredMove, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves, square_attacked}, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
 
 impl MoveList {
 
@@ -146,31 +146,31 @@ impl MoveList {
     #[inline(always)]
     fn serialize_moves(&mut self, position: &Board, from_square: usize, attacks: u64) {
         let side = position.side;
-        let their_occupancy = position.occupancies(side.opposite());
-        let our_occupancy = position.occupancies(side);
+        let their_occupancy = position.occupancies[side.opposite().index()];
+        let our_occupancy = position.occupancies[side.index()];
         
         let valid_moves = attacks & !our_occupancy;
         let mut captures = valid_moves & their_occupancy;
         let mut quiets = valid_moves & !their_occupancy;
 
-        println!("their_occupancy");
-        print_bitboard(their_occupancy);
-        println!("our_occupancy");
-        print_bitboard(our_occupancy);
-        println!("valid_moves");
-        print_bitboard(valid_moves);
-        println!("captures");
-        print_bitboard(captures);
-        println!("quiets");
-        print_bitboard(quiets);
+        // println!("their_occupancy");
+        // print_bitboard(their_occupancy);
+        // println!("our_occupancy");
+        // print_bitboard(our_occupancy);
+        // println!("valid_moves");
+        // print_bitboard(valid_moves);
+        // println!("captures");
+        // print_bitboard(captures);
+        // println!("quiets");
+        // print_bitboard(quiets);
         // In my chess bitboards, my piece representation has white pawns as 0
 
         while captures != 0 {
             let to_square = captures.trailing_zeros() as usize;
-            let captured_piece = position.pieces[to_square].unwrap();
+            let captured_piece = position.pieces[to_square];
     
             self.add_capture_move(position, Move::new(
-                from_square, to_square, captured_piece.bb_index(), MOVE_FLAG_NONE, 0
+                from_square, to_square, captured_piece.index(), MOVE_FLAG_NONE, 0
             ));
             
             captures &= captures - 1;
@@ -188,8 +188,8 @@ impl MoveList {
     }
 
     fn generate_pawn_moves(&mut self, position: &Board) {
-        let occupied_bb = [position.occupancies(Color::White), position.occupancies(Color::Black)];
-        let empty_squares: u64 = !(occupied_bb[Color::White as usize] | occupied_bb[Color::Black as usize]);
+        let occupied_bb = [position.occupancies[Color::WHITE.index()], position.occupancies[Color::BLACK.index()]];
+        let empty_squares: u64 = !(occupied_bb[Color::WHITE.index()] | occupied_bb[Color::BLACK.index()]);
         let color = position.side;
         let (
             our_pawns,
@@ -198,10 +198,10 @@ impl MoveList {
             double_push_rank,
             pawn_attacks,
             en_passant_attackers_table
-        ) = if color == Color::White {
+        ) = if color == Color::WHITE {
             (
-                position.bitboards[PieceType::Pawn.bb_index(Color::White)],
-                occupied_bb[Color::Black as usize],
+                position.bitboards[Piece::WHITE_PAWN.index()],
+                occupied_bb[Color::BLACK.index()],
                 8,
                 RANK_BB_MASK[3],
                 &WHITE_PAWN_ATTACKS,
@@ -209,8 +209,8 @@ impl MoveList {
             )
         } else {
             (
-                position.bitboards[PieceType::Pawn.bb_index(Color::Black)],
-                occupied_bb[Color::White as usize],
+                position.bitboards[Piece::BLACK_PAWN.index()],
+                occupied_bb[Color::WHITE.index()],
                 -8,
                 RANK_BB_MASK[6],
                 &BLACK_PAWN_ATTACKS,
@@ -218,13 +218,18 @@ impl MoveList {
             )
         };
 
-        let mut single_pushes = if color == Color::White {
+        // println!("{position}");
+        // print_bitboard(empty_squares);
+        // position.print_bitboards();
+
+        let mut single_pushes = if color == Color::WHITE {
             our_pawns.wrapping_shl(push_offset as u32) & empty_squares
         } else {
             our_pawns.wrapping_shr((-push_offset) as u32) & empty_squares
         };
+        // print_bitboard(single_pushes);
 
-        let mut double_pushes = if color == Color::White {
+        let mut double_pushes = if color == Color::WHITE {
             (single_pushes & double_push_rank).wrapping_shl(push_offset as u32) & empty_squares
         } else {
             (single_pushes & double_push_rank).wrapping_shr((-push_offset) as u32) & empty_squares
@@ -245,7 +250,7 @@ impl MoveList {
                 from_square, 
                 to_square, 
                 0, 
-                MoveFlag::PAWN_START, 
+                MOVE_FLAG_PAWN_START, 
                 0
             ));
 
@@ -261,9 +266,7 @@ impl MoveList {
                 let to_square = valid_captures.trailing_zeros() as usize;
                 let captured_piece = position.pieces[to_square];
 
-                if let Some(piece) = captured_piece {
-                    self.add_capture_pawn_move(&position, from_square, to_square, piece.bb_index());
-                }
+                self.add_capture_pawn_move(&position, from_square, to_square, captured_piece.index());
 
                 valid_captures &= valid_captures - 1;
             }
@@ -271,12 +274,12 @@ impl MoveList {
         }
 
         if let Some(en_passant_square) = position.en_passant {
-            let potential_attackers = en_passant_attackers_table[en_passant_square];
+            let potential_attackers = en_passant_attackers_table[en_passant_square as usize];
             let mut en_passant_attackers = potential_attackers & our_pawns;
 
             while en_passant_attackers != 0 {
                 let from_square = en_passant_attackers.trailing_zeros() as usize;
-                self.add_enpassant_move(position, from_square, en_passant_square);
+                self.add_enpassant_move(position, from_square, en_passant_square as usize);
         
                 en_passant_attackers &= en_passant_attackers - 1;
             }
@@ -285,10 +288,10 @@ impl MoveList {
 
     fn generate_knight_moves(&mut self, position: &Board) {
         let side = position.side;
-        let our_pieces = position.occupancies(side);
-        let their_pieces = position.occupancies(side.opposite());
+        let our_pieces = position.occupancies[side.index()];
+        let their_pieces = position.occupancies[side.opposite().index()];
 
-        let mut knights = position.bitboards[PieceType::Knight.bb_index(side)];
+        let mut knights = position.bitboards[PieceType::KNIGHT.bb_index(side)];
         while knights != 0 {
             let from_square_index = knights.trailing_zeros() as usize;
             self.serialize_moves(position, from_square_index, KNIGHT_RAYS[from_square_index]);
@@ -298,11 +301,11 @@ impl MoveList {
 
     fn generate_sliding_moves(&mut self, position: &Board) {
         let side = position.side;
-        let our_occupancy = position.occupancies(side);
-        let their_occupancy = position.occupancies(side.opposite());
+        let our_occupancy = position.occupancies[side.index()];
+        let their_occupancy = position.occupancies[side.opposite().index()];
 
-        let mut bishops = position.bitboards[PieceType::Bishop.bb_index(side)];
-        print_bitboard(bishops);
+        let mut bishops = position.bitboards[PieceType::BISHOP.bb_index(side)];
+        // print_bitboard(bishops);
         while bishops != 0 {
             let from_square_index = bishops.trailing_zeros() as usize;
             let movement_bb = 
@@ -312,7 +315,7 @@ impl MoveList {
             bishops &= bishops - 1;
         }
 
-        let mut rooks = position.bitboards[PieceType::Rook.bb_index(side)];
+        let mut rooks = position.bitboards[PieceType::ROOK.bb_index(side)];
         while rooks != 0 {
             let from_square_index = rooks.trailing_zeros() as usize;
             let movement_bb = 
@@ -324,7 +327,7 @@ impl MoveList {
             rooks &= rooks - 1;
         }
 
-        let mut queens = position.bitboards[PieceType::Queen.bb_index(side)];
+        let mut queens = position.bitboards[PieceType::QUEEN.bb_index(side)];
         while queens != 0 {
             let from_square_index = queens.trailing_zeros() as usize;
             let movement_bb = 
@@ -341,10 +344,10 @@ impl MoveList {
 
     fn generate_king_moves(&mut self, position: &Board) {
         let side = position.side;
-        let our_pieces = position.occupancies(side);
-        let their_pieces = position.occupancies(side.opposite());
+        let our_pieces = position.occupancies[side.index()];
+        let their_pieces = position.occupancies[side.opposite().index()];
 
-        let mut kings = position.bitboards[PieceType::King.bb_index(side)];
+        let mut kings = position.bitboards[PieceType::KING.bb_index(side)];
         while kings != 0 {
             let from_sq = kings.trailing_zeros() as usize;
             let mut moves = KING_RAYS[from_sq] & !our_pieces;
@@ -356,9 +359,9 @@ impl MoveList {
                     let to_bb = 1u64 << to_sq;
 
                     if (to_bb & their_pieces) != 0 {
-                        let captured_piece = position.pieces[to_sq].unwrap();
+                        let captured_piece = position.pieces[to_sq];
                         self.add_capture_move(position, Move::new(
-                            from_sq, to_sq, captured_piece.bb_index(), MOVE_FLAG_NONE, 0
+                            from_sq, to_sq, captured_piece.index(), MOVE_FLAG_NONE, 0
                         ));
                     } else {
                         self.add_quiet_move(position, Move::new(
@@ -375,12 +378,13 @@ impl MoveList {
 
     fn generate_castle_moves(&mut self, position: &Board) {
         let side = position.side;
-        let occupancies = position.occupancies(Color::White) | position.occupancies(Color::Black);
+        let occupancies = position.occupancies[Color::WHITE.index()] | position.occupancies[Color::BLACK.index()];
 
+        // println!("{}", position.castle_permission);
         match side {
-            Color::White => {
+            Color::WHITE => {
                 // King Side (e1 -> g1)
-                if (position.castle_permission & Castling::WhiteKingCastle as u8) != 0 {
+                if (position.castle_permission & WHITE_KING_CASTLE) != 0 {
                     if (occupancies & ((1 << 5) | (1 << 6))) == 0 {
                         // If e1, f1, g1 not under attack
                         if !square_attacked(4, position.side, position) &&
@@ -391,7 +395,7 @@ impl MoveList {
                                 4,
                                 6,
                                 0,
-                                MoveFlag::CASTLE,
+                                MOVE_FLAG_CASTLE,
                                 0
                             ));
                         }
@@ -399,7 +403,7 @@ impl MoveList {
                 }
 
                 // Queen Side (e1 -> c1)
-                if (position.castle_permission & Castling::WhiteQueenCastle as u8) != 0 {
+                if (position.castle_permission & WHITE_QUEEN_CASTLE as u8) != 0 {
                     if (occupancies & ((1 << 1) | (1 << 2) | (1 << 3))) == 0 {
                         // If e1, d1, c1 not under attack
                         if !square_attacked(4, position.side, position) &&
@@ -410,16 +414,16 @@ impl MoveList {
                                 4,
                                 2,
                                 0,
-                                MoveFlag::CASTLE,
+                                MOVE_FLAG_CASTLE,
                                 0
                             ));
                         }
                     }
                 }
             },
-            Color::Black => {
+            Color::BLACK => {
                 // King Side (e8 -> g8)
-                if (position.castle_permission & Castling::BlackKingCastle as u8) != 0 {
+                if (position.castle_permission & BLACK_KING_CASTLE as u8) != 0 {
                     if (occupancies & ((1 << 61) | (1 << 62))) == 0 {
                         // If e8, f8, g8 not under attack
                         if !square_attacked(60, position.side, position) &&
@@ -430,7 +434,7 @@ impl MoveList {
                                 60,
                                 62,
                                 0,
-                                MoveFlag::CASTLE,
+                                MOVE_FLAG_CASTLE,
                                 0
                             ));
                         }
@@ -438,7 +442,7 @@ impl MoveList {
                 }
 
                 // Queen Side (e8 -> c8)
-                if (position.castle_permission & Castling::BlackQueenCastle as u8) != 0 {
+                if (position.castle_permission & BLACK_QUEEN_CASTLE as u8) != 0 {
                     if (occupancies & ((1 << 57) | (1 << 58) | (1 << 59))) == 0 {
                         // If e8, d8, c8 not under attack
                         if !square_attacked(60, position.side, position) &&
@@ -449,7 +453,7 @@ impl MoveList {
                                 60,
                                 58,
                                 0,
-                                MoveFlag::CASTLE,
+                                MOVE_FLAG_CASTLE,
                                 0
                             ));
                         }
@@ -461,13 +465,13 @@ impl MoveList {
     }
 
     pub fn generate_all_moves(&mut self, position: &Board) {
-        self.moves = [0; 256];
+        self.moves = [ScoredMove::default(); 256];
         self.count = 0;
         self.generate_pawn_moves(position);
         self.generate_knight_moves(position);
         self.generate_sliding_moves(position);
-        println!("sliding");
-        println!("{self}");
+        // println!("sliding");
+        // println!("{self}");
         self.generate_king_moves(position);
         self.generate_castle_moves(position);
     }
