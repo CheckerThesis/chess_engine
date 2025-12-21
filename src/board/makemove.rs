@@ -29,8 +29,7 @@ impl Board {
             position_key: self.position_key,
         };
 
-        let captured = mv.captured();
-        if captured != 0 {
+        if mv.captured() != 0 {
             if !mv.is_en_passant() { self.clear_piece(to); }
             self.fifty_move = 0;
         } 
@@ -40,26 +39,21 @@ impl Board {
         if mv.is_en_passant() {
             if side == Color::WHITE { self.clear_piece(to - 8); }
             else { self.clear_piece(to + 8); }
-
-        } else if mv.is_castling() {
+        } 
+        else if mv.is_castling() {
             if square_attacked(from, side, self) ||
             square_attacked(to, side, self) { return false }
 
-            let crossing = match to {
-                6 => 5,   // White Kingside (g1 needs f1)
-                2 => 3,   // White Queenside (c1 needs d1)
-                62 => 61, // Black Kingside (g8 needs f8)
-                58 => 59, // Black Queenside (c8 needs d8)
-                _ => 0,
-            };
-
+            let crossing = (from + to) / 2; // equivalent to switch statement
             if square_attacked(crossing, side, self) { return false }
 
-            if      to == C1 { self.move_piece(A1, D1); }
-            else if to == C8 { self.move_piece(A8, D8); }
-            else if to == G1 { self.move_piece(H1, F1); }
-            else if to == G8 { self.move_piece(H8, F8); }
-            else { eprintln!("{}", "make_move: castle problem".red()); }
+            match to {
+                C1 => self.move_piece(A1, D1),
+                C8 => self.move_piece(A8, D8),
+                G1 => self.move_piece(H1, F1),
+                G8 => self.move_piece(H8, F8),
+                _ => eprintln!("{}", "make_move: castle problem".red())
+            }
         }
 
         if self.en_passant.is_some() { self.hash_en_passant(); }
@@ -69,19 +63,12 @@ impl Board {
         self.en_passant = None;
         self.hash_castle();
 
-        self.fifty_move += 1;
-
-        if mv.captured() != 0 {
-            self.clear_piece(to);
-            self.fifty_move = 0;
-        }
-
         if mv.is_double_push() {
             if side == Color::WHITE { self.en_passant = Some((from + 8) as u8); }
             else { self.en_passant = Some((from - 8) as u8); }
             self.hash_en_passant();
         }
-    
+        
         self.move_piece(from, to);
 
         let promote_piece = mv.promoted();
@@ -90,7 +77,7 @@ impl Board {
             let piece = Piece(promote_piece as u8);
             self.add_piece(to, piece);
         }
-
+        
         self.history_ply += 1;
         self.ply += 1;
         self.side = self.side.opposite();

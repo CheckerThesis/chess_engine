@@ -8,7 +8,7 @@ mod tests {
     use crate::defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Piece, PieceType, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE};
     
     #[test]
-    fn test_make_move_white_castle_kingside() {
+    fn mm_make_move_white_castle_kingside() {
         const WHITE_KINGSIDE: &str = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
         let e1: usize = 4;
         let g1: usize = 6;
@@ -40,7 +40,7 @@ mod tests {
     }
 
     #[test]
-    fn test_make_move_black_castle_kingside() {
+    fn mm_make_move_black_castle_kingside() {
         const BLACK_KINGSIDE: &str = "r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1";
         let e8: usize = 60;
         let g8: usize = 62;
@@ -72,7 +72,7 @@ mod tests {
     }
 
     #[test]
-    fn test_make_move_in_check_castle() {
+    fn mm_make_move_in_check_castle() {
         const WHITE_IN_CHECK_CASTLE: &str = "4k2r/8/8/8/8/8/8/Rr2K2R w KQ - 0 1";
         let e1: usize = 4;
         let g1: usize = 6;
@@ -102,7 +102,7 @@ mod tests {
     }
     
     #[test]
-    fn test_make_move_white_en_passant() {
+    fn mm_make_move_white_en_passant() {
         const EN_PASSANT_W: &str = "7k/8/8/3pP3/8/8/8/K7 w - d6 0 1";
         let e5: usize = 36;
         let d6: usize = 43; // Target
@@ -131,7 +131,7 @@ mod tests {
     }
 
     #[test]
-    fn test_make_move_black_en_passant() {
+    fn mm_make_move_black_en_passant() {
         const EN_PASSANT_B: &str = "7k/8/8/8/3pP3/8/8/K7 b - e3 0 1";
         let e4: usize = 28; // Black Pawn
         let e3: usize = 20; // Target
@@ -155,7 +155,7 @@ mod tests {
     }
 
     #[test]
-    fn test_make_move_white_promotion() {
+    fn mm_make_move_white_promotion() {
         const PROMOTION_W: &str = "7k/4P3/8/8/8/8/8/K7 w - - 0 1";
         let e7: usize = 52;
         let e8: usize = 60;
@@ -178,7 +178,7 @@ mod tests {
     }
 
     #[test]
-    fn test_make_move_black_promotion() {
+    fn mm_make_move_black_promotion() {
         const PROMOTION_B: &str = "7k/8/8/8/8/8/4p3/K7 b - - 0 1";
         let e2: usize = 12;
         let e1: usize = 4;
@@ -201,7 +201,7 @@ mod tests {
     }
 
     #[test]
-    fn test_make_move_fail_illegal() {
+    fn mm_make_move_fail_illegal() {
         pub const KING_INTO_CHECK: &str = "k7/8/8/8/8/8/4r3/4K3 w - - 0 1";
         let e1: usize = 4; // King
         let f2: usize = 13; // Square attacked by Rook on e2
@@ -230,7 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn test_make_move_fail_pinned_piece() {
+    fn mm_make_move_fail_pinned_piece() {
         // Setup: White King on e1, White Rook on e2, Black Rook on e8.
         // The White Rook is pinned to the King. Moving it exposes the King.
         const PINNED_ROOK: &str = "1k2r3/8/8/8/8/8/4R3/4K3 w - - 0 1";
@@ -262,7 +262,7 @@ mod tests {
     }
 
     #[test]
-    fn test_make_move_fail_en_passant_discovered_check() {
+    fn mm_make_move_fail_en_passant_discovered_check() {
         const EP_DISCOVERED_CHECK: &str = "8/8/8/K2pP2r/8/8/8/k7 w - d6 0 1";
 
         let e5: usize = 36;
@@ -289,7 +289,7 @@ mod tests {
     }
 
     #[test]
-    fn test_make_move_white_capture_promotion() {
+    fn mm_make_move_white_capture_promotion() {
         // White Pawn on b7, Black Rook on a8.
         // Move: b7xa8 (Capture Rook) -> Promote to Queen
         const CAPTURE_PROMO_W: &str = "r3k3/1P6/8/8/8/8/8/4K3 w - - 0 1";
@@ -321,7 +321,7 @@ mod tests {
     }
 
     #[test]
-    fn test_make_move_black_capture_promotion() {
+    fn mm_make_move_black_capture_promotion() {
         // Black Pawn on g2, White Rook on h1.
         // Move: g2xh1 (Capture Rook) -> Promote to Knight (Underpromotion)
         const CAPTURE_PROMO_B: &str = "4k3/8/8/8/8/8/6p1/4K2R b K - 0 1";
@@ -352,7 +352,7 @@ mod tests {
     }
 
     #[test]
-    fn test_make_move_double_push_sets_ep() {
+    fn mm_make_move_double_push_sets_ep() {
         // Standard start position where e2 is a white pawn
         const START_POS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         let mut position = Board::new(START_POS);

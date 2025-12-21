@@ -1,7 +1,4 @@
 Pre-changes: 1.59
 Inline set/clear bit and makemove helpers: 1.59
-Moving capture to the top: 
-
-Moving capture to the top: 1.47
-Change castling to using switch statement and removing old crossing: 1.43
-Remove old pawn double push if: 
+Moving capture to the top: 1.57
+Change castling to using switch statement and removing old crossing: 1.54
