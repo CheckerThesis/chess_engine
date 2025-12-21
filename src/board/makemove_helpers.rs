@@ -3,7 +3,7 @@ use colored::Colorize;
 use crate::{board::{Board, Undo, clear_bit, position_keys::{self, CASTLE_KEYS, EN_PASSANT_KEYS, PIECE_KEYS, SIDE_KEY}, set_bit}, defs::{Color, Piece, PieceType}, fn_name, movegen::{attacks::square_attacked, bitboards}};
 
 impl Board {
-    fn hash_piece(&mut self, piece: Piece, square: usize) { self.position_key ^= PIECE_KEYS[piece.index()][square]; }
+   fn hash_piece(&mut self, piece: Piece, square: usize) { self.position_key ^= PIECE_KEYS[piece.index()][square]; }
     pub(crate) fn hash_castle(&mut self) { self.position_key ^= CASTLE_KEYS[self.castle_permission as usize]; }
     pub(crate) fn hash_side(&mut self) { self.position_key ^= *SIDE_KEY; }
     pub(crate) fn hash_en_passant(&mut self) { 
@@ -58,11 +58,6 @@ impl Board {
             clear_bit(&mut self.occupancies[captured_piece.color().index()], to);
             clear_bit(&mut self.occupancies[Color::BOTH.index()], to);
         }
-
-        // self.hash_piece(captured_piece, to);
-        // clear_bit(&mut self.bitboards[captured_piece.index()], to);
-        // clear_bit(&mut self.occupancies[captured_piece.color().index()], to);
-        // clear_bit(&mut self.occupancies[Color::BOTH.index()], to);
         
         self.hash_piece(piece, to);
         set_bit(&mut self.bitboards[piece.index()], to);

@@ -183,7 +183,7 @@ mod tests {
     }
 
     #[test]
-    fn perft_depth_5() {
+    fn perft_depth5() {
         let mut position = Board::new(FEN_START);
         let mut perft_value = perft(&mut position, 5);
         assert_eq!(perft_value, 4865609);
@@ -214,7 +214,7 @@ mod tests {
     }
 
     #[test]
-    fn perft_depth_6() {
+    fn perft_depth6() {
         let mut position = Board::new(FEN_START);
         let mut perft_value = perft(&mut position, 6);
         assert_eq!(perft_value, 119060324);

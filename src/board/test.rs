@@ -4,7 +4,7 @@ use crate::{board::{Board, Undo, clear_bit, position_keys::{self, CASTLE_KEYS, E
 mod tests {
     use super::*;
     use crate::board::print_bitboard;
-    use crate::movegen::{MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSANT, Move, MoveList};
+    use crate::movegen::{MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSANT, MOVE_FLAG_PAWN_START, Move, MoveList};
     use crate::defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Piece, PieceType, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE};
     
     #[test]
@@ -184,7 +184,6 @@ mod tests {
         let e1: usize = 4;
 
         let mut position: Board = Board::new(PROMOTION_B);
-        println!("{position}");
 
         // Promote to Black Queen (Index 11 based on your logic)
         let mv = Move::new(
@@ -192,7 +191,6 @@ mod tests {
         );
 
         assert!(position.make_move(mv));
-        println!("{position}");
 
         assert!(position.pieces[e2] == Piece::NONE);
         assert_eq!(position.pieces[e1], Piece::BLACK_QUEEN);
@@ -349,6 +347,49 @@ mod tests {
         // 3. Check Side Flipped
         assert_eq!(position.side, Color::WHITE);
         assert_ne!(position.position_key, old_key);
+
+        #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
+    }
+
+    #[test]
+    fn test_make_move_double_push_sets_ep() {
+        // Standard start position where e2 is a white pawn
+        const START_POS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        let mut position = Board::new(START_POS);
+
+        let e2: usize = 12;
+        let e4: usize = 28;
+        let e3: usize = 20; // The resulting en passant target square (behind the pawn)
+
+        // Pre-check: EP should be None at start
+        assert_eq!(position.en_passant, None);
+
+        // Move: e2 -> e4 (Double Push)
+        let mv = Move::new(
+            e2, e4, 0, MOVE_FLAG_PAWN_START, 0
+        );
+
+        assert!(position.make_move(mv));
+
+        // 1. Verify Topology
+        assert!(position.pieces[e2] == Piece::NONE);
+        assert_eq!(position.pieces[e4], Piece::WHITE_PAWN);
+
+        // 2. Verify En Passant Square is set to e3
+        assert_eq!(position.en_passant, Some(e3 as u8));
+
+        // 3. Verify Zobrist Key changed
+        // (Optional: You could also verify the key includes the specific EP hash if you have helpers for that)
+        
+        // --- Verify Reversal (take_move) ---
+        position.take_move();
+
+        // 4. Verify EP is reset to None
+        assert_eq!(position.en_passant, None);
+        
+        // 5. Verify Pawn is back
+        assert_eq!(position.pieces[e2], Piece::WHITE_PAWN);
+        assert!(position.pieces[e4] == Piece::NONE);
 
         #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
     }

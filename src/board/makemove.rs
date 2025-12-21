@@ -21,10 +21,23 @@ impl Board {
         let to = mv.to_square();
         let side = self.side;
 
-        self.history[self.history_ply].position_key = self.position_key;
+        self.history[self.history_ply] = Undo {
+            mv,
+            castle_permission: self.castle_permission,
+            en_passant: self.en_passant,
+            fifty_move: self.fifty_move,
+            position_key: self.position_key,
+        };
+
+        let captured = mv.captured();
+        if captured != 0 {
+            if !mv.is_en_passant() { self.clear_piece(to); }
+            self.fifty_move = 0;
+        } 
+        else if self.pieces[from].piece_type() == PieceType::PAWN { self.fifty_move = 0; } 
+        else { self.fifty_move += 1; }
 
         if mv.is_en_passant() {
-            // `to` is diagonal, +-8 gets the square behind/infront
             if side == Color::WHITE { self.clear_piece(to - 8); }
             else { self.clear_piece(to + 8); }
 
@@ -51,39 +64,24 @@ impl Board {
 
         if self.en_passant.is_some() { self.hash_en_passant(); }
         self.hash_castle();
-
-        self.history[self.history_ply].mv = mv;
-        self.history[self.history_ply].fifty_move = self.fifty_move;
-        self.history[self.history_ply].en_passant = self.en_passant;
-        self.history[self.history_ply].castle_permission = self.castle_permission;
-
         self.castle_permission &= CASTLE_PERMISSION[from];
         self.castle_permission &= CASTLE_PERMISSION[to];
         self.en_passant = None;
-
         self.hash_castle();
 
         self.fifty_move += 1;
 
-        let captured = mv.captured();
-        if captured != 0 {
+        if mv.captured() != 0 {
             self.clear_piece(to);
             self.fifty_move = 0;
         }
 
-        self.history_ply += 1;
-        self.ply += 1;
-
-        if self.pieces[from].piece_type() == PieceType::PAWN {
-            self.fifty_move = 0;
-
-            if mv.is_double_push() {
-                if side == Color::WHITE { self.en_passant = Some((from + 8) as u8); }
-                else { self.en_passant = Some((from - 8) as u8); }
-            }
+        if mv.is_double_push() {
+            if side == Color::WHITE { self.en_passant = Some((from + 8) as u8); }
+            else { self.en_passant = Some((from - 8) as u8); }
             self.hash_en_passant();
         }
-
+    
         self.move_piece(from, to);
 
         let promote_piece = mv.promoted();
@@ -93,6 +91,8 @@ impl Board {
             self.add_piece(to, piece);
         }
 
+        self.history_ply += 1;
+        self.ply += 1;
         self.side = self.side.opposite();
         self.hash_side();
 

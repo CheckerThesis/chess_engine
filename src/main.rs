@@ -1,14 +1,11 @@
 #![allow(warnings)]
-use crate::{board::{Board, print_bitboard}, defs::{Color, FILES_BOARD, Piece, PieceType, RANKS_BOARD, Ranks}, fens::{FEN_1, FEN_ENPASSANT, FEN_PROMOTION_BLACK, FEN_PROMOTION_WHITE, FEN_SQUARE_ATTACKED, FEN_START, KIWIPETE}, movegen::{MoveList, bitboards::RANK_BB_MASK}, perft::{perft, perft_divide}};
-
-mod defs;
-mod board;
-mod fens;
-mod io;
-mod movegen;
-mod transposition_table;
-mod perft;
-mod squares;
+use chess_engine_2::{
+    board::{Board, print_bitboard},
+    defs::{Color, FILES_BOARD, Piece, PieceType, RANKS_BOARD, Ranks},
+    fens::{FEN_1, FEN_ENPASSANT, FEN_PROMOTION_BLACK, FEN_PROMOTION_WHITE, FEN_SQUARE_ATTACKED, FEN_START, KIWIPETE},
+    movegen::{MoveList, bitboards::RANK_BB_MASK},
+    perft::{perft, perft_divide}
+};
 /*
 NEXT: PERFT
 
@@ -18,20 +15,9 @@ TODO Optimize make_move function
 */
 
 fn main() {
-    // let mut position: Board = Board::new(FEN_START);
-    // println!("{}", perft(&mut position, 2));
-    // let mut position = Board::new(FEN_START);
-    // println!("{}", perft(&mut position, 3));
-    // let mut position = Board::new("rnbqk1nr/pppp1ppp/4p3/8/1b6/PP6/2PPPPPP/RNBQKBNR w KQkq - 0 1");
-    // println!("{position}");
-    // let mut movelist = MoveList::new();
-    // movelist.generate_all_moves(&position);
-    // println!("{movelist}");
-    // perft_divide(&mut position, 2);
-    let mut position: Board = Board::new(KIWIPETE);
-    // println!("{position}");
-    println!("{}", perft(&mut position, 1));
-    println!("{}", perft(&mut position, 2));
-    println!("{}", perft(&mut position, 3));
-    // perft_divide(&mut position, 4);
+    use std::time::Instant;
+    let now = Instant::now();
+    let mut position: Board = Board::new(FEN_START);
+    println!("{}", perft(&mut position, 6));
+    println!("{:.2?}", now.elapsed());
 }
