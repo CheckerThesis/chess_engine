@@ -139,11 +139,9 @@ pub fn square_attacked(square: usize, side: Color, position: &Board) -> bool {
 
     // Knights
     let enemy_knights = position.bitboards[PieceType::KNIGHT.bb_index(enemy_side)];
-    // print_bitboard(enemy_knights);
     if (KNIGHT_RAYS[square] & enemy_knights) != 0 { return true; }
 
     let our_occupancy = position.occupancies[side.index()];
-    // print_bitboard(our_occupancy);
     let their_occupancy = position.occupancies[enemy_side.index()];
     
     // Diagonal
@@ -154,10 +152,6 @@ pub fn square_attacked(square: usize, side: Color, position: &Board) -> bool {
     let bishop_attacks = 
         get_demand_moves(square, our_occupancy, their_occupancy) |
         get_supply_moves(square, our_occupancy, their_occupancy);
-    // println!("------");
-    // print_bitboard(our_occupancy);
-    // print_bitboard(their_occupancy);
-    // print_bitboard(bishop_attacks);
     if (bishop_attacks & diagonal_attackers) != 0 { return true; }
 
     // Orthogonal

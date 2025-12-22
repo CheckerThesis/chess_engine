@@ -1,4 +1,14 @@
+# Old testing
 Pre-changes: 1.59
 Inline set/clear bit and makemove helpers: 1.59
 Moving capture to the top: 1.57
 Change castling to using switch statement and removing old crossing: 1.54
+Quiet move piece: 1.57
+
+# New testing
+All prev changes: 1.5989
+Promoted piece is no longer same as move piece: 1.506
+No hashing in takemove: 1.5
+Remove extra square attacked in castling: 1.498
+Remove branch from captured: Same
+Remove double castle: 1.51

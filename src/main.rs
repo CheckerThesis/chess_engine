@@ -1,4 +1,6 @@
 #![allow(warnings)]
+use std::{hint::black_box, time::{Duration, Instant}};
+
 use chess_engine_2::{
     board::{Board, print_bitboard},
     defs::{Color, FILES_BOARD, Piece, PieceType, RANKS_BOARD, Ranks},
@@ -15,9 +17,23 @@ TODO Optimize make_move function
 */
 
 fn main() {
-    use std::time::Instant;
-    let now = Instant::now();
-    let mut position: Board = Board::new(FEN_START);
-    println!("{}", perft(&mut position, 6));
-    println!("{:.2?}", now.elapsed());
+    let total_runs = 31;
+    let mut times: Vec<Duration> = Vec::with_capacity(total_runs);
+    for i in 1..=total_runs {
+        let mut position = Board::new(KIWIPETE);
+        
+        let start = Instant::now();
+        let result = black_box(perft(&mut position, black_box(4)));
+        let duration = start.elapsed();
+        times.push(duration);
+
+        println!("Run {}: {:?} | Nodes: {}", i, duration, result);
+    }
+
+    let valid_times = &times[1..]; 
+    let sum: Duration = valid_times.iter().sum();
+    let avg = sum / valid_times.len() as u32;
+
+    println!("---------------------------------------------------");
+    println!("Average time (excluding warm-up): {:?}", avg);
 }
