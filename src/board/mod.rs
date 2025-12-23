@@ -83,8 +83,6 @@ impl Board {
         for i in 0..Piece::COUNT {
             if bb_from_pieces[i] != self.bitboards[i] {
                 eprintln!("{}", format!("check_board ({}): bitboard[{}] and pieces array not synced!", location_called, i).red());
-                // println!("{self}");
-                // self.print_bitboards(Some(&[Piece { piece_type: PieceType::Pawn, color: Color::White }, Piece { piece_type: PieceType::Bishop, color: Color::White }]));
                 panic!();
             }
         }
@@ -98,9 +96,11 @@ impl Board {
                 if piece != Piece::NONE {
                     if piece.index() != bb_index {
                         eprintln!("{}", format!("check_board ({}): piece at square {} has wrong bitboard index", location_called, square).red());
+                        panic!();
                     }
                 } else {
                     eprintln!("{}", format!("check_board ({}): bitboard[{}] has bit set at square {} but no piece exists", location_called, bb_index, square).red());
+                    panic!();
                 }
                 
                 bb_copy &= bb_copy - 1;
@@ -114,18 +114,29 @@ impl Board {
         let mut computed_black_occupancy = 0u64;
         for piece in Piece::WHITE_PIECES { computed_white_occupancy |= self.bitboards[piece.index()]; }
         for piece in Piece::BLACK_PIECES { computed_black_occupancy |= self.bitboards[piece.index()]; }
-        if white_occupancy != computed_white_occupancy { eprintln!("{}", format!("check_board ({}): white occupancy mismatch", location_called).red()); }
-        if black_occupancy != computed_black_occupancy { eprintln!("{}", format!("check_board ({}): black occupancy mismatch", location_called).red()); }
-        if (white_occupancy & black_occupancy) != 0 { eprintln!("{}", format!("check_board ({}): white and black occupancies overlap", location_called).red()); }
+        if white_occupancy != computed_white_occupancy { 
+            eprintln!("{}", format!("check_board ({}): white occupancy mismatch", location_called).red()); 
+            panic!();
+        }
+        if black_occupancy != computed_black_occupancy { 
+            eprintln!("{}", format!("check_board ({}): black occupancy mismatch", location_called).red()); 
+            panic!();
+        }
+        if (white_occupancy & black_occupancy) != 0 { 
+            eprintln!("{}", format!("check_board ({}): white and black occupancies overlap", location_called).red());
+            panic!();
+        }
 
         // Enpassant valid
         if let Some(ep_square) = self.en_passant {
-            if ep_square >= 64 {
+            if ep_square > 64 {
                 eprintln!("{}", format!("check_board ({}): en passant square out of bounds", location_called).red());
+                panic!();
             } else {
                 let rank = ep_square / 8;
                 if (self.side == Color::WHITE && rank != 5) || (self.side == Color::BLACK && rank != 2) {
                     eprintln!("{}", format!("check_board ({}): en passant square on wrong rank for current side", location_called).red());
+                    panic!();
                 }
             }
         }
@@ -135,10 +146,19 @@ impl Board {
         let black_king_bb = self.bitboards[Piece::BLACK_KING.index()];
         let white_king_count = white_king_bb.count_ones();
         let black_king_count = black_king_bb.count_ones();
-        if white_king_count != 1 { eprintln!("{}", format!("check_board ({}): expected 1 white king, found {}", location_called, white_king_count).red()); }
-        if black_king_count != 1 { eprintln!("{}", format!("check_board ({}): expected 1 black king, found {}", location_called, black_king_count).red()); }
+        if white_king_count != 1 { 
+            eprintln!("{}", format!("check_board ({}): expected 1 white king, found {}", location_called, white_king_count).red()); 
+            panic!();
+        }
+        if black_king_count != 1 { 
+            eprintln!("{}", format!("check_board ({}): expected 1 black king, found {}", location_called, black_king_count).red()); 
+            panic!();
+        }
 
-        if self.generate_position_key() != self.position_key { eprintln!("{}", format!("check_board ({}): position key wrong", location_called)); }
+        if self.generate_position_key() != self.position_key { 
+            eprintln!("{}", format!("check_board ({}): position key wrong", location_called)); 
+            panic!();
+        }
     }
 
     pub fn parse_fen(&mut self, fen: &str) {

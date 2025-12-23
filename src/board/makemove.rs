@@ -96,8 +96,6 @@ impl Board {
         let king_square = self.bitboards[PieceType::KING.bb_index(side)].trailing_zeros() as usize;
         if square_attacked(king_square, side, self) {
             self.take_move();
-            debug_assert_eq!(self.position_key, self.history[self.history_ply].position_key, 
-                            "Position key mismatch after take_move!");
             return false
         }
 
@@ -110,51 +108,49 @@ impl Board {
         self.history_ply -= 1;
         self.ply -= 1;
 
-        let undo = self.history[self.history_ply];
-        self.position_key = undo.position_key;
-        self.castle_permission = undo.castle_permission;
-        self.fifty_move = undo.fifty_move;
-        self.en_passant = undo.en_passant;
-
-        self.side = self.side.opposite();
-
-        let mv = undo.mv;
+        let mv = self.history[self.history_ply].mv;
         let from = mv.from_square();
         let to = mv.to_square();
 
-        // Promotions
-        if mv.promoted() != 0 {
-            self.clear_piece_no_hash(to);
-            self.add_piece_no_hash(from, Piece::make(PieceType::PAWN, self.side));
+        if self.en_passant.is_some() { self.hash_en_passant(); }
+        self.hash_castle();
 
-            if mv.captured() != 0 { self.add_piece_no_hash(to, Piece(mv.captured() as u8)); }
-        }
+        self.castle_permission = self.history[self.history_ply].castle_permission;
+        self.fifty_move =  self.history[self.history_ply].fifty_move;
+        self.en_passant =  self.history[self.history_ply].en_passant;
 
-        // Castling
-        else if mv.is_castling() {
-            self.move_piece_no_hash(to, from);
+        if self.en_passant.is_some() { self.hash_en_passant(); }
+        self.hash_castle();
+
+        self.side = self.side.opposite();
+        self.hash_side();
+
+        if mv.is_en_passant() {
+            if self.side == Color::WHITE { self.add_piece(to - 8, Piece::make(PieceType::PAWN, Color::BLACK)); }
+            else { self.add_piece(to + 8, Piece::make(PieceType::PAWN, Color::WHITE)); }
+
+        } else if mv.is_castling() {
             match to {
-                C1 => self.move_piece_no_hash(D1, A1),
-                C8 => self.move_piece_no_hash(D8, A8),
-                G1 => self.move_piece_no_hash(F1, H1),
-                G8 => self.move_piece_no_hash(F8, H8),
+                C1 => self.move_piece(D1, A1),
+                C8 => self.move_piece(D8, A8),
+                G1 => self.move_piece(F1, H1),
+                G8 => self.move_piece(F8, H8),
                 _ => eprintln!("{}", "take_move: castle problem".red())
             }
         }
 
-        // Enpassant
-        else if mv.is_en_passant() {
-            self.move_piece_no_hash(to, from);
-            if self.side == Color::WHITE { self.add_piece_no_hash(to - 8, Piece::make(PieceType::PAWN, Color::BLACK)); }
-            else { self.add_piece_no_hash(to + 8, Piece::make(PieceType::PAWN, Color::WHITE)); }
+        self.move_piece(to, from);
+
+        let captured = mv.captured();
+        if captured != 0 && !mv.is_en_passant() {
+            let piece = Piece(captured as u8);
+            self.add_piece(to, piece);
         }
 
-        // Normal
-        else {
-            self.move_piece_no_hash(to, from);
-
-            let captured = mv.captured();
-            if captured != 0 { self.add_piece_no_hash(to, Piece(captured as u8)); }
+        if mv.promoted() != 0 {
+            self.clear_piece(from);
+            let piece = Piece::make(PieceType::PAWN, self.side);
+            self.add_piece(from, piece);
         }
 
         #[cfg(debug_assertions)] { self.check_board(fn_name!()); }

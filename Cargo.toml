@@ -1,14 +1,10 @@
+[profile.release]
+debug = true
+
 [package]
-name = "chess_engine_2"
+name = "vault"
 version = "0.1.0"
 edition = "2024"
-
-[dev-dependencies]
-criterion = "0.8.1"
-
-[[bench]]
-name = "perft_bench"
-harness = false
 
 [dependencies]
 colored = "3.0.0"

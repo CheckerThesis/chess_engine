@@ -54,43 +54,4 @@ impl Board {
         self.pieces[from] = Piece::NONE;
         self.pieces[to] = piece;
     }
-
-    pub(crate) fn clear_piece_no_hash(&mut self, square: usize) {
-        let piece = self.pieces[square];
-        #[cfg(debug_assertions)] {
-            if piece == Piece::NONE {
-                eprintln!("{}", format!("clear_piece: Tried to remove NONE on square {}", square).red());
-            }
-        }
-        clear_bit(&mut self.bitboards[piece.index()], square);
-        clear_bit(&mut self.occupancies[piece.color().index()], square);
-        clear_bit(&mut self.occupancies[Color::BOTH.index()], square);
-        self.pieces[square] = Piece::NONE;
-        // position.materal
-        // position big/major/minor piece
-    }
-
-    pub(crate) fn add_piece_no_hash(&mut self, square: usize, piece: Piece) {
-        set_bit(&mut self.bitboards[piece.index()], square);
-        set_bit(&mut self.occupancies[piece.color().index()], square);
-        set_bit(&mut self.occupancies[Color::BOTH.index()], square);
-        self.pieces[square] = piece;
-    }
-
-    pub(crate) fn move_piece_no_hash(&mut self, from: usize, to: usize) {
-        let piece = self.pieces[from];
-        #[cfg(debug_assertions)] {
-            if piece == Piece::NONE {
-                eprintln!("{}", format!("move_piece_quiet: Tried to remove NONE on square {}", from).red());
-            }
-        }
-
-        let from_and_to_bb = (1 << from) | (1 << to);
-        self.bitboards[piece.index()] ^= from_and_to_bb;
-        self.occupancies[piece.color().index()] ^= from_and_to_bb;
-        self.occupancies[Color::BOTH.index()] ^= from_and_to_bb;
-
-        self.pieces[from] = Piece::NONE;
-        self.pieces[to] = piece;
-    }
 }

@@ -12,3 +12,57 @@ No hashing in takemove: 1.5
 Remove extra square attacked in castling: 1.498
 Remove branch from captured: Same
 Remove double castle: 1.51
+
+Move List (15 moves found):
+   1: e2e3 (Score: 0, Raw: Move(1292))
+   2: g2g3 (Score: 0, Raw: Move(1422))
+   3: b5b6 (Score: 0, Raw: Move(2657))
+   4: e2e4 (Score: 0, Raw: Move(263948))
+   5: g2g4 (Score: 0, Raw: Move(264078))
+   6: b4f4 (Score: 10000, Raw: Move(22361))
+   7: b4b1 (Score: 0, Raw: Move(89))
+   8: b4b2 (Score: 0, Raw: Move(601))
+   9: b4b3 (Score: 0, Raw: Move(1113))
+  10: b4a4 (Score: 0, Raw: Move(1561))
+  11: b4c4 (Score: 0, Raw: Move(1689))
+  12: b4d4 (Score: 0, Raw: Move(1753))
+  13: b4e4 (Score: 0, Raw: Move(1817))
+  14: a5a4 (Score: 0, Raw: Move(1568))
+  15: a5a6 (Score: 0, Raw: Move(2592))
+
+  Move List (16 moves found):
+   1: e2e3 (Score: 0, Raw: Move(1292))
+   2: g2g3 (Score: 0, Raw: Move(1422))
+   3: b5b6 (Score: 0, Raw: Move(2657))
+   4: e2e4 (Score: 0, Raw: Move(263948))
+   5: g2g4 (Score: 0, Raw: Move(264078))
+   6: b4f4 (Score: 10000, Raw: Move(22361))
+   7: b4b1 (Score: 0, Raw: Move(89))
+   8: b4b2 (Score: 0, Raw: Move(601))
+   9: b4b3 (Score: 0, Raw: Move(1113))
+  10: b4a4 (Score: 0, Raw: Move(1561))
+  11: b4c4 (Score: 0, Raw: Move(1689))
+  12: b4d4 (Score: 0, Raw: Move(1753))
+  13: b4e4 (Score: 0, Raw: Move(1817))
+  14: a5a4 (Score: 0, Raw: Move(1568))
+  15: a5a6 (Score: 0, Raw: Move(2592))
+  16: a5b6 (Score: 0, Raw: Move(2656))
+
+e2e3
+e2e4
+g2g3
+g2g4
+
+b4a4
+b4b1
+b4b2
+b4b3
+b4c4
+b4d4
+b4e5
+b4f4
+
+b5b6
+a5a4
+a4a6
+a5b6
