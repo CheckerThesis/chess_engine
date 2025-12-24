@@ -42,6 +42,7 @@ pub struct Undo {
 pub struct Board {
     pub occupancies: [u64; 3],
     pub bitboards: [u64; Piece::COUNT],
+    pub king_square: [u64; 2],
     pub pieces: [Piece; 64],
     pub side: Color,
 
@@ -167,6 +168,9 @@ impl Board {
             set_bit(&mut position.occupancies[piece.color().index()], square);
             set_bit(&mut position.occupancies[Color::BOTH.index()], square);
             position.pieces[square] = piece;
+            if piece.piece_type() == PieceType::KING {
+                position.king_square[piece.color().index()] = square as u64;
+            }
         }
 
         fn reset_board(position: &mut Board) {
@@ -426,6 +430,7 @@ impl Default for Board {
         Board {
             occupancies: [0; 3],
             bitboards: [0; Piece::COUNT],
+            king_square: [0; 2],
             pieces: [Piece::NONE; 64],
             side: Color::EITHER,
             en_passant: None,

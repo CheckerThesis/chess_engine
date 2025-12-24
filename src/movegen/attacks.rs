@@ -1,4 +1,4 @@
-use crate::{board::{Board, print_bitboard}, defs::{Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveList, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
+use crate::{board::{Board, print_bitboard}, defs::{Color, Piece, PieceType, RANKS_BOARD, Ranks}, movegen::{MoveList, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}, magic::{BISHOP_MAGIC_BB, ROOK_MAGIC_BB}}};
 
 pub static mut hi: usize = 0; 
 
@@ -149,20 +149,14 @@ pub fn square_attacked(square: usize, side: Color, position: &Board) -> bool {
     let enemy_queens = position.bitboards[PieceType::QUEEN.bb_index(enemy_side)];
     let diagonal_attackers = enemy_bishops | enemy_queens;
 
-    let bishop_attacks = 
-        get_demand_moves(square, our_occupancy, their_occupancy) |
-        get_supply_moves(square, our_occupancy, their_occupancy);
+    let bishop_attacks = BISHOP_MAGIC_BB.get_attacks(square, our_occupancy | their_occupancy) & !our_occupancy;
     if (bishop_attacks & diagonal_attackers) != 0 { return true; }
 
     // Orthogonal
     let enemy_rooks = position.bitboards[PieceType::ROOK.bb_index(enemy_side)];
     let orthogonal_attackers = enemy_rooks | enemy_queens;
 
-    let rook_attacks = 
-        get_up_moves(square, our_occupancy, their_occupancy) |
-        get_down_moves(square, our_occupancy, their_occupancy) |
-        get_left_moves(square, our_occupancy, their_occupancy) |
-        get_right_moves(square, our_occupancy, their_occupancy);
+    let rook_attacks = ROOK_MAGIC_BB.get_attacks(square, our_occupancy | their_occupancy) & !our_occupancy;
     if (rook_attacks & orthogonal_attackers) != 0 { return true; }
 
     // Kings

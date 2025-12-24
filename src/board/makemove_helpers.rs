@@ -34,6 +34,10 @@ impl Board {
         set_bit(&mut self.occupancies[piece.color().index()], square);
         set_bit(&mut self.occupancies[Color::BOTH.index()], square);
         self.pieces[square] = piece;
+
+        if piece.piece_type() == PieceType::KING {
+            self.king_square[piece.color().index()] = square as u64;
+        }
     }
 
     pub(crate) fn move_piece(&mut self, from: usize, to: usize) {
@@ -53,5 +57,9 @@ impl Board {
 
         self.pieces[from] = Piece::NONE;
         self.pieces[to] = piece;
+
+        if piece.piece_type() == PieceType::KING {
+            self.king_square[piece.color().index()] = to as u64;
+        }
     }
 }

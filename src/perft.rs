@@ -1,12 +1,12 @@
 use crate::{board::Board, fens::FEN_START, movegen::{MoveList, SQUARE_TO_STRING}};
 
 pub fn perft(position: &mut Board, depth: usize) -> usize {
+    if depth == 0 { return 1 }
+
     let mut move_list = MoveList::new();
     let mut nodes = 0;
 
     move_list.generate_all_moves(&position);
-
-    if depth == 0 { return 1 }
 
     for i in 0..move_list.count {
         let mv = move_list.moves[i].mv;

@@ -1,10 +1,8 @@
 use colored::Colorize;
 
-use crate::{board::{Board, print_bitboard}, defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Piece, PieceType, RANKS_BOARD, Ranks, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE}, movegen::{MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSANT, MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, ScoredMove, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves}, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}}};
+use crate::{board::{Board, print_bitboard}, defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Piece, PieceType, RANKS_BOARD, Ranks, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE}, movegen::{MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSANT, MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, ScoredMove, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves}, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}, magic::{BISHOP_MAGIC_BB, ROOK_MAGIC_BB}}};
 
 impl MoveList {
-
-
     fn add_quiet_move(&mut self, position: &Board, mv: Move) {
         // TODO set score killer move
         self.add(ScoredMove::new(mv, 0));
@@ -206,16 +204,11 @@ impl MoveList {
             )
         };
 
-        // println!("{position}");
-        // print_bitboard(empty_squares);
-        // position.print_bitboards();
-
         let mut single_pushes = if color == Color::WHITE {
             our_pawns.wrapping_shl(push_offset as u32) & empty_squares
         } else {
             our_pawns.wrapping_shr((-push_offset) as u32) & empty_squares
         };
-        // print_bitboard(single_pushes);
 
         let mut double_pushes = if color == Color::WHITE {
             (single_pushes & double_push_rank).wrapping_shl(push_offset as u32) & empty_squares
@@ -293,12 +286,9 @@ impl MoveList {
         let their_occupancy = position.occupancies[side.opposite().index()];
 
         let mut bishops = position.bitboards[PieceType::BISHOP.bb_index(side)];
-        // print_bitboard(bishops);
         while bishops != 0 {
             let from_square_index = bishops.trailing_zeros() as usize;
-            let movement_bb = 
-                get_supply_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_demand_moves(from_square_index, our_occupancy, their_occupancy);
+            let movement_bb = BISHOP_MAGIC_BB.get_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy;
             self.serialize_moves(position, from_square_index, movement_bb);
             bishops &= bishops - 1;
         }
@@ -306,11 +296,7 @@ impl MoveList {
         let mut rooks = position.bitboards[PieceType::ROOK.bb_index(side)];
         while rooks != 0 {
             let from_square_index = rooks.trailing_zeros() as usize;
-            let movement_bb = 
-                get_up_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_down_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_left_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_right_moves(from_square_index, our_occupancy, their_occupancy);
+            let movement_bb = ROOK_MAGIC_BB.get_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy;
             self.serialize_moves(position, from_square_index, movement_bb);
             rooks &= rooks - 1;
         }
@@ -319,12 +305,8 @@ impl MoveList {
         while queens != 0 {
             let from_square_index = queens.trailing_zeros() as usize;
             let movement_bb = 
-                get_supply_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_demand_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_up_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_down_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_left_moves(from_square_index, our_occupancy, their_occupancy) |
-                get_right_moves(from_square_index, our_occupancy, their_occupancy);
+                (BISHOP_MAGIC_BB.get_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy) |
+                (ROOK_MAGIC_BB.get_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy);
             self.serialize_moves(position, from_square_index, movement_bb);
             queens &= queens - 1;
         }
@@ -342,21 +324,19 @@ impl MoveList {
 
             while moves != 0 {
                 let to_sq = moves.trailing_zeros() as usize;
-                
-                //if !square_attacked(to_sq, position.side, position) {
-                    let to_bb = 1u64 << to_sq;
 
-                    if (to_bb & their_pieces) != 0 {
-                        let captured_piece = position.pieces[to_sq];
-                        self.add_capture_move(position, Move::new(
-                            from_sq, to_sq, captured_piece.index(), MOVE_FLAG_NONE, 0
-                        ));
-                    } else {
-                        self.add_quiet_move(position, Move::new(
-                            from_sq, to_sq, 0, MOVE_FLAG_NONE, 0
-                        ));
-                    }
-                //}
+                let to_bb = 1u64 << to_sq;
+
+                if (to_bb & their_pieces) != 0 {
+                    let captured_piece = position.pieces[to_sq];
+                    self.add_capture_move(position, Move::new(
+                        from_sq, to_sq, captured_piece.index(), MOVE_FLAG_NONE, 0
+                    ));
+                } else {
+                    self.add_quiet_move(position, Move::new(
+                        from_sq, to_sq, 0, MOVE_FLAG_NONE, 0
+                    ));
+                }
 
                 moves &= moves - 1;
             }
@@ -368,44 +348,31 @@ impl MoveList {
         let side = position.side;
         let occupancies = position.occupancies[Color::WHITE.index()] | position.occupancies[Color::BLACK.index()];
 
-        // println!("{}", position.castle_permission);
         match side {
             Color::WHITE => {
                 // King Side (e1 -> g1)
                 if (position.castle_permission & WHITE_KING_CASTLE) != 0 {
                     if (occupancies & ((1 << 5) | (1 << 6))) == 0 {
-                        // If e1, f1, g1 not under attack
-                        // if !square_attacked(4, position.side, position) &&
-                        //    !square_attacked(5, position.side, position) &&
-                        //    !square_attacked(6, position.side, position)
-                        // {
-                            self.add_quiet_move(position, Move::new(
-                                4,
-                                6,
-                                0,
-                                MOVE_FLAG_CASTLE,
-                                0
-                            ));
-                        //}
+                        self.add_quiet_move(position, Move::new(
+                            4,
+                            6,
+                            0,
+                            MOVE_FLAG_CASTLE,
+                            0
+                        ));
                     }
                 }
 
                 // Queen Side (e1 -> c1)
                 if (position.castle_permission & WHITE_QUEEN_CASTLE as u8) != 0 {
                     if (occupancies & ((1 << 1) | (1 << 2) | (1 << 3))) == 0 {
-                        // If e1, d1, c1 not under attack
-                        // if !square_attacked(4, position.side, position) &&
-                        //    !square_attacked(3, position.side, position) && 
-                        //    !square_attacked(2, position.side, position)
-                        // {
-                            self.add_quiet_move(position, Move::new(
-                                4,
-                                2,
-                                0,
-                                MOVE_FLAG_CASTLE,
-                                0
-                            ));
-                        //}
+                        self.add_quiet_move(position, Move::new(
+                            4,
+                            2,
+                            0,
+                            MOVE_FLAG_CASTLE,
+                            0
+                        ));
                     }
                 }
             },
@@ -413,38 +380,26 @@ impl MoveList {
                 // King Side (e8 -> g8)
                 if (position.castle_permission & BLACK_KING_CASTLE as u8) != 0 {
                     if (occupancies & ((1 << 61) | (1 << 62))) == 0 {
-                        // If e8, f8, g8 not under attack
-                        // if !square_attacked(60, position.side, position) &&
-                        //    !square_attacked(61, position.side, position) &&
-                        //    !square_attacked(62, position.side, position)
-                        // {
-                            self.add_quiet_move(position, Move::new(
-                                60,
-                                62,
-                                0,
-                                MOVE_FLAG_CASTLE,
-                                0
-                            ));
-                        //}
+                        self.add_quiet_move(position, Move::new(
+                            60,
+                            62,
+                            0,
+                            MOVE_FLAG_CASTLE,
+                            0
+                        ));
                     }
                 }
 
                 // Queen Side (e8 -> c8)
                 if (position.castle_permission & BLACK_QUEEN_CASTLE as u8) != 0 {
                     if (occupancies & ((1 << 57) | (1 << 58) | (1 << 59))) == 0 {
-                        // If e8, d8, c8 not under attack
-                        // if !square_attacked(60, position.side, position) &&
-                        //    !square_attacked(59, position.side, position) &&
-                        //    !square_attacked(58, position.side, position)    
-                        // {
-                            self.add_quiet_move(position, Move::new(
-                                60,
-                                58,
-                                0,
-                                MOVE_FLAG_CASTLE,
-                                0
-                            ));
-                        //}
+                        self.add_quiet_move(position, Move::new(
+                            60,
+                            58,
+                            0,
+                            MOVE_FLAG_CASTLE,
+                            0
+                        ));
                     }
                 }
             },
@@ -457,8 +412,6 @@ impl MoveList {
         self.generate_pawn_moves(position);
         self.generate_knight_moves(position);
         self.generate_sliding_moves(position);
-        // println!("sliding");
-        // println!("{self}");
         self.generate_king_moves(position);
         self.generate_castle_moves(position);
     }
