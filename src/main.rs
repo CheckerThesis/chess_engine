@@ -1,12 +1,8 @@
 #![allow(warnings)]
-use std::{collections::HashMap, hint::black_box, time::{Duration, Instant}};
+use std::{hint::black_box, time::{Duration, Instant}};
 
 use vault::{
-    board::{Board, print_bitboard, set_bit},
-    defs::{Color, FILES_BOARD, Piece, PieceType, RANKS_BOARD, Ranks},
-    fens::{FEN_1, FEN_ENPASSANT, FEN_PROMOTION_BLACK, FEN_PROMOTION_WHITE, FEN_SQUARE_ATTACKED, FEN_START, KIWIPETE},
-    movegen::{MoveList, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves}, bitboards::RANK_BB_MASK, magic::{BISHOP_MAGIC_BB, MagicTable, ROOK_MAGIC_BB}},
-    perft::{perft, perft_divide}, squares::squares::{A6, B2, B3, B5, B7, C3, C4, D3, D5, E2, E3, E4, E5, E6, E7, F3, F5, G3, G5}
+    board::Board, fens::KIWIPETE, perft::perft
 };
 /*
 lto = "fat"
@@ -20,10 +16,10 @@ TODO Move the LazyLock to a build.rs file that generates the random at compile t
 TODO Optimize make_move function
 */
 
-// cargo test mm_ && cargo test _gener && cargo test perft_depth_4 -r  && cargo r -r
+// cargo test mm_ && cargo test _gener && cargo test perft_depth_4 -r
 fn test() {
-    const SAMPLES: usize = 6;
-    const ITERATIONS: u32 = 6;
+    const SAMPLES: usize = 3;
+    const ITERATIONS: u32 = 3;
 
     let mut samples: Vec<Duration> = Vec::with_capacity(SAMPLES);
 
@@ -32,7 +28,7 @@ fn test() {
         
         for _ in 0..ITERATIONS {
             let mut position = Board::new(KIWIPETE);
-            black_box(perft(&mut position, black_box(4)));
+            black_box(perft(&mut position, black_box(5)));
         }
         
         let total_duration = start.elapsed();
@@ -51,18 +47,18 @@ fn test() {
 }
 
 fn main() {
-    // let position = Board::new(KIWIPETE);
-    // println!("{position}");
-    // let square = F3;
-    // print_bitboard(
-    //     (ROOK_MAGIC_BB.get_attacks(square, position.occupancies[Color::BOTH.index()]) |
-    //     BISHOP_MAGIC_BB.get_attacks(square, position.occupancies[Color::BOTH.index()])) & !position.occupancies[Color::WHITE.index()]
-    // );
-
     test();
     // let mut position = Board::new(KIWIPETE);
     // let start = Instant::now();
     // println!("{}", perft(&mut position, 5));
     // let total_duration = start.elapsed();
     // println!("Time: {:?}", total_duration);
+
+    // for i in 0..64 {
+    //     print!("{},", KING_RAYS[i]);
+
+    //     if (i + 1) % 4 == 0 {
+    //         println!();
+    //     }
+    // }
 }

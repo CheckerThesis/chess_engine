@@ -1,11 +1,11 @@
-use crate::{board::{Board, Undo, clear_bit, position_keys::{self, CASTLE_KEYS, EN_PASSANT_KEYS, PIECE_KEYS, SIDE_KEY}, set_bit}, defs::{Color, Piece, PieceType}, fn_name, movegen::{attacks::square_attacked}};
+use crate::{board::Board, fn_name};
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::board::print_bitboard;
-    use crate::movegen::{MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSANT, MOVE_FLAG_PAWN_START, Move, MoveList};
-    use crate::defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Piece, PieceType, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE};
+    use crate::fn_name;
+    use crate::movegen::{MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSANT, MOVE_FLAG_PAWN_START, Move};
+    use crate::defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Piece, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE};
     
     #[test]
     fn mm_make_move_white_castle_kingside() {

@@ -1,5 +1,4 @@
 #![allow(warnings)]
-
 pub mod board;
 pub mod defs;
 pub mod fens;

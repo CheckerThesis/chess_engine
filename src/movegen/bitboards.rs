@@ -1,29 +1,9 @@
 use std::sync::LazyLock;
 
-pub static RANK_BB_MASK: LazyLock<[u64; 9]> = LazyLock::new(|| {
-    let mut rank_bb_mask: [u64; 9] = [0; 9];
-    const RANK_1: u64 = 0x00000000000000FF;
-
-    for i in 1..9 {
-        rank_bb_mask[i] = RANK_1 << ((i - 1) * 8);
-    }
-
-    rank_bb_mask
-});
-
-fn get_rank(square: u64) -> usize {
-    for i in 0..8 {
-        if square & RANK_BB_MASK[i] != 0 { return i }
-    }
-    100
-}
-
 const A_FILE_MASK: u64 = !0xFEFEFEFEFEFEFEFE;
-const B_FILE_MASK: u64 = A_FILE_MASK << 1;
-const G_FILE_MASK: u64 = A_FILE_MASK << 6;
 const H_FILE_MASK: u64 = !0x7F7F7F7F7F7F7F7F;
 
-pub static WHITE_PAWN_ATTACKS: LazyLock<[u64; 64]> = LazyLock::new(|| {
+#[cfg(debug_assertions)] fn gen_white_pawn_attacks() {
     let mut attacks: [u64; 64] = [0; 64];
 
     for i in 0..64 {
@@ -36,10 +16,28 @@ pub static WHITE_PAWN_ATTACKS: LazyLock<[u64; 64]> = LazyLock::new(|| {
 
         attacks[i] = capture;
     }
+}
+// Inited from above
+pub const WHITE_PAWN_ATTACKS: [u64; 64] = [
+    512,1280,2560,5120,
+    10240,20480,40960,16384,
+    131072,327680,655360,1310720,
+    2621440,5242880,10485760,4194304,
+    33554432,83886080,167772160,335544320,
+    671088640,1342177280,2684354560,1073741824,
+    8589934592,21474836480,42949672960,85899345920,
+    171798691840,343597383680,687194767360,274877906944,
+    2199023255552,5497558138880,10995116277760,21990232555520,
+    43980465111040,87960930222080,175921860444160,70368744177664,
+    562949953421312,1407374883553280,2814749767106560,5629499534213120,
+    11258999068426240,22517998136852480,45035996273704960,18014398509481984,
+    144115188075855872,360287970189639680,720575940379279360,1441151880758558720,
+    2882303761517117440,5764607523034234880,11529215046068469760,4611686018427387904,
+    0,0,0,0,
+    0,0,0,0,
+];
 
-    attacks
-});
-pub static BLACK_PAWN_ATTACKS: LazyLock<[u64; 64]> = LazyLock::new(|| {
+#[cfg(debug_assertions)] fn gen_black_pawn_attacks() {
     let mut attacks: [u64; 64] = [0; 64];
 
     for i in (0..64).rev() {
@@ -52,134 +50,28 @@ pub static BLACK_PAWN_ATTACKS: LazyLock<[u64; 64]> = LazyLock::new(|| {
 
         attacks[i] = capture;
     }
+}
+// Inited from above
+pub const BLACK_PAWN_ATTACKS: [u64; 64] = [
+    0,0,0,0,
+    0,0,0,0,
+    2,5,10,20,
+    40,80,160,64,
+    512,1280,2560,5120,
+    10240,20480,40960,16384,
+    131072,327680,655360,1310720,
+    2621440,5242880,10485760,4194304,
+    33554432,83886080,167772160,335544320,
+    671088640,1342177280,2684354560,1073741824,
+    8589934592,21474836480,42949672960,85899345920,
+    171798691840,343597383680,687194767360,274877906944,
+    2199023255552,5497558138880,10995116277760,21990232555520,
+    43980465111040,87960930222080,175921860444160,70368744177664,
+    562949953421312,1407374883553280,2814749767106560,5629499534213120,
+    11258999068426240,22517998136852480,45035996273704960,18014398509481984,
+];
 
-    attacks
-});
-
-pub static UP_RAYS: LazyLock<[u64; 64]> = LazyLock::new(|| {
-    let mut up_rays: [u64; 64] = [0; 64];
-
-    for square in 0..64 as usize {
-        let mut ray_bb: u64 = 0;
-        let mut ray_square= square as u64;
-
-        while get_rank(ray_square) < 7 {
-            ray_square += 8;
-            if ray_square < 64 { ray_bb |= 1 << ray_square; } 
-            else { break; }
-        }
-        up_rays[square] = ray_bb;
-    }
-
-    up_rays[0] = up_rays[1] >> 1;
-    up_rays
-});
-pub static DOWN_RAYS: LazyLock<[u64; 64]> = LazyLock::new(|| {
-    let mut down_rays: [u64; 64] = [0; 64];
-
-    for square in 0..64 as usize {
-        let mut ray_bb: u64 = 0;
-        let mut ray_square= square as u64;
-
-        while get_rank(ray_square) < 7 {
-            if ray_square >= 8 { 
-                ray_square -= 8;
-                ray_bb |= 1 << ray_square; 
-            }
-            else { break; }
-        }
-        down_rays[square] = ray_bb;
-    }
-
-    down_rays
-});
-pub static LEFT_RAYS: LazyLock<[u64; 64]> = LazyLock::new(|| {
-    let mut left_rays: [u64; 64] = [0; 64];
-
-    for square in 0..64 as usize {
-        let mut ray_bb: u64 = 0;
-        let mut ray_square = square as u64;
-
-        while ray_square % 8 > 0 {
-            ray_square -= 1;
-            ray_bb |= 1 << ray_square;
-        }
-        left_rays[square] = ray_bb;
-    }
-
-    left_rays
-});
-pub static RIGHT_RAYS: LazyLock<[u64; 64]> = LazyLock::new(|| {
-    let mut right_rays: [u64; 64] = [0; 64];
-
-    for square in 0..64 as usize {
-        let mut ray_bb: u64 = 0;
-        let mut ray_square = square as u64;
-
-        while ray_square % 8 < 7 {
-            ray_square += 1;
-            ray_bb |= 1 << ray_square;
-        }
-        right_rays[square] = ray_bb;
-    }
-
-    right_rays
-});
-
-pub static SUPPLY_DIAGONAL_RAYS: LazyLock<[u64; 64]> = LazyLock::new(|| {
-    let mut anti_diagonal_rays: [u64; 64] = [0; 64];
-
-    for square in 0..64 {
-        let mut ray_bb: u64 = 0;
-
-        let mut ray_square_up_right = square as u64;
-        // Rank is (square / 8), File is (square % 8)
-        while (ray_square_up_right / 8) < 7 && (ray_square_up_right % 8) < 7 {
-            ray_square_up_right += 9;
-            ray_bb |= 1 << ray_square_up_right;
-        }
-
-        let mut ray_square_down_light = square as u64;
-        while (ray_square_down_light / 8) > 0 && (ray_square_down_light % 8) > 0 {
-            ray_square_down_light -= 9;
-            ray_bb |= 1 << ray_square_down_light;
-        }
-
-        anti_diagonal_rays[square] = ray_bb;
-    }
-
-    anti_diagonal_rays
-});
-pub static DEMAND_DIAGONAL_RAYS: LazyLock<[u64; 64]> = LazyLock::new(|| {
-    let mut main_diagonal_rays: [u64; 64] = [0; 64];
-
-    for square in 0..64 {
-        let mut ray_bb: u64 = 0;
-
-        // --- Calculate Up-Left ray (+7) ---
-        let mut ray_square_up_left = square as u64;
-        while (ray_square_up_left / 8) < 7 && (ray_square_up_left % 8) > 0 {
-            ray_square_up_left += 7; // Move one square up-left
-            ray_bb |= 1 << ray_square_up_left; // Add this square to the bitboard
-        }
-
-        // --- Calculate Down-Right ray (-7) ---
-        let mut current_square_dr = square as u64;
-        // Loop while the current square is not on the 1st rank (rank 0)
-        // and not on the H file (file 7).
-        // Rank is (square / 8), File is (square % 8)
-        while (current_square_dr / 8) > 0 && (current_square_dr % 8) < 7 {
-            current_square_dr -= 7; // Move one square down-right
-            ray_bb |= 1 << current_square_dr; // Add this square to the bitboard
-        }
-
-        main_diagonal_rays[square] = ray_bb;
-    }
-
-    main_diagonal_rays
-});
-
-pub static KNIGHT_RAYS: LazyLock<[u64; 64]> = LazyLock::new(|| {
+#[cfg(debug_assertions)] fn gen_knight_rays() {
     const NOT_A_FILE: u64 = 0xfefefefefefefefe; 
     const NOT_AB_FILE: u64 = 0xfcfcfcfcfcfcfcfc;
     const NOT_GH_FILE: u64 = 0x3f3f3f3f3f3f3f3f;
@@ -203,11 +95,28 @@ pub static KNIGHT_RAYS: LazyLock<[u64; 64]> = LazyLock::new(|| {
 
         knight_rays[square] = attacks;
     }
+}
+// Inited from above
+pub const KNIGHT_RAYS: [u64; 64] = [
+    132096,329728,659712,1319424,
+    2638848,5277696,10489856,4202496,
+    33816580,84410376,168886289,337772578,
+    675545156,1351090312,2685403152,1075839008,
+    8657044482,21609056261,43234889994,86469779988,
+    172939559976,345879119952,687463207072,275414786112,
+    2216203387392,5531918402816,11068131838464,22136263676928,
+    44272527353856,88545054707712,175990581010432,70506185244672,
+    567348067172352,1416171111120896,2833441750646784,5666883501293568,
+    11333767002587136,22667534005174272,45053588738670592,18049583422636032,
+    145241105196122112,362539804446949376,725361088165576704,1450722176331153408,
+    2901444352662306816,5802888705324613632,11533718717099671552,4620693356194824192,
+    288234782788157440,576469569871282176,1224997833292120064,2449995666584240128,
+    4899991333168480256,9799982666336960512,1152939783987658752,2305878468463689728,
+    1128098930098176,2257297371824128,4796069720358912,9592139440717824,
+    19184278881435648,38368557762871296,4679521487814656,9077567998918656,
+];
 
-    knight_rays
-});
-
-pub static KING_RAYS: LazyLock<[u64; 64]> = LazyLock::new(|| {
+#[cfg(debug_assertions)] fn gen_king_rays() {
     const NOT_A_FILE: u64 = 0xfefefefefefefefe; 
     const NOT_H_FILE: u64 = 0x7f7f7f7f7f7f7f7f;
 
@@ -228,10 +137,24 @@ pub static KING_RAYS: LazyLock<[u64; 64]> = LazyLock::new(|| {
         attacks |= (square_bb & NOT_H_FILE) << 9;  // up-right
         attacks |= (square_bb & NOT_A_FILE) << 7;  // up-left
         attacks |= (square_bb & NOT_H_FILE) >> 7;  // down-right
-        attacks |= (square_bb & NOT_A_FILE) >> 9;  // down-left
-
-        king_rays[square] = attacks;
     }
-
-    king_rays
-});
+}
+// Inited from above
+pub const KING_RAYS: [u64; 64] = [
+    770,1797,3594,7188,
+    14376,28752,57504,49216,
+    197123,460039,920078,1840156,
+    3680312,7360624,14721248,12599488,
+    50463488,117769984,235539968,471079936,
+    942159872,1884319744,3768639488,3225468928,
+    12918652928,30149115904,60298231808,120596463616,
+    241192927232,482385854464,964771708928,825720045568,
+    3307175149568,7718173671424,15436347342848,30872694685696,
+    61745389371392,123490778742784,246981557485568,211384331665408,
+    846636838289408,1975852459884544,3951704919769088,7903409839538176,
+    15806819679076352,31613639358152704,63227278716305408,54114388906344448,
+    216739030602088448,505818229730443264,1011636459460886528,2023272918921773056,
+    4046545837843546112,8093091675687092224,16186183351374184448,13853283560024178688,
+    144959613005987840,362258295026614272,724516590053228544,1449033180106457088,
+    2898066360212914176,5796132720425828352,11592265440851656704,4665729213955833856,
+];

@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use rand::{rng, RngCore};
 
-use crate::{board::Board, defs::{Color, Piece, PieceType}};
+use crate::{board::Board, defs::{Color, Piece}};
 
 pub static PIECE_KEYS: LazyLock<[[u64; 64]; Piece::COUNT]> = LazyLock::new(|| {
     let mut rng = rng();

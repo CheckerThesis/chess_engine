@@ -3,7 +3,7 @@ pub mod makemove;
 pub mod makemove_helpers;
 pub mod test;
 
-use std::{collections::HashMap, fmt, ops::Index};
+use std::{collections::HashMap, fmt};
 
 use colored::Colorize;
 

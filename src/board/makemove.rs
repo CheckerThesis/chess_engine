@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use crate::{board::{Board, Undo, clear_bit, position_keys::{self, CASTLE_KEYS, EN_PASSANT_KEYS, PIECE_KEYS, SIDE_KEY}, print_bitboard, set_bit}, defs::{Color, Piece, PieceType}, fn_name, movegen::{Move, attacks::square_attacked}, squares::squares::{A1, A8, C1, C8, D1, D8, F1, F8, G1, G8, H1, H8}};
+use crate::{board::{Board, Undo, position_keys::CASTLE_KEYS}, defs::{Color, Piece, PieceType}, fn_name, movegen::{Move, attacks::square_attacked}, squares::squares::{A1, A8, C1, C8, D1, D8, F1, F8, G1, G8, H1, H8}};
 
 pub const CASTLE_PERMISSION: [u8; 64] = [
     13, 15, 15, 15, 12, 15, 15, 14, 

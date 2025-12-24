@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use crate::{board::{Board, print_bitboard}, defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Piece, PieceType, RANKS_BOARD, Ranks, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE}, movegen::{MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSANT, MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, ScoredMove, attacks::{get_demand_moves, get_down_moves, get_left_moves, get_right_moves, get_supply_moves, get_up_moves}, bitboards::{BLACK_PAWN_ATTACKS, DEMAND_DIAGONAL_RAYS, DOWN_RAYS, KING_RAYS, KNIGHT_RAYS, LEFT_RAYS, RANK_BB_MASK, RIGHT_RAYS, SUPPLY_DIAGONAL_RAYS, UP_RAYS, WHITE_PAWN_ATTACKS}, magic::{BISHOP_MAGIC_BB, ROOK_MAGIC_BB}}};
+use crate::{board::{Board, print_bitboard}, defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Piece, PieceType, RANKS_BOARD, Ranks, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE}, movegen::{MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSANT, MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, ScoredMove, bitboards::{BLACK_PAWN_ATTACKS, KING_RAYS, KNIGHT_RAYS, WHITE_PAWN_ATTACKS}, magic::{get_bishop_attacks, get_rook_attacks}}};
 
 impl MoveList {
     fn add_quiet_move(&mut self, position: &Board, mv: Move) {
@@ -174,6 +174,27 @@ impl MoveList {
     }
 
     fn generate_pawn_moves(&mut self, position: &Board) {
+        #[cfg(debug_assertions)] fn gen_rank_bb_mask() {
+            let mut rank_bb_mask: [u64; 9] = [0; 9];
+            const RANK_1: u64 = 0x00000000000000FF;
+
+            for i in 1..9 {
+                rank_bb_mask[i] = RANK_1 << ((i - 1) * 8);
+            }
+        }
+        // Inited from above
+        const RANK_BB_MASK: [u64; 9] = [
+            0,
+            255,
+            65280,
+            16711680,
+            4278190080,
+            1095216660480,
+            280375465082880,
+            71776119061217280,
+            18374686479671623680
+        ];
+
         let occupied_bb = [position.occupancies[Color::WHITE.index()], position.occupancies[Color::BLACK.index()]];
         let empty_squares: u64 = !(occupied_bb[Color::WHITE.index()] | occupied_bb[Color::BLACK.index()]);
         let color = position.side;
@@ -190,8 +211,8 @@ impl MoveList {
                 occupied_bb[Color::BLACK.index()],
                 8,
                 RANK_BB_MASK[3],
-                &WHITE_PAWN_ATTACKS,
-                &BLACK_PAWN_ATTACKS
+                WHITE_PAWN_ATTACKS,
+                BLACK_PAWN_ATTACKS
             )
         } else {
             (
@@ -199,8 +220,8 @@ impl MoveList {
                 occupied_bb[Color::WHITE.index()],
                 -8,
                 RANK_BB_MASK[6],
-                &BLACK_PAWN_ATTACKS,
-                &WHITE_PAWN_ATTACKS
+                BLACK_PAWN_ATTACKS,
+                WHITE_PAWN_ATTACKS
             )
         };
 
@@ -288,7 +309,7 @@ impl MoveList {
         let mut bishops = position.bitboards[PieceType::BISHOP.bb_index(side)];
         while bishops != 0 {
             let from_square_index = bishops.trailing_zeros() as usize;
-            let movement_bb = BISHOP_MAGIC_BB.get_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy;
+            let movement_bb = get_bishop_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy;
             self.serialize_moves(position, from_square_index, movement_bb);
             bishops &= bishops - 1;
         }
@@ -296,7 +317,7 @@ impl MoveList {
         let mut rooks = position.bitboards[PieceType::ROOK.bb_index(side)];
         while rooks != 0 {
             let from_square_index = rooks.trailing_zeros() as usize;
-            let movement_bb = ROOK_MAGIC_BB.get_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy;
+            let movement_bb = get_rook_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy;
             self.serialize_moves(position, from_square_index, movement_bb);
             rooks &= rooks - 1;
         }
@@ -305,8 +326,8 @@ impl MoveList {
         while queens != 0 {
             let from_square_index = queens.trailing_zeros() as usize;
             let movement_bb = 
-                (BISHOP_MAGIC_BB.get_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy) |
-                (ROOK_MAGIC_BB.get_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy);
+                (get_bishop_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy) |
+                (get_rook_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy);
             self.serialize_moves(position, from_square_index, movement_bb);
             queens &= queens - 1;
         }
