@@ -5,13 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug executable 'chess_engine_2'",
+            "name": "Debug executable 'vault'",
             "type": "lldb",
             "request": "launch",
             "cargo": {
                 "args": [
                     "run",
-                    "--bin=chess_engine_2"
+                    "--bin=vault"
                 ]
             },
             "args": []

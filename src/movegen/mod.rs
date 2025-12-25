@@ -15,7 +15,7 @@ pub const MOVE_FLAG_PAWN_START: usize = 1 << 1;
 pub const MOVE_FLAG_CASTLE: usize = 1 << 2;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub struct Move(u32);
+pub struct Move(pub u32);
 impl Move {
     pub fn new(from: usize, to: usize, capture: usize, flags: usize, promote: usize) -> Self { 
         Self (from as u32 | 

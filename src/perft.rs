@@ -10,13 +10,32 @@ pub fn perft(position: &mut Board, depth: usize) -> usize {
 
     for i in 0..move_list.count {
         let mv = move_list.moves[i].mv;
-        let captured = mv.captured();
-        let from = mv.from_square();
-        let to = mv.to_square();
+
+        #[cfg(debug_assertions)]
+        let snapshot = (
+            position.position_key,
+            position.en_passant,
+            position.castle_permission,
+            position.fifty_move,
+            position.side
+        );
 
         if !position.make_move(mv) { continue; }
         nodes += perft(position, depth - 1);
         position.take_move();
+
+        #[cfg(debug_assertions)] {
+            let (key, ep, castle, fifty, side) = snapshot;
+
+            if position.position_key != key { panic!("Zobrist key mismatch after unmake_move"); }
+            if position.en_passant != ep { panic!("EP square mismatch after unmake_move"); }
+            if position.castle_permission != castle { panic!("Castling rights mismatch after unmake_move"); }
+            if position.fifty_move != fifty { panic!("Fifty-move counter mismatch after unmake_move"); }
+            if position.side != side { panic!("Side-to-move mismatch after unmake_move"); }
+
+            position.check_board("perft");
+
+        }
     }
 
     return nodes

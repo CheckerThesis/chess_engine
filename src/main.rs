@@ -48,10 +48,13 @@ fn main() {
     // let total_duration = start.elapsed();
     // println!("Time: {:?}", total_duration);
 
-    let mut position = Board::new(FEN_START);
-    let mv = Move::new(E2, E4, PieceType::NONE.index(), MOVE_FLAG_PAWN_START, PieceType::NONE.index());
-    position.make_move(mv);
-    println!("{position}");
-    position.side = Color::WHITE;
-    println!("{}", position.evaluate());
+    // let mut position = Board::new(FEN_START);
+    // let mv = Move::new(E2, E4, PieceType::NONE.index(), MOVE_FLAG_PAWN_START, PieceType::NONE.index());
+    // position.make_move(mv);
+    // println!("{position}");
+    // position.side = Color::WHITE;
+    // println!("{}", position.evaluate());
+
+    let mut position = Board::new(KIWIPETE);
+    println!("{}", position.alpha_beta(-30000, 30000, 4));
 }

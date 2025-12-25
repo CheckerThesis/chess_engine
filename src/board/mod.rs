@@ -130,7 +130,7 @@ impl Board {
 
         // Enpassant valid
         if let Some(ep_square) = self.en_passant {
-            if ep_square > 64 {
+            if ep_square >= 64 {
                 eprintln!("{}", format!("check_board ({}): en passant square out of bounds", location_called).red());
                 panic!();
             } else {

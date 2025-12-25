@@ -1,5 +1,7 @@
 use crate::{board::Board, defs::{Color, Piece}};
 
+pub mod search;
+
 impl Board {
     pub fn is_repetition(&self) -> bool {
         if self.history_ply <= 1 { return false }
