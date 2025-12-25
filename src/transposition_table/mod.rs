@@ -19,3 +19,8 @@ pub struct HashEntry {
     position_key: u64,
     data: u64 // score, alpha beta flags, replacement policy flags, the move
 }
+
+pub struct HashTable {
+    entry: Vec<HashEntry>,
+    length: usize
+}

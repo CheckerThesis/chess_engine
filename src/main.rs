@@ -2,18 +2,12 @@
 use std::{hint::black_box, time::{Duration, Instant}};
 
 use vault::{
-    board::Board, fens::KIWIPETE, perft::perft
+    board::Board, defs::{Color, Piece, PieceType}, fens::{FEN_START, KIWIPETE}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList}, perft::perft, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}
 };
 /*
 lto = "fat"
 codegen-units = 1
 for release giga speed
-
-NEXT: PERFT
-
-TODO Test difference between packing bits for moves and a full struct
-TODO Move the LazyLock to a build.rs file that generates the random at compile time
-TODO Optimize make_move function
 */
 
 // cargo test mm_ && cargo test _gener && cargo test perft_depth_4 -r
@@ -47,18 +41,17 @@ fn test() {
 }
 
 fn main() {
-    test();
+    // test();
     // let mut position = Board::new(KIWIPETE);
     // let start = Instant::now();
     // println!("{}", perft(&mut position, 5));
     // let total_duration = start.elapsed();
     // println!("Time: {:?}", total_duration);
 
-    // for i in 0..64 {
-    //     print!("{},", KING_RAYS[i]);
-
-    //     if (i + 1) % 4 == 0 {
-    //         println!();
-    //     }
-    // }
+    let mut position = Board::new(FEN_START);
+    let mv = Move::new(E2, E4, PieceType::NONE.index(), MOVE_FLAG_PAWN_START, PieceType::NONE.index());
+    position.make_move(mv);
+    println!("{position}");
+    position.side = Color::WHITE;
+    println!("{}", position.evaluate());
 }

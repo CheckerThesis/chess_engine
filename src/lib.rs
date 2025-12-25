@@ -7,3 +7,4 @@ pub mod movegen;
 pub mod perft;
 pub mod squares;
 pub mod transposition_table;
+pub mod search;
