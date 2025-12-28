@@ -105,10 +105,26 @@ impl TranspositionTable {
     pub fn store(&self, position_key: u64, data: TranspositionData) {
         let index = self.index(position_key);
         let entry = &self.entries[index];
-        entry.data.store(data.0, Ordering::Relaxed);
-        let checksum = position_key ^ data.0;
-        // Release: Only store when all previous writes are done: data must be stored before key is
-        entry.encoded_key.store(checksum, Ordering::Release);
+
+        let old_checksum = entry.encoded_key.load(Ordering::Relaxed);
+        let old_data_raw = entry.data.load(Ordering::Relaxed);
+        let old_data = TranspositionData(old_data_raw);
+
+        let is_same_pos = (old_checksum ^ old_data_raw) == position_key;
+        let replace = if is_same_pos {
+            data.get_depth() >= old_data.get_depth()
+        }
+        else {
+            if old_data.get_age() != data.get_age() { true }
+            else { data.get_depth() >= old_data.get_depth() }
+        };
+
+        if replace {
+            entry.data.store(data.0, Ordering::Relaxed);
+            let checksum = position_key ^ data.0;
+            // Release: Only store when all previous writes are done: data must be stored before key is
+            entry.encoded_key.store(checksum, Ordering::Release);
+        }
     }
 }
 

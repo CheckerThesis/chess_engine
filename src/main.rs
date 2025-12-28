@@ -40,6 +40,9 @@ fn test() {
     println!("Final Median Time: {:?}", median);
 }
 
+
+// Future:
+// Bucket transposition table
 fn main() {
     // test();
     // let mut position = Board::new(KIWIPETE);

@@ -58,8 +58,6 @@ impl fmt::Display for Move {
     }
 }
 
-
-
 #[derive(Copy, Clone, Debug)]
 pub struct ScoredMove {
     pub mv: Move,

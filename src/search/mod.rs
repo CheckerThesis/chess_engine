@@ -1,4 +1,4 @@
-use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
+use std::sync::{Arc, atomic::{AtomicU8, AtomicUsize, Ordering}};
 
 use crate::{board::Board, defs::{Color, Piece}, transposition_table::TranspositionTable};
 
@@ -8,12 +8,14 @@ pub mod test;
 pub struct Search {
     pub transposition_table: Arc<TranspositionTable>,
     pub nodes_visited: AtomicUsize,
+    pub age: AtomicU8
 }
 impl Search {
     pub fn new(length_by_pow2: usize) -> Self {
         Self { 
             transposition_table: TranspositionTable::new(length_by_pow2).into(),
-            nodes_visited: AtomicUsize::new(0)
+            nodes_visited: AtomicUsize::new(0),
+            age: AtomicU8::new(0)
         }
     }
 

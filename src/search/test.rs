@@ -5,7 +5,7 @@ mod tests {
     use std::sync::atomic::Ordering;
 
     use super::*;
-    use crate::{board, fn_name, search::{self, Search}, transposition_table::EXACT_FLAG};
+    use crate::{board, fn_name, search::{self, Search, search::{MATE_SCORE, MATE_THRESHOLD}}, transposition_table::{EXACT_FLAG, TranspositionData, TranspositionTable}};
     use crate::{board::Board, defs::PieceType, fens::FEN_START, movegen::{MOVE_FLAG_NONE, Move}, squares::squares::{B1, B8, C3, C6}};
 
     #[test]
@@ -129,5 +129,115 @@ mod tests {
         let entry = search.transposition_table.probe(board.position_key);
         assert!(entry.is_some());
         assert!(entry.unwrap().get_move() != Move::default());
+    }
+
+    #[test]
+    fn test_tt_mate_score_normalization() {
+        fn normalize_score_for_store(raw_score: i32, ply: i32) -> i16 {
+        let mut score = raw_score;
+            if score >= MATE_THRESHOLD {
+                score += ply;
+            } else if score <= -MATE_THRESHOLD {
+                score -= ply;
+            }
+            score as i16
+        }
+
+        fn unnormalize_score_from_probe(tt_score: i16, ply: i32) -> i32 {
+            let mut score = tt_score as i32;
+            if score >= MATE_THRESHOLD {
+                score -= ply;
+            } else if score <= -MATE_THRESHOLD {
+                score += ply;
+            }
+            score
+        }
+        
+        let tt = TranspositionTable::new(20); // Size 1MB
+        let position_key: u64 = 123456789;
+
+        // SCENARIO: Mate in 1 found at Ply 5
+        // Search score: 30000 - (ply 5 + 1 dist) = 29994
+        let ply_5 = 5;
+        let search_score_at_ply_5 = MATE_SCORE - (ply_5 + 1); 
+        
+        // 1. Emulate STORE at Ply 5
+        let stored_score = normalize_score_for_store(search_score_at_ply_5, ply_5);
+        
+        let mut data = TranspositionData(0);
+        data.set_score(stored_score);
+        data.set_depth(10); // Arbitrary
+        data.set_age(1);    // Arbitrary
+        tt.store(position_key, data);
+
+        // 2. Emulate PROBE at Ply 20 (The "Time Travel" Check)
+        // We reached the same position, but much deeper in the game tree.
+        // It is still "Mate in 1", so score should be: 30000 - (ply 20 + 1 dist) = 29979
+        let ply_20 = 20;
+        let entry = tt.probe(position_key).expect("Should find the entry we just stored");
+        
+        let retrieved_raw = entry.get_score();
+        let final_score = unnormalize_score_from_probe(retrieved_raw, ply_20);
+
+        let expected_score_at_ply_20 = MATE_SCORE - (ply_20 + 1);
+
+        assert_eq!(final_score, expected_score_at_ply_20, 
+            "The score retrieved at Ply 20 did not match the expected relative mate score.");
+            
+        println!("Stored Raw (Ply 5 context removed): {}", stored_score); // Should be 29999
+        println!("Retrieved (Ply 20 context added):   {}", final_score);  // Should be 29979
+    }
+
+    #[test]
+    fn test_tt_replacement_policy_age_and_depth() {
+        // 1. Create a small table (2^4 = 16 entries) so collisions are easy to force
+        let tt_pow2 = 4;
+        let tt_size = 1 << tt_pow2; 
+        let tt = TranspositionTable::new(tt_pow2);
+        
+        // 2. Define two keys that map to the SAME index (Collision)
+        // index = key & (size - 1)
+        let key_a: u64 = 5;              // index 5
+        let key_b: u64 = 5 + tt_size as u64; // index 5 (5 + 16 = 21; 21 & 15 = 5)
+
+        assert_ne!(key_a, key_b); // Ensure they are different keys
+
+        // Helper to create data
+        let make_data = |depth: u8, age: u8, score: i16| -> TranspositionData {
+            let mut d = TranspositionData(0);
+            d.set_depth(depth);
+            d.set_age(age);
+            d.set_score(score);
+            d
+        };
+
+        // --- CASE 1: Same Position (Match) ---
+        // Store deep data
+        tt.store(key_a, make_data(10, 10, 100));
+        
+        // Try to overwrite with shallow data for the SAME position (newer age)
+        tt.store(key_a, make_data(2, 11, 200));
+        
+        let entry = tt.probe(key_a).unwrap();
+        assert_eq!(entry.get_depth(), 10, "SAME POS: Should KEEP depth 10 (High Quality), ignoring depth 2 (Low Quality)");
+        assert_eq!(entry.get_age(), 10, "SAME POS: Should keep the age of the high-quality entry");
+
+        // --- CASE 2: Different Position (Collision) ---
+        // Now we store Key B. It maps to the same slot as Key A.
+        // The existing entry (Key A) is Age 10. Our new entry (Key B) is Age 11.
+        
+        // Store Key B (Age 11, Depth 2)
+        tt.store(key_b, make_data(2, 11, 300));
+        
+        let entry_b = tt.probe(key_b).expect("Should find entry for Key B");
+        
+        // HERE is where Age logic kicks in. 
+        // Even though Depth 2 (New) < Depth 10 (Old), the Ages differ (11 vs 10) AND Keys differ.
+        // The old entry is "stale" (from a previous search), so we trash it.
+        assert_eq!(entry_b.get_score(), 300, "COLLISION: Should replace because old entry was Stale (Age 10 vs 11)");
+        assert_eq!(entry_b.get_depth(), 2);
+        
+        // Verify Key A is effectively gone (probe returns None or Key B data which fails checksum)
+        assert!(tt.probe(key_a).is_none(), "Key A should have been overwritten by Key B");
     }
 }

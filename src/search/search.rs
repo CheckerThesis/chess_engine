@@ -10,6 +10,9 @@ use crate::transposition_table::{ALPHA_FLAG, BETA_FLAG, EXACT_FLAG, Transpositio
 use crate::{fn_name, transposition_table};
 use crate::movegen::{Move, MoveList};
 
+pub const MATE_SCORE: i32 = 30000;
+pub const MATE_THRESHOLD: i32 = MATE_SCORE - 1000;
+
 impl Board {
     pub fn alpha_beta(&mut self, search: &Search, mut alpha: i32, mut beta: i32, depth: u8) -> i32 {
         #[cfg(debug_assertions)] { self.check_board(fn_name!()); }
@@ -26,7 +29,10 @@ impl Board {
         // Transposition table
         if let Some(transposition_data) = search.transposition_table.probe(position_key) {
             if transposition_data.get_depth() >= depth {
-                let transposition_score = transposition_data.get_score() as i32;
+                let mut transposition_score = transposition_data.get_score() as i32;
+                if transposition_score >= MATE_THRESHOLD { transposition_score -= self.ply as i32; }
+                else if transposition_score <= -MATE_THRESHOLD { transposition_score += self.ply as i32; }
+
                 match transposition_data.get_flag() {
                     EXACT_FLAG => return transposition_score,
                     // Fail low, true score is less than `transposition_score`
@@ -42,7 +48,7 @@ impl Board {
         let in_check = square_attacked(self.king_square[self.side.index()], self.side, self);
 
         let mut best_move = Move::default();
-        let mut best_score = -i32::MAX;
+        let mut best_score = -MATE_SCORE;
         let mut found_any_legal_moves = false;
 
         let mut movelist = MoveList::new();
@@ -72,15 +78,19 @@ impl Board {
                 else if beta <= alpha      { BETA_FLAG }   // prune/cutoff because move is too good
                 else                       { EXACT_FLAG }; // alpha < score < beta ; no pruning
             let mut data = TranspositionData(0);
+            let mut normalized_score = best_score;
+            if normalized_score >= MATE_THRESHOLD { normalized_score += self.ply as i32; }
+            else if normalized_score <= -MATE_THRESHOLD { normalized_score -= self.ply as i32; }
             data.set_move(best_move);
             data.set_depth(depth);
             data.set_flag(flag);
-            data.set_score(best_score.clamp(i16::MIN as i32, i16::MAX as i32) as i16);
+            data.set_age(search.age.load(Ordering::Relaxed));
+            data.set_score(normalized_score.clamp(i16::MIN as i32, i16::MAX as i32) as i16);
 
             search.transposition_table.store(position_key, data);
         } else {
             return
-                if in_check { -i32::MAX + self.ply as i32 }
+                if in_check { -MATE_SCORE + self.ply as i32 }
                 else { 0 }
         }
 
@@ -88,6 +98,8 @@ impl Board {
     }
 
     pub fn iterative_deepen(&mut self, search: &Search, depth: u8) -> Option<Move> {
+        search.age.fetch_add(1, Ordering::Relaxed);
+
         let root_key = self.position_key;
         let mut best_move = None;
         
