@@ -53,6 +53,7 @@ impl Board {
 
         let mut movelist = MoveList::new();
         movelist.generate_all_moves(self);
+        movelist.sort();
 
         for scored_move in movelist.iter() {
             let mv = scored_move.mv;
@@ -97,7 +98,7 @@ impl Board {
         best_score
     }
 
-    pub fn iterative_deepen(&mut self, search: &Search, depth: u8) -> Option<Move> {
+    pub fn iterative_deepen(&mut self, search: &Search, depth: u8, yes_print: bool) -> Option<Move> {
         search.age.fetch_add(1, Ordering::Relaxed);
 
         let root_key = self.position_key;
@@ -112,7 +113,9 @@ impl Board {
             }
 
             if let Some(mv) = best_move {
-                println!("depth {} score {} best {} raw {:?}", current_depth, evaluation, mv, best_move);
+                if yes_print {
+                    println!("depth {} score {} best {} raw {:?}", current_depth, evaluation, mv, best_move);
+                }
             }
         }
 

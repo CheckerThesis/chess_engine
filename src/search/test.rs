@@ -34,7 +34,7 @@ mod tests {
         let mut search = Search::new(20);
         let mut board = Board::new("6k1/5ppp/8/8/8/8/8/R6K w - - 0 1");
 
-        let best_move = board.iterative_deepen(&search, 2);
+        let best_move = board.iterative_deepen(&search, 2, false);
 
         assert!(best_move.is_some());
         let mv = best_move.unwrap();
@@ -48,12 +48,12 @@ mod tests {
         
         // 1. First Run: Cold Start (TT is empty)
         search.reset_stats();
-        board.iterative_deepen(&search, 5); 
+        board.iterative_deepen(&search, 5, false); 
         let nodes_cold = search.nodes_visited.load(Ordering::Relaxed);
         
         // 2. Second Run: Warm Start (TT is full from previous run)
         search.reset_stats();
-        board.iterative_deepen(&search, 5);
+        board.iterative_deepen(&search, 5, false);
         let nodes_warm = search.nodes_visited.load(Ordering::Relaxed);
         
         println!("Cold nodes: {}, Warm nodes: {}", nodes_cold, nodes_warm);
@@ -99,7 +99,7 @@ mod tests {
         let mut board = Board::new("7k/Q7/8/1R6/8/8/8/K7 w - - 0 1"); 
 
         // Search Depth 3 to allow seeing the "longer" mate path too
-        let best_move = board.iterative_deepen(&search, 3);
+        let best_move = board.iterative_deepen(&search, 3, false);
         
         assert!(best_move.is_some());
         // Engine MUST pick the immediate mate, not delay it

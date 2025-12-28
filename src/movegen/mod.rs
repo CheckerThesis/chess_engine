@@ -4,6 +4,7 @@ pub mod generate;
 pub mod bitboards;
 pub mod test;
 pub mod magic;
+pub mod mvv_lva;
 
 use core::fmt;
 
@@ -89,6 +90,10 @@ impl MoveList {
     pub fn len(&self) -> usize { self.count }
 
     pub fn iter(&self) -> std::slice::Iter<'_, ScoredMove> { self.moves[..self.count].iter() }
+
+    pub fn sort(&mut self) {
+        self.moves[..self.count].sort_unstable_by(|a, b| b.score.cmp(&a.score));
+    }
 }
 
 fn get_promo_char(promo_index: usize) -> &'static str {

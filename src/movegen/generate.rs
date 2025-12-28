@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use crate::{board::{Board, print_bitboard}, defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Piece, PieceType, RANKS_BOARD, Ranks, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE}, movegen::{MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSANT, MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, ScoredMove, bitboards::{BLACK_PAWN_ATTACKS, KING_RAYS, KNIGHT_RAYS, WHITE_PAWN_ATTACKS}, magic::{get_bishop_attacks, get_rook_attacks}}};
+use crate::{board::{Board, print_bitboard}, defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Piece, PieceType, RANKS_BOARD, Ranks, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE}, movegen::{MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSANT, MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, ScoredMove, bitboards::{BLACK_PAWN_ATTACKS, KING_RAYS, KNIGHT_RAYS, WHITE_PAWN_ATTACKS}, magic::{get_bishop_attacks, get_rook_attacks}, mvv_lva::MVV_LVA_SCORES}};
 
 impl MoveList {
     fn add_quiet_move(&mut self, position: &Board, mv: Move) {
@@ -8,9 +8,11 @@ impl MoveList {
         self.add(ScoredMove::new(mv, 0));
     }
 
-    fn add_capture_move(&mut self, position: &Board, mv: Move) {
+    fn add_capture_move(&mut self, attacker: PieceType, mv: Move) {
         // TODO set score MVV_LVA
-        self.add(ScoredMove::new(mv, 10000));
+        const capture_boost: i16 = 10000;
+        let mvv_lva_boost = MVV_LVA_SCORES[Piece(mv.captured() as u8).piece_type().index()][attacker.index()];
+        self.add(ScoredMove::new(mv, capture_boost + mvv_lva_boost));
     }
 
     fn add_quiet_pawn_move(&mut self, position: &Board, from: usize, to: usize) {
@@ -92,28 +94,28 @@ impl MoveList {
         };
 
         if RANKS_BOARD[from] == promotion_rank as usize {
-            self.add_capture_move(position, Move::new(
+            self.add_capture_move(PieceType::PAWN, Move::new(
                 from, 
                 to, 
                 captured, 
                 MOVE_FLAG_NONE,
                 queen.index()
             ));
-            self.add_capture_move(position, Move::new(
+            self.add_capture_move(PieceType::PAWN, Move::new(
                 from, 
                 to, 
                 captured, 
                 MOVE_FLAG_NONE,
                 rook.index()
             ));
-            self.add_capture_move(position, Move::new(
+            self.add_capture_move(PieceType::PAWN, Move::new(
                 from, 
                 to, 
                 captured, 
                 MOVE_FLAG_NONE,
                 bishop.index()
             ));
-            self.add_capture_move(position, Move::new(
+            self.add_capture_move(PieceType::PAWN, Move::new(
                 from, 
                 to, 
                 captured, 
@@ -121,7 +123,7 @@ impl MoveList {
                 knight.index()
             ));
         } else {
-            self.add_capture_move(position, Move::new(
+            self.add_capture_move(PieceType::PAWN, Move::new(
                 from, 
                 to, 
                 captured, 
@@ -151,11 +153,13 @@ impl MoveList {
         let mut captures = valid_moves & their_occupancy;
         let mut quiets = valid_moves & !their_occupancy;
 
+        let attacker = position.pieces[from_square].piece_type();
+
         while captures != 0 {
             let to_square = captures.trailing_zeros() as usize;
             let captured_piece = position.pieces[to_square];
     
-            self.add_capture_move(position, Move::new(
+            self.add_capture_move(attacker, Move::new(
                 from_square, to_square, captured_piece.index(), MOVE_FLAG_NONE, 0
             ));
             
@@ -350,7 +354,7 @@ impl MoveList {
 
                 if (to_bb & their_pieces) != 0 {
                     let captured_piece = position.pieces[to_sq];
-                    self.add_capture_move(position, Move::new(
+                    self.add_capture_move(PieceType::KING, Move::new(
                         from_sq, to_sq, captured_piece.index(), MOVE_FLAG_NONE, 0
                     ));
                 } else {
