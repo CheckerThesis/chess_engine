@@ -15,6 +15,8 @@
 1111 1111 1111 1111 0000 0000 0000 0000 -> Score (32000 max)
 */
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use crate::movegen::Move;
 
 pub const ALPHA_FLAG: u8 = 0b0001;
@@ -24,6 +26,16 @@ pub const EXACT_FLAG: u8 = 0b0011;
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct TranspositionData(pub u64);
 impl TranspositionData {
+    pub fn new(mv: Move, depth: u8, age: u8, flag: u8, score: i16) -> Self {
+        let mut data = TranspositionData(0);
+        data.set_move(mv);
+        data.set_depth(depth);
+        data.set_flag(flag);
+        data.set_score(score);
+
+        data
+    }
+
     pub fn get_move(&self) -> Move { Move((self.0 & 0xFFFF_FFFF) as u32) }
     pub fn set_move(&mut self, mv: Move) { self.0 = (self.0 & !0xFFFF_FFFF) | (mv.0 as u64); }
 
@@ -52,38 +64,51 @@ impl TranspositionData {
     }
 }
 
-#[derive(Clone, PartialEq, Debug)]
 pub struct TranspositionEntry {
-    position_key: u64,
-    data: TranspositionData
+    encoded_key: AtomicU64,
+    data: AtomicU64
 }
 
 pub struct TranspositionTable {
     entries: Vec<TranspositionEntry>,
-    length: usize
+    mask: usize
 }
 impl TranspositionTable {
-    pub fn new(length: usize) -> Self {
+    pub fn new(length_by_pow2: usize) -> Self {
+        let size = 1 << length_by_pow2;
+        let entries = (0..size)
+            .map(|_| TranspositionEntry {
+                encoded_key: AtomicU64::new(0),
+                data: AtomicU64::new(0),
+            })
+            .collect();
         Self {
-            entries: vec![TranspositionEntry {
-                position_key: 0,
-                data: TranspositionData(0)
-            }; length],
-            length: length
+            entries: entries,
+            mask: size - 1
         }
     }
 
-    fn index(&self, position_key: u64) -> usize { position_key as usize % self.length }
+    fn index(&self, position_key: u64) -> usize { position_key as usize & self.mask }
 
     pub fn probe(&self, position_key: u64) -> Option<TranspositionData> {
         let entry = &self.entries[self.index(position_key)];
-        if entry.position_key == position_key { Some(entry.data) }
+        // Acquire: Don't do any loads until after the key has been acquired: key is acquired before data is loaded
+        let checksum = entry.encoded_key.load(Ordering::Acquire);
+        let data = entry.data.load(Ordering::Relaxed);
+
+        if (checksum ^ data) == position_key { 
+            Some(TranspositionData(data)) 
+        }
         else { None }
     }
 
-    pub fn store(&mut self, position_key: u64, data: TranspositionData) {
+    pub fn store(&self, position_key: u64, data: TranspositionData) {
         let index = self.index(position_key);
-        self.entries[index] = TranspositionEntry { position_key, data };
+        let entry = &self.entries[index];
+        entry.data.store(data.0, Ordering::Relaxed);
+        let checksum = position_key ^ data.0;
+        // Release: Only store when all previous writes are done: data must be stored before key is
+        entry.encoded_key.store(checksum, Ordering::Release);
     }
 }
 

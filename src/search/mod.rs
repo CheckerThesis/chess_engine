@@ -1,6 +1,26 @@
-use crate::{board::Board, defs::{Color, Piece}};
+use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
+
+use crate::{board::Board, defs::{Color, Piece}, transposition_table::TranspositionTable};
 
 pub mod search;
+pub mod test;
+
+pub struct Search {
+    pub transposition_table: Arc<TranspositionTable>,
+    pub nodes_visited: AtomicUsize,
+}
+impl Search {
+    pub fn new(length_by_pow2: usize) -> Self {
+        Self { 
+            transposition_table: TranspositionTable::new(length_by_pow2).into(),
+            nodes_visited: AtomicUsize::new(0)
+        }
+    }
+
+    pub fn reset_stats(&self) {
+        self.nodes_visited.store(0, Ordering::Relaxed);
+    }
+}
 
 impl Board {
     pub fn is_repetition(&self) -> bool {
@@ -104,7 +124,7 @@ impl Board {
             325,   // bishop
             550,   // rook
             1000,  // queen
-            50000, // king,
+            32767, // king,
             1300,  // dragon
         ];
 
@@ -132,31 +152,5 @@ impl Board {
         
         if self.side == Color::WHITE { score }
         else { -score }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::{board::Board, defs::PieceType, fens::FEN_START, movegen::{MOVE_FLAG_NONE, Move}, squares::squares::{B1, B8, C3, C6}};
-
-    #[test]
-    fn is_repetition() {
-        let mut position = Board::new(FEN_START);
-        
-        let b1c3 = Move::new(B1, C3, PieceType::NONE.index(), MOVE_FLAG_NONE, PieceType::NONE.index());
-        position.make_move(b1c3);
-        if position.is_repetition() { panic!(); }
-        
-        let b8c6 = Move::new(B8, C6, PieceType::NONE.index(), MOVE_FLAG_NONE, PieceType::NONE.index());
-        position.make_move(b8c6);
-        if position.is_repetition() { panic!(); }
-
-        let c3b1 = Move::new(C3, B1, PieceType::NONE.index(), MOVE_FLAG_NONE, PieceType::NONE.index());
-        position.make_move(c3b1);
-        if position.is_repetition() { panic!(); }
-
-        let c6b8 = Move::new(C6, B8, PieceType::NONE.index(), MOVE_FLAG_NONE, PieceType::NONE.index());
-        position.make_move(c6b8);
-        if !position.is_repetition() { panic!(); }
     }
 }

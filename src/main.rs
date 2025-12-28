@@ -1,8 +1,8 @@
 #![allow(warnings)]
-use std::{hint::black_box, time::{Duration, Instant}};
+use std::{hint::black_box, sync::Arc, time::{Duration, Instant}};
 
 use vault::{
-    board::Board, defs::{Color, Piece, PieceType}, fens::{FEN_START, KIWIPETE}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList}, perft::perft, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}
+    board::Board, defs::{Color, Piece, PieceType}, fens::{FEN_START, KIWIPETE}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, attacks::square_attacked}, perft::perft, search::Search, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}
 };
 /*
 lto = "fat"
@@ -55,6 +55,20 @@ fn main() {
     // position.side = Color::WHITE;
     // println!("{}", position.evaluate());
 
-    let mut position = Board::new(KIWIPETE);
-    println!("{}", position.alpha_beta(-30000, 30000, 4));
+    // let mut position = Board::new(KIWIPETE);
+    // println!("{}", position.alpha_beta(-30000, 30000, 4));
+
+
+    // let search = Arc::new(Search::new(20));
+    // let mut position = Board::new(KIWIPETE);
+    // println!("{position}");
+    // position.iterative_deepen(&search, 5);
+
+    let mut position = Board::new("6k1/5ppp/8/8/8/8/8/R6K w - - 0 1");
+    position.make_move(Move(3584));
+    println!("{position}");
+    let mut movelist = MoveList::new();
+    movelist.generate_all_moves(&position);
+    println!("{movelist}");
+    println!("{}", square_attacked(position.king_square[position.side.index()], position.side, &position));
 }

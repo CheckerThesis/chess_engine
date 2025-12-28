@@ -36,7 +36,7 @@ impl Board {
         self.pieces[square] = piece;
 
         if piece.piece_type() == PieceType::KING {
-            self.king_square[piece.color().index()] = square as u64;
+            self.king_square[piece.color().index()] = square;
         }
     }
 
@@ -59,7 +59,7 @@ impl Board {
         self.pieces[to] = piece;
 
         if piece.piece_type() == PieceType::KING {
-            self.king_square[piece.color().index()] = to as u64;
+            self.king_square[piece.color().index()] = to;
         }
     }
 }

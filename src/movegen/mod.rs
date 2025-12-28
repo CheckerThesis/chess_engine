@@ -7,7 +7,7 @@ pub mod magic;
 
 use core::fmt;
 
-use crate::{board::Board, defs::{Color, Piece, PieceType, Ranks, RANKS_BOARD}};
+use crate::{board::Board, defs::{Color, FILES_BOARD, Piece, PieceType, RANKS_BOARD, Ranks}};
 
 pub const MOVE_FLAG_NONE: usize = 0;
 pub const MOVE_FLAG_EN_PASSANT: usize = 1 << 0;
@@ -44,6 +44,21 @@ impl Move {
 impl Default for Move {
     fn default() -> Self { Self(0) }
 }
+impl fmt::Display for Move {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let from = SQUARE_TO_STRING[self.from_square()];
+        let to = SQUARE_TO_STRING[self.to_square()];
+
+        if self.promoted() != 0 {
+            let promo = get_promo_char(self.promoted());
+            write!(f, "{}{}{}", from, to, promo)
+        } else {
+            write!(f, "{}{}", from, to)
+        }
+    }
+}
+
+
 
 #[derive(Copy, Clone, Debug)]
 pub struct ScoredMove {
