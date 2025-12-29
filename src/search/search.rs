@@ -4,8 +4,10 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use crate::board::{Board};
+use crate::defs::Piece;
 use crate::movegen::attacks::square_attacked;
-use crate::search::Search;
+use crate::movegen::mvv_lva::PIECE_VALUE;
+use crate::search::{Search, evaluate};
 use crate::transposition_table::{ALPHA_FLAG, BETA_FLAG, EXACT_FLAG, TranspositionData};
 use crate::{fn_name, transposition_table};
 use crate::movegen::{Move, MoveList};
@@ -14,12 +16,47 @@ pub const MATE_SCORE: i32 = 30000;
 pub const MATE_THRESHOLD: i32 = MATE_SCORE - 1000;
 
 impl Board {
+    fn quiescence(&mut self, search: &Search, mut alpha: i32, mut beta: i32) -> i32 {
+        search.nodes_visited.fetch_add(1, Ordering::Relaxed);
+
+        // If draw
+        if (self.is_repetition() || self.fifty_move >= 100) && self.ply == 1 { return 0 }
+
+        let evaluate = self.evaluate();
+        if evaluate >= beta { return beta }
+        if evaluate > alpha { alpha = evaluate; }
+
+        let mut movelist = MoveList::new();
+        movelist.generate_all_captures(self);
+        movelist.sort();
+
+        for scored_move in movelist.iter() {
+            let mv = scored_move.mv;
+
+            // TODO Delta pruning
+            let captured_piece_value = PIECE_VALUE[Piece(mv.captured() as u8).piece_type().index()];
+            if mv.promoted() == 0 {
+                const DELTA_MARGIN: i32 = 200;
+                if evaluate + captured_piece_value as i32 + DELTA_MARGIN < alpha { continue }
+            }
+
+            if !self.make_move(mv) { continue; }
+            let score = -self.quiescence(search, -beta, -alpha);
+            self.take_move();
+
+            if score >= beta { return beta }
+            if score > alpha { alpha = score; }
+        }
+
+        alpha
+    }
+
     pub fn alpha_beta(&mut self, search: &Search, mut alpha: i32, mut beta: i32, depth: u8) -> i32 {
         #[cfg(debug_assertions)] { self.check_board(fn_name!()); }
 
         search.nodes_visited.fetch_add(1, Ordering::Relaxed);
 
-        if depth <= 0 { return self.evaluate() }
+        if depth <= 0 { return self.quiescence(search, alpha, beta) }
         // If draw
         if (self.is_repetition() || self.fifty_move >= 100) && self.ply == 1 { return 0 }
 

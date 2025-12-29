@@ -144,7 +144,7 @@ impl MoveList {
     }
 
     #[inline(always)]
-    fn serialize_moves(&mut self, position: &Board, from_square: usize, attacks: u64) {
+    fn serialize_moves(&mut self, position: &Board, from_square: usize, attacks: u64, captures_only: bool) {
         let side = position.side;
         let their_occupancy = position.occupancies[side.opposite().index()];
         let our_occupancy = position.occupancies[side.index()];
@@ -165,19 +165,20 @@ impl MoveList {
             
             captures &= captures - 1;
         }
-
-        while quiets != 0 {
-            let to_square = quiets.trailing_zeros() as usize;
-            
-            self.add_quiet_move(position, Move::new(
-                from_square, to_square, 0, MOVE_FLAG_NONE, 0
-            ));
-            
-            quiets &= quiets - 1;
+        if !captures_only {
+            while quiets != 0 {
+                let to_square = quiets.trailing_zeros() as usize;
+                
+                self.add_quiet_move(position, Move::new(
+                    from_square, to_square, 0, MOVE_FLAG_NONE, 0
+                ));
+                
+                quiets &= quiets - 1;
+            }
         }
     }
 
-    fn generate_pawn_moves(&mut self, position: &Board) {
+    fn generate_pawn_moves(&mut self, position: &Board, captures_only: bool) {
         #[cfg(debug_assertions)] fn gen_rank_bb_mask() {
             let mut rank_bb_mask: [u64; 9] = [0; 9];
             const RANK_1: u64 = 0x00000000000000FF;
@@ -229,38 +230,41 @@ impl MoveList {
             )
         };
 
-        let mut single_pushes = if color == Color::WHITE {
-            our_pawns.wrapping_shl(push_offset as u32) & empty_squares
-        } else {
-            our_pawns.wrapping_shr((-push_offset) as u32) & empty_squares
-        };
 
-        let mut double_pushes = if color == Color::WHITE {
-            (single_pushes & double_push_rank).wrapping_shl(push_offset as u32) & empty_squares
-        } else {
-            (single_pushes & double_push_rank).wrapping_shr((-push_offset) as u32) & empty_squares
-        };
+        if !captures_only {            
+            let mut single_pushes = if color == Color::WHITE {
+                our_pawns.wrapping_shl(push_offset as u32) & empty_squares
+            } else {
+                our_pawns.wrapping_shr((-push_offset) as u32) & empty_squares
+            };
 
-        while single_pushes != 0 {
-            let to_square = single_pushes.trailing_zeros() as usize;
-            let from_square = (to_square as i32 - push_offset) as usize;
-            self.add_quiet_pawn_move(&position, from_square, to_square);
+            let mut double_pushes = if color == Color::WHITE {
+                (single_pushes & double_push_rank).wrapping_shl(push_offset as u32) & empty_squares
+            } else {
+                (single_pushes & double_push_rank).wrapping_shr((-push_offset) as u32) & empty_squares
+            };
 
-            single_pushes &= single_pushes - 1;
-        }
+            while single_pushes != 0 {
+                let to_square = single_pushes.trailing_zeros() as usize;
+                let from_square = (to_square as i32 - push_offset) as usize;
+                self.add_quiet_pawn_move(&position, from_square, to_square);
 
-        while double_pushes != 0 {
-            let to_square = double_pushes.trailing_zeros() as usize;
-            let from_square = (to_square as i32 - (push_offset * 2)) as usize;
-            self.add_quiet_move(&position, Move::new(
-                from_square, 
-                to_square, 
-                0, 
-                MOVE_FLAG_PAWN_START, 
-                0
-            ));
+                single_pushes &= single_pushes - 1;
+            }
 
-            double_pushes &= double_pushes - 1;
+            while double_pushes != 0 {
+                let to_square = double_pushes.trailing_zeros() as usize;
+                let from_square = (to_square as i32 - (push_offset * 2)) as usize;
+                self.add_quiet_move(&position, Move::new(
+                    from_square, 
+                    to_square, 
+                    0, 
+                    MOVE_FLAG_PAWN_START, 
+                    0
+                ));
+
+                double_pushes &= double_pushes - 1;
+            }
         }
 
         let mut pawns = our_pawns;
@@ -292,7 +296,7 @@ impl MoveList {
         }
     }
 
-    fn generate_knight_moves(&mut self, position: &Board) {
+    fn generate_knight_moves(&mut self, position: &Board, captures_only: bool) {
         let side = position.side;
         let our_pieces = position.occupancies[side.index()];
         let their_pieces = position.occupancies[side.opposite().index()];
@@ -300,12 +304,12 @@ impl MoveList {
         let mut knights = position.bitboards[PieceType::KNIGHT.bb_index(side)];
         while knights != 0 {
             let from_square_index = knights.trailing_zeros() as usize;
-            self.serialize_moves(position, from_square_index, KNIGHT_RAYS[from_square_index]);
+            self.serialize_moves(position, from_square_index, KNIGHT_RAYS[from_square_index], captures_only);
             knights &= knights - 1;
         }
     }
 
-    fn generate_sliding_moves(&mut self, position: &Board) {
+    fn generate_sliding_moves(&mut self, position: &Board, captures_only: bool) {
         let side = position.side;
         let our_occupancy = position.occupancies[side.index()];
         let their_occupancy = position.occupancies[side.opposite().index()];
@@ -314,7 +318,7 @@ impl MoveList {
         while bishops != 0 {
             let from_square_index = bishops.trailing_zeros() as usize;
             let movement_bb = get_bishop_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy;
-            self.serialize_moves(position, from_square_index, movement_bb);
+            self.serialize_moves(position, from_square_index, movement_bb, captures_only);
             bishops &= bishops - 1;
         }
 
@@ -322,7 +326,7 @@ impl MoveList {
         while rooks != 0 {
             let from_square_index = rooks.trailing_zeros() as usize;
             let movement_bb = get_rook_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy;
-            self.serialize_moves(position, from_square_index, movement_bb);
+            self.serialize_moves(position, from_square_index, movement_bb, captures_only);
             rooks &= rooks - 1;
         }
 
@@ -332,12 +336,12 @@ impl MoveList {
             let movement_bb = 
                 (get_bishop_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy) |
                 (get_rook_attacks(from_square_index, our_occupancy | their_occupancy) & !our_occupancy);
-            self.serialize_moves(position, from_square_index, movement_bb);
+            self.serialize_moves(position, from_square_index, movement_bb, captures_only);
             queens &= queens - 1;
         }
     }
 
-    fn generate_king_moves(&mut self, position: &Board) {
+    fn generate_king_moves(&mut self, position: &Board, captures_only: bool) {
         let side = position.side;
         let our_pieces = position.occupancies[side.index()];
         let their_pieces = position.occupancies[side.opposite().index()];
@@ -357,7 +361,7 @@ impl MoveList {
                     self.add_capture_move(PieceType::KING, Move::new(
                         from_sq, to_sq, captured_piece.index(), MOVE_FLAG_NONE, 0
                     ));
-                } else {
+                } else if !captures_only {
                     self.add_quiet_move(position, Move::new(
                         from_sq, to_sq, 0, MOVE_FLAG_NONE, 0
                     ));
@@ -434,10 +438,18 @@ impl MoveList {
 
     pub fn generate_all_moves(&mut self, position: &Board) {
         self.count = 0;
-        self.generate_pawn_moves(position);
-        self.generate_knight_moves(position);
-        self.generate_sliding_moves(position);
-        self.generate_king_moves(position);
+        self.generate_pawn_moves(position, false);
+        self.generate_knight_moves(position, false);
+        self.generate_sliding_moves(position, false);
+        self.generate_king_moves(position, false);
         self.generate_castle_moves(position);
+    }
+
+    pub fn generate_all_captures(&mut self, position: &Board) {
+        self.count = 0;
+        self.generate_pawn_moves(position, true);
+        self.generate_knight_moves(position, true);
+        self.generate_sliding_moves(position, true);
+        self.generate_king_moves(position, true);
     }
 }

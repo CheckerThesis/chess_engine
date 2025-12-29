@@ -40,12 +40,12 @@ fn test_perft_changes() {
 }
 
 fn test_search_changes() {
-    // const SAMPLES: usize = 7;
-    // const ITERATIONS: u32 = 6;
-    // const DEPTH: u8 = 6;
     const SAMPLES: usize = 7;
-    const ITERATIONS: u32 = 7;
-    const DEPTH: u8 = 8;
+    const ITERATIONS: u32 = 6;
+    const DEPTH: u8 = 6;
+    // const SAMPLES: usize = 7;
+    // const ITERATIONS: u32 = 7;
+    // const DEPTH: u8 = 8;
 
     let mut samples: Vec<Duration> = Vec::with_capacity(SAMPLES);
     for i in 1..=SAMPLES {

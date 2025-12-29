@@ -240,4 +240,14 @@ mod tests {
         // Verify Key A is effectively gone (probe returns None or Key B data which fails checksum)
         assert!(tt.probe(key_a).is_none(), "Key A should have been overwritten by Key B");
     }
+
+    #[test]
+    fn quiescence_poison() {
+        let mut position = Board::new("5k2/8/2p5/3p4/3Q4/8/8/7K w - - 0 1");
+        println!("{}", position);
+        let mut search = Search::new(20);
+        let score = position.iterative_deepen(&search, 1, true).unwrap();
+        println!("{}", score);
+        // edit the return to quiesence in alpha-beta to evaluate
+    }
 }
