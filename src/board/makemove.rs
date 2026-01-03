@@ -155,4 +155,45 @@ impl Board {
 
         #[cfg(debug_assertions)] { self.check_board(fn_name!()); }
     }
+
+    pub fn make_null_move(&mut self) {
+        #[cfg(debug_assertions)] { self.check_board(fn_name!()); }
+
+        self.history[self.history_ply] = Undo {
+            mv: Move::default(),
+            castle_permission: self.castle_permission,
+            en_passant: self.en_passant,
+            fifty_move: self.fifty_move,
+            position_key: self.position_key,
+        };
+
+        if self.en_passant.is_some() {
+            self.hash_en_passant();
+            self.en_passant = None;
+        }
+
+        self.history_ply += 1;
+        self.ply += 1;
+
+        self.side = self.side.opposite();
+        self.hash_side();
+
+        #[cfg(debug_assertions)] { self.check_board(fn_name!()); }
+    }
+
+    pub fn take_null_move(&mut self) {
+        #[cfg(debug_assertions)] { self.check_board(fn_name!()); }
+
+        self.history_ply -= 1;
+        self.ply -= 1;
+
+        self.side = self.side.opposite();
+        self.hash_side();
+
+        if self.en_passant.is_some() { self.hash_en_passant(); }
+        self.en_passant = self.history[self.history_ply].en_passant;
+        if self.en_passant.is_some() { self.hash_en_passant(); }
+
+        #[cfg(debug_assertions)] { self.check_board(fn_name!()); }
+    }
 }

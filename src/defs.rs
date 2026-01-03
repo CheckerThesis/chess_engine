@@ -41,6 +41,8 @@ impl PieceType {
     pub const KING:   Self = Self(6);
     pub const DRAGON: Self = Self(7);
 
+    pub const COUNT: usize = 8;
+
     #[inline(always)] pub fn index(&self) -> usize { self.0 as usize }
     pub fn bb_index(&self, side: Color) -> usize { ((self.0 as usize) << 2) | (side.0 as usize) }
 }

@@ -7,35 +7,16 @@
 - History heuristic
 
 ## Pruning
-- Transposition tables
-- SEE
+- Transposition table
+- Null move
 
 ## Evaluation
 - Piece square tables
 - Quiescence
     - Delta pruning
-    - SEE
+    - SEE pruning
 
 # Tests
-
-## Search time increases
-### Move ordering
-List adds each technique in sequence
-
-#### 7 samples, 6 iterations, depth 6
-Alpha-beta + iterative deepen: 1180ms
-Transposition table (size 20): 768ms
-Simple sorting:                57ms
-MVv+LVA:                       33ms
-Quiescence:                    70ms
-Delta pruning:                 54ms
-
-#### 7 samples, 7 iterations, depth 8
-Default:                933ms
-SEE quiescence pruning: 993ms (score is higher because SEE is more expensive than current barebones eval) (SEE + 300 < 0)
-SEE quiescence pruning: 993ms (score is higher because SEE is more expensive than current barebones eval) (SEE < 0 because stand pat score should be good enough to make sure we don't completely blunder)
-SEE alpha-beta pruning: 536ms (SEE < -50)
-
 ## Move ordering node count
 Better move ordering should result in an increase of prunes from the alpha-beta algorithm, decreasing node count
 
@@ -45,10 +26,26 @@ Tested with tt size of 20, reseting tt each time, depth 9, no pruning (except fo
 - TT:      191103127 nodes, 13s (14.6 Mnps)
 - Killer moves: 148118376 nodes, 10.07s (14.72 Mnps)
 - History heuristic (with simple gravity): 127350500 nodes, 9.13s (13.94 Mnps)
-- SEE: 120827687 nodes, 9.04s (13.36 Mnps)
+- SEE:         120827687 nodes, 9.04s (13.36 Mnps)
+- Countermove: 123477893 nodes, 9.30s (12.98 Mnps) 
 
-## STS Suite
-
+## Evaluation STS suite
+With quiescence (and delta prune)
+- TT 
+    - Final Score: 245/300 (81.7%)
+    - Median Time: 132.408111985s
+    - Median Nodes: 835608048
+    - Speed: 6.31 Mnps
+- Null move prune (R = 4)
+    - Final Score: 238/300 (79.3%)
+    - Median Time: 7.374740213s
+    - Median Nodes: 49764980
+    - Speed: 6.75 Mnps
+- Null move prune (R = 3)
+    - Final Score: 245/300 (81.7%)
+    - Median Time: 10.597763619s
+    - Median Nodes: 68084214
+    - Speed: 6.42 Mnps
 
 # Things to vary
 - SEE comparison values (and pruning in general)

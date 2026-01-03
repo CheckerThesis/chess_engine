@@ -73,7 +73,7 @@ mod tests {
         let root_key = board.position_key;
 
         // Run a shallow search
-        board.alpha_beta(&search, -30000, 30000, 1);
+        board.alpha_beta(&search, -30000, 30000, 1, false);
 
         // Manually probe the table using the Key
         let entry = search.transposition_table.probe(root_key);
@@ -118,7 +118,7 @@ mod tests {
         let mut board = Board::new("7k/Q7/8/6R1/8/8/8/K7 b - - 0 1");
 
         // We expect the score to be EXACTLY 0.
-        let score = board.alpha_beta(&search, -30000, 30000, 1);
+        let score = board.alpha_beta(&search, -30000, 30000, 1, false);
 
         assert_eq!(score, 0, "Stalemate should evaluate to exactly 0");
     }
@@ -129,7 +129,7 @@ mod tests {
         let search = Search::new(transposition_table, 0);
         let mut board = Board::new(FEN_START);
         
-        board.alpha_beta(&search, -30000, 30000, 4);
+        board.alpha_beta(&search, -30000, 30000, 4, false);
         
         // Manually verify the TT has a move for the root
         let entry = search.transposition_table.probe(board.position_key);

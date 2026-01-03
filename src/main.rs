@@ -2,7 +2,7 @@
 use std::{hint::black_box, sync::{Arc, atomic::Ordering}, time::{Duration, Instant}};
 
 use vault::{
-    board::Board, defs::{Color, Piece, PieceType}, fens::{ENDGAME1, FEN_MATE_IN_4, FEN_START, ITALIAN, KIWIPETE, MIDDLEGAME1, POSITION3, POSITION4}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, attacks::square_attacked}, perft::perft, search::Search, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}, sts::run_sts, transposition_table::{self, TranspositionTable}
+    board::Board, defs::{Color, Piece, PieceType}, fens::{ENDGAME1, FEN_MATE_IN_4, FEN_START, ITALIAN, KIWIPETE, MIDDLEGAME1, POSITION3, POSITION4}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, attacks::square_attacked}, perft::perft, search::Search, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}, test_suites::run_suites, transposition_table::{self, TranspositionTable}
 };
 /*
 lto = "fat"
@@ -40,38 +40,59 @@ fn test_perft_changes() {
 }
 
 fn test_search_changes() {
-    // const SAMPLES: usize = 7;
-    // const ITERATIONS: u32 = 6;
-    // const DEPTH: u8 = 6;
-    const SAMPLES: usize = 7;
-    const ITERATIONS: u32 = 7;
-    const DEPTH: u8 = 8;
+    const SAMPLES: usize = 4;
+    const ITERATIONS: u32 = 2;
+    const DEPTH: u8 = 10;
 
-    let mut samples: Vec<Duration> = Vec::with_capacity(SAMPLES);
-    for i in 1..=SAMPLES {
+    let test_positions = [
+        ("Tactical", KIWIPETE),
+        ("Opening", "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4"),
+        ("Quiet Mid", "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 8"),
+        ("Endgame", "8/pp3k2/2p2p2/3p1Pp1/3P2P1/2P2K2/PP6/8 w - - 0 1"),
+    ];
+
+    let mut samples: Vec<(Duration, u64)> = Vec::with_capacity(SAMPLES);
+
+    for sample_num in 1..=SAMPLES {
         let start = Instant::now();
-        let mut nodes = 0;
-        let transposition_table = Arc::new(TranspositionTable::new(20));
+        let mut total_nodes = 0;
+        let mut correctness_ok = true;
+
         for _ in 0..ITERATIONS {
-            let mut position = Board::new(KIWIPETE);
-            let search = Arc::new(Search::new(transposition_table.clone(), 1000));
-            black_box(position.iterative_deepen(&search, black_box(DEPTH), false));
-            nodes = search.nodes_visited.load(Ordering::Relaxed);
+            for (i, (name, fen)) in test_positions.iter().enumerate() {
+                let tt = Arc::new(TranspositionTable::new(20));
+                let mut position = Board::new(fen);
+                let search = Arc::new(Search::new(tt.clone(), 0));
+
+                let best_move = black_box(position.iterative_deepen(&search, black_box(DEPTH), false));
+                total_nodes += search.nodes_visited.load(Ordering::Relaxed);
+            }
         }
-        
-        let total_duration = start.elapsed();
-        let avg_per_run = total_duration / ITERATIONS;
-        
-        samples.push(avg_per_run);
-        
-        println!("Sample {}: {:?} Nodes: {}", i, avg_per_run, nodes);
+
+        let duration = start.elapsed();
+        samples.push((duration, total_nodes as u64));
+        println!(
+            "Sample {}: {:.2}s, {} nodes", 
+            sample_num, 
+            duration.as_secs_f64(), 
+            total_nodes,
+        );
     }
 
-    let valid_samples = &mut samples[1..]; 
-    valid_samples.sort();
-    let median = valid_samples[valid_samples.len() / 2];
+    let valid_samples = &mut samples[1..];
+    valid_samples.sort_by_key(|(d, _)| *d);
 
-    println!("Final Median Time: {:?}", median);
+    let median_idx = valid_samples.len() / 2;
+    let (median_time, median_nodes) = valid_samples[median_idx];
+
+    let total_iterations = ITERATIONS as u64 * test_positions.len() as u64;
+    println!("----------------------------------------");
+    println!("Median Time:  {:?}", median_time);
+    println!("Median Nodes: {})", median_nodes);
+    println!(
+        "Speed:        {:.2} Mnps", 
+        median_nodes as f64 / median_time.as_secs_f64() / 1_000_000.0
+    );
 }
 
 fn test_move_ordering(depth: u8) -> (f64, f64) {
@@ -104,31 +125,30 @@ fn test_move_ordering(depth: u8) -> (f64, f64) {
     );
 
     (total_nodes as f64, total_time.as_secs_f64())
-}
 
-// TODO Countermove heuristic
+    // let mut nodes_sum: f64 = 0.0;
+    // let mut time_sum: f64 = 0.0;
+    // let iterations = 3;
+
+    // println!("Countermove");
+
+    // for i in 0..iterations {
+    //     let (nodes, time) = test_move_ordering(9);
+    //     nodes_sum += nodes;
+    //     time_sum += time;
+    // }
+
+    // println!("--------");
+    // println!("Nodes: {}   Time: {:.2}s   ({:.2} Mnps)", 
+    //     nodes_sum / iterations as f64, 
+    //     time_sum / iterations as f64,
+    //     (nodes_sum as f64 / time_sum) / 1_000_000.0
+    // );
+}
 
 // Future:
 // Bucket transposition table
 fn main() {
-    let mut nodes_sum: f64 = 0.0;
-    let mut time_sum: f64 = 0.0;
-    let iterations = 3;
-
-    println!("History");
-
-    for i in 0..iterations {
-        let (nodes, time) = test_move_ordering(9);
-        nodes_sum += nodes;
-        time_sum += time;
-    }
-
-    println!("--------");
-    println!("Nodes: {}   Time: {:.2}s   ({:.2} Mnps)", 
-        nodes_sum / iterations as f64, 
-        time_sum / iterations as f64,
-        (nodes_sum as f64 / time_sum) / 1_000_000.0
-    );
-
-    // run_sts("/home/tien/code/chess_engine/src/sts/STS1.epd");
+    test_search_changes();
+    run_suites("/home/tien/code/chess_engine/src/test_suites/wac/wac.epd");
 }

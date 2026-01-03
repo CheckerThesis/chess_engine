@@ -58,7 +58,7 @@ impl Board {
         alpha
     }
 
-    pub fn alpha_beta(&mut self, search: &Search, mut alpha: i32, mut beta: i32, depth: u8) -> i32 {
+    pub fn alpha_beta(&mut self, search: &Search, mut alpha: i32, mut beta: i32, depth: u8, do_null: bool) -> i32 {
         #[cfg(debug_assertions)] { self.check_board(fn_name!()); }
 
         if search.nodes_visited.load(Ordering::Relaxed) & 2048 == 0 && search.should_stop() { return 0 }
@@ -97,6 +97,20 @@ impl Board {
         let side = self.side.index();
         let in_check = square_attacked(self.king_square[self.side.index()], self.side, self);
 
+        // Null move prune
+        const R: u8 = 4; // null move reduction factor
+        if do_null &&!in_check && self.ply > 0 && self.has_non_pawn_material() && depth >= R {
+            self.make_null_move();
+            let null_score = -self.alpha_beta(search, -beta, -beta + 1, depth - R, false);
+            self.take_null_move();
+            
+            if search.stop_flag.load(Ordering::Relaxed) { return 0 }
+            if null_score >= beta {
+                if null_score >= MATE_THRESHOLD { return beta }
+                return null_score
+            }
+        }
+
         let mut best_move = Move::default();
         let mut best_score = -MATE_SCORE;
         let mut found_any_legal_moves = false;
@@ -118,15 +132,20 @@ impl Board {
             let mv = scored_move.mv;
 
             // SEE pruning
-            // if depth <= 4 && self.static_exchange_evaluation(
-            //     mv.from_square(), 
-            //     mv.to_square(), 
-            //     Piece(mv.captured() as u8).piece_type(), 
-            //     self.pieces[mv.from_square()].piece_type()
-            // ) < -50 { continue }
+            // if mv.captured() != 0 && !in_check {
+            //     let see_threshold = -20 * (depth as i32);
+            //     let see_value = self.static_exchange_evaluation(
+            //         mv.from_square(), 
+            //         mv.to_square(), 
+            //         Piece(mv.captured() as u8).piece_type(), 
+            //         self.pieces[mv.from_square()].piece_type()
+            //     );
+
+            //     if see_value < see_threshold { continue; }
+            // }
 
             if !self.make_move(mv) { continue; }
-            let evaluation = -self.alpha_beta(search, -beta, -alpha, depth - 1);
+            let evaluation = -self.alpha_beta(search, -beta, -alpha, depth - 1, true);
             self.take_move();
 
             found_any_legal_moves = true;
@@ -146,8 +165,16 @@ impl Board {
                         self.killers[ply][0] = Some(mv);
                     }
 
-                    self.update_history(mv, depth, true); // history heuristic
+                    // Countermove heuristic
+                    // if let Some(previous_mv) = self.get_previous_move() {
+                    //     let previous_to = previous_mv.to_square();
+                    //     let opponent_side = self.side.opposite().index();
+                    //     let piece_index = self.pieces[previous_to].piece_type().index();
+                    //     self.countermoves[opponent_side][piece_index][previous_to] = Some(mv);
+                    // }
 
+                    // History heuristic
+                    self.update_history(mv, depth, true); 
                     // Reduce the score for all quiet moves before this one (because they didn't cause a cutoff)
                     for prev in movelist.iter().take_while(|m| m.mv != mv) {
                         if prev.mv.captured() == 0 { self.update_history(prev.mv, depth, false); }
@@ -198,7 +225,7 @@ impl Board {
                 }
             }
 
-            let evaluation = self.alpha_beta(search, -30000, 30000, current_depth);
+            let evaluation = self.alpha_beta(search, -30000, 30000, current_depth, true);
 
             if search.stop_flag.load(Ordering::Relaxed) { break; }
 

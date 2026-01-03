@@ -2,6 +2,17 @@ use colored::Colorize;
 
 use crate::{board::{Board, MAX_DEPTH, print_bitboard}, defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Piece, PieceType, RANKS_BOARD, Ranks, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE}, movegen::{MOVE_FLAG_CASTLE, MOVE_FLAG_EN_PASSANT, MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, ScoredMove, bitboards::{BLACK_PAWN_ATTACKS, KING_RAYS, KNIGHT_RAYS, WHITE_PAWN_ATTACKS}, magic::{get_bishop_attacks, get_rook_attacks}, mvv_lva::{MVV_LVA_SCORES, PIECE_VALUE}}};
 
+/*
+TT: 30000
+Good capture: 20000
+Killer1: 10000
+Killer2: 9000
+History: < 8999
+Countermove: 8000
+Quiet: 0
+Bad capture: -1000
+*/
+
 impl MoveList {
     fn add_quiet_move(&mut self, position: &Board, mv: Move) {
         let mut score: i16 = 0;
@@ -18,6 +29,18 @@ impl MoveList {
                 }
             }
         }
+
+        // Counter move
+        // if score == 0 {
+        //     if let Some(previous_mv) = position.get_previous_move() {
+        //         let previous_to = previous_mv.to_square();
+        //         let opponent_side = position.side.opposite().index();
+        //         let piece_index = position.pieces[previous_to].piece_type().index();
+        //         if let Some(countermove) = position.countermoves[opponent_side][piece_index][previous_to] {
+        //             if countermove.0 == mv.0 { score = 8000; }
+        //         }
+        //     }
+        // }
         
         // History heuristic
         if score == 0 {
@@ -43,7 +66,6 @@ impl MoveList {
 
         let mvv_lva_boost = MVV_LVA_SCORES[Piece(mv.captured() as u8).piece_type().index()][attacker.index()];
         self.add(ScoredMove::new(mv, see_boost + mvv_lva_boost));
-        // self.add(ScoredMove::new(mv, 20000 + mvv_lva_boost));
     }
 
     fn add_quiet_pawn_move(&mut self, position: &Board, from: usize, to: usize) {

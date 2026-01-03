@@ -1,6 +1,6 @@
 use std::{sync::{Arc, atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering}}, time::Instant};
 
-use crate::{board::Board, defs::{Color, Piece}, movegen::Move, transposition_table::{self, TranspositionTable}};
+use crate::{board::Board, defs::{Color, Piece, PieceType}, movegen::Move, transposition_table::{self, TranspositionTable}};
 
 pub mod search;
 pub mod test;
@@ -108,4 +108,21 @@ impl Board {
     //     self.history_heuristic[piece_index][to] = 
     //         (current + bonus - gravity.signum() * gravity.abs()).clamp(-max_history_score, max_history_score);
     // }
+
+    pub fn get_previous_move(&self) -> Option<Move> {
+        if self.history_ply > 0 { Some(self.history[self.history_ply - 1].mv) } 
+        else { None }
+    }
+
+    pub fn has_non_pawn_material(&self) -> bool {
+        let side = self.side;
+
+        let knights = self.bitboards[Piece::make(PieceType::KNIGHT, side).index()];
+        let bishops = self.bitboards[Piece::make(PieceType::BISHOP, side).index()];
+        let rooks   = self.bitboards[Piece::make(PieceType::ROOK, side).index()];
+        let queens  = self.bitboards[Piece::make(PieceType::QUEEN, side).index()];
+        let dragons = self.bitboards[Piece::make(PieceType::DRAGON, side).index()];
+
+        (knights | bishops | rooks | queens | dragons) != 0
+    }
 }

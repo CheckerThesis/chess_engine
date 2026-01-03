@@ -55,9 +55,9 @@ pub struct Board {
 
     pub history: [Undo; MAX_GAME_MOVES],
 
-    // for move ordering, rough way to record non-capture moves that are good enough to cause beta cut-off or good alpha
-    pub history_heuristic: [[i16; 64]; Piece::COUNT], // stores when a score has beaten alpha, history heuristic
-    pub killers: [[Option<Move>; 2]; MAX_DEPTH], // stores when a score has beaten beta but is not a capture, killer moves
+    pub history_heuristic: [[i16; 64]; Piece::COUNT],
+    pub killers: [[Option<Move>; 2]; MAX_DEPTH],
+    pub countermoves: [[[Option<Move>; 64]; PieceType::COUNT]; 2]
 }
 impl Board {
     pub fn new(fen: &str) -> Self {
@@ -445,7 +445,8 @@ impl Default for Board {
             position_key: 0,
             history: [Undo::default(); MAX_GAME_MOVES],
             history_heuristic: [[0; 64]; Piece::COUNT],
-            killers: [[None; 2]; MAX_DEPTH]
+            killers: [[None; 2]; MAX_DEPTH],
+            countermoves: [[[None; 64]; PieceType::COUNT]; 2]
         }
     }
 }
