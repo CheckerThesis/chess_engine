@@ -111,6 +111,14 @@ impl Board {
             }
         }
 
+        // Reverse futility prune
+        let static_eval = if !in_check { self.evaluate() } else { 0 };
+        const RFP_MARGINS: [i32; 7] = [0, 100, 180, 260, 340, 420, 500]; // depth 0-6
+        if depth <= 4 && !in_check && beta.abs() < MATE_THRESHOLD {
+            // TODO Adjusting the return value of RFP is also found to gain strength in some engines. For example, some engines return (eval + beta) / 2 or beta + (eval - beta) / 3 on successful RFP. 
+            if static_eval - RFP_MARGINS[depth as usize] >= beta { return beta }
+        }
+
         let mut best_move = Move::default();
         let mut best_score = -MATE_SCORE;
         let mut found_any_legal_moves = false;
@@ -128,21 +136,30 @@ impl Board {
 
         movelist.sort();
 
+        // const FUTILITY_MARGIN: [i32; 4] = [0, 100, 200, 300];  // depth 0, 1, 2, 3
+
+        // let futility_pruning_enabled = depth <= 3 
+        //     && !in_check 
+        //     && alpha.abs() < MATE_THRESHOLD;
+
+
         for scored_move in movelist.iter() {
             let mv = scored_move.mv;
 
-            // SEE pruning
-            // if mv.captured() != 0 && !in_check {
-            //     let see_threshold = -20 * (depth as i32);
-            //     let see_value = self.static_exchange_evaluation(
-            //         mv.from_square(), 
-            //         mv.to_square(), 
-            //         Piece(mv.captured() as u8).piece_type(), 
-            //         self.pieces[mv.from_square()].piece_type()
-            //     );
+            /*// SEE pruning
+            if mv.captured() != 0 && !in_check {
+                let see_threshold = -20 * (depth as i32);
+                let see_value = self.static_exchange_evaluation(
+                    mv.from_square(), 
+                    mv.to_square(), 
+                    Piece(mv.captured() as u8).piece_type(), 
+                    self.pieces[mv.from_square()].piece_type()
+                );
 
-            //     if see_value < see_threshold { continue; }
-            // }
+                if see_value < see_threshold { continue; }
+            }*/
+
+            // Futility prune
 
             if !self.make_move(mv) { continue; }
             let evaluation = -self.alpha_beta(search, -beta, -alpha, depth - 1, true);

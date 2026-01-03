@@ -149,6 +149,11 @@ fn test_move_ordering(depth: u8) -> (f64, f64) {
 // Future:
 // Bucket transposition table
 fn main() {
-    test_search_changes();
-    run_suites("/home/tien/code/chess_engine/src/test_suites/wac/wac.epd");
+    // test_search_changes();
+    // run_suites("/home/tien/code/chess_engine/src/test_suites/wac/wac.epd");
+
+    let tt = Arc::new(TranspositionTable::new(24));
+    let mut position = Board::new(KIWIPETE);
+    let search = Arc::new(Search::new(tt.clone(), 0));
+    let best_move = position.iterative_deepen(&search, 13, true);
 }

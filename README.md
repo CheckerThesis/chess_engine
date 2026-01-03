@@ -8,7 +8,9 @@
 
 ## Pruning
 - Transposition table
-- Null move
+- Null move: Give your opponent a free move, if you're still way stronger than them, prune
+- Reverse futility prune: Position is so good that losing a margin still beats beta
+- Futility prune: If the best possible improvement can't raise alpha, position is too bad, don't search
 
 ## Evaluation
 - Piece square tables
@@ -36,17 +38,33 @@ With quiescence (and delta prune)
     - Median Time: 132.408111985s
     - Median Nodes: 835608048
     - Speed: 6.31 Mnps
+- Null move prune (R = 3) (will not continue with)
+    - Final Score: 245/300 (81.7%)
+    - Median Time: 10.597763619s
+    - Median Nodes: 68084214
+    - Speed: 6.42 Mnps
 - Null move prune (R = 4)
     - Final Score: 238/300 (79.3%)
     - Median Time: 7.374740213s
     - Median Nodes: 49764980
     - Speed: 6.75 Mnps
-- Null move prune (R = 3)
-    - Final Score: 245/300 (81.7%)
-    - Median Time: 10.597763619s
-    - Median Nodes: 68084214
-    - Speed: 6.42 Mnps
+- Reverse futility prune (margin 120, depth 6)
+    - Final Score: 220/300 (73.3%)
+    - Median Time: 1.27778892s
+    - Median Nodes: 13357720
+    - Speed: 10.45 Mnps
+- Reverse futility prune (margin 120, depth 4)
+    - Final Score: 225/300 (75.0%)
+    - Median Time: 1.377877393s
+    - Median Nodes: 13809616
+    - Speed: 10.02 Mnps
+- Reverse futility prune (margin [0, 100, 180, 260, 340, 420, 500], depth 4)
+    - Final Score: Final Score: 230/300 (76.7%)
+    - Median Time: 1.52705463s
+    - Median Nodes: 16096088
+    - Speed: 10.54 Mnps
 
 # Things to vary
+- Reverse futility prune, increase RFP_MARGIN and decrease max depth makes more accurate
 - SEE comparison values (and pruning in general)
 - Piece values

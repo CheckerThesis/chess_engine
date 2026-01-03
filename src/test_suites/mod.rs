@@ -285,17 +285,17 @@ pub fn run_suites(path: &str) {
 
                 if expected_moves.contains(&engine_move) {
                     solved += 1;
-                    println!("Test {}: PASSED (Found {})", total, engine_san);
+                    // println!("Test {}: PASSED (Found {})", total, engine_san);
                 } else if avoid_moves.contains(&engine_move) {
                     avoided_count += 1;
-                    println!("Test {}: FAILED - Avoided move! (Expected {}, Got {})", 
-                             total, best_moves_str, engine_san);
+                    // println!("Test {}: FAILED - Avoided move! (Expected {}, Got {})", 
+                    //          total, best_moves_str, engine_san);
                 } else {
-                    println!("Test {}: FAILED (Expected {}, Got {})", 
-                             total, best_moves_str, engine_san);
+                    // println!("Test {}: FAILED (Expected {}, Got {})", 
+                    //          total, best_moves_str, engine_san);
                 }
             } else {
-                println!("Test {}: FAILED (Engine returned No Move)", total);
+                // println!("Test {}: FAILED (Engine returned No Move)", total);
             }
         }
     }
