@@ -122,13 +122,13 @@ const BISHOP_RAYS: [u64; 64] = [
     11333774449049600,22526811443298304,9024825867763712,18049651735527936,
 ];
 
-pub fn get_rook_attacks(square: usize, occupancy: u64) -> u64 {
+#[inline(always)] pub fn get_rook_attacks(square: usize, occupancy: u64) -> u64 {
     let (magic, offset) = ROOK_MAGICS[square];
     let index = offset as usize + (((occupancy | !ROOK_RAYS[square]).wrapping_mul(magic)) >> (64 - MAGIC_ROOK_SHIFT)) as usize;    
     // ATTACKS[index]
     unsafe { *ATTACKS.get_unchecked(index) }
 }
-pub fn get_bishop_attacks(square: usize, occupancy: u64) -> u64 {
+#[inline(always)] pub fn get_bishop_attacks(square: usize, occupancy: u64) -> u64 {
     let (magic, offset) = BISHOP_MAGICS[square];
     let index = offset as usize + (((occupancy | !BISHOP_RAYS[square]).wrapping_mul(magic)) >> (64 - MAGIC_BISHOP_SHIFT)) as usize;
     unsafe { *ATTACKS.get_unchecked(index) }

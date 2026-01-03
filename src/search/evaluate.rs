@@ -1,4 +1,16 @@
-use crate::{board::Board, defs::{Color, Piece}};
+use crate::{board::Board, defs::{Color, Piece, PieceType}, movegen::{magic::{get_bishop_attacks, get_rook_attacks}}};
+
+pub const PIECE_VALUE: [i32; 8] = [
+    0,     // none
+    100,   // pawn
+    325,   // knight
+    325,   // bishop
+    550,   // rook
+    1000,  // queen
+    32767, // king,
+    1300,  // dragon
+];
+
 
 impl Board {
     pub fn evaluate(&self) -> i32 {
@@ -86,17 +98,6 @@ impl Board {
             ],
         ];
 
-        const PIECE_VALUE: [i32; 8] = [
-            0,     // none
-            100,   // pawn
-            325,   // knight
-            325,   // bishop
-            550,   // rook
-            1000,  // queen
-            32767, // king,
-            1300,  // dragon
-        ];
-
         let mut score: i32 = 0;
 
         for &piece in Piece::WHITE_PIECES {
@@ -121,5 +122,90 @@ impl Board {
         
         if self.side == Color::WHITE { score }
         else { -score }
+    }
+
+    fn get_least_valuable_piece(&self, attackers_bb: u64, side: Color) -> Option<(PieceType, u64)> {
+        if attackers_bb == 0 { return None; }
+
+        // Pawns
+        let subset = attackers_bb & self.bitboards[PieceType::PAWN.bb_index(side)];
+        if subset != 0 {
+            return Some((PieceType::PAWN, subset & subset.wrapping_neg()));
+        }
+
+        // Knights
+        let subset = attackers_bb & self.bitboards[PieceType::KNIGHT.bb_index(side)];
+        if subset != 0 {
+            return Some((PieceType::KNIGHT, subset & subset.wrapping_neg()));
+        }
+
+        // Bishops
+        let subset = attackers_bb & self.bitboards[PieceType::BISHOP.bb_index(side)];
+        if subset != 0 {
+            return Some((PieceType::BISHOP, subset & subset.wrapping_neg()));
+        }
+
+        // Rooks
+        let subset = attackers_bb & self.bitboards[PieceType::ROOK.bb_index(side)];
+        if subset != 0 {
+            return Some((PieceType::ROOK, subset & subset.wrapping_neg()));
+        }
+
+        // Queens
+        let subset = attackers_bb & self.bitboards[PieceType::QUEEN.bb_index(side)];
+        if subset != 0 {
+            return Some((PieceType::QUEEN, subset & subset.wrapping_neg()));
+        }
+
+        // Kings
+        let subset = attackers_bb & self.bitboards[PieceType::KING.bb_index(side)];
+        if subset != 0 {
+            return Some((PieceType::KING, subset & subset.wrapping_neg()));
+        }
+
+        None
+    }
+
+    pub fn static_exchange_evaluation(
+        &self, 
+        from_square: usize, 
+        to_square: usize, 
+        target_piece: PieceType, 
+        mut capturer: PieceType
+    ) -> i32 {
+        const MAX_DEPTH: usize = 32;
+        let mut gain = [0i32; MAX_DEPTH];
+        let mut depth: usize = 0;
+
+        let mut from_bb: u64 = 1 << from_square;
+        let mut occupancy = self.occupancies[Color::BOTH.index()];
+        let mut side_to_move = self.side.opposite();
+        occupancy &= !from_bb;
+
+        gain[depth] = PIECE_VALUE[target_piece.index()];
+
+        loop {
+            depth += 1;
+
+            gain[depth] = PIECE_VALUE[capturer.index()] - gain[depth - 1];
+
+            match self.get_smallest_attacker(to_square, side_to_move, occupancy) {
+                Some((next_piece, next_bit)) => {
+                    capturer = next_piece;
+                    from_bb = next_bit;
+                    occupancy &= !from_bb;
+                    
+                    side_to_move = side_to_move.opposite();
+                }
+                None => break,
+            }
+        }
+
+        while depth > 1 {
+            depth -= 1;
+            gain[depth - 1] = -i32::max(-gain[depth - 1], gain[depth]);
+        }
+
+        gain[0]
     }
 }

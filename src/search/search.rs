@@ -3,7 +3,7 @@ use std::i32;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use crate::board::{Board};
+use crate::board::{Board, MAX_DEPTH};
 use crate::defs::Piece;
 use crate::movegen::attacks::square_attacked;
 use crate::movegen::mvv_lva::PIECE_VALUE;
@@ -22,7 +22,7 @@ impl Board {
         // If draw
         if (self.is_repetition() || self.fifty_move >= 100) && self.ply == 1 { return 0 }
 
-        let evaluate = self.evaluate();
+        let evaluate = self.evaluate(); // standing pat
         if evaluate >= beta { return beta }
         if evaluate > alpha { alpha = evaluate; }
 
@@ -33,7 +33,14 @@ impl Board {
         for scored_move in movelist.iter() {
             let mv = scored_move.mv;
 
-            // TODO Delta pruning
+            if self.static_exchange_evaluation(
+                mv.from_square(), 
+                mv.to_square(), 
+                Piece(mv.captured() as u8).piece_type(), 
+                self.pieces[mv.from_square()].piece_type()
+            ) < 0 { continue }
+
+            // Delta pruning
             let captured_piece_value = PIECE_VALUE[Piece(mv.captured() as u8).piece_type().index()];
             if mv.promoted() == 0 {
                 const DELTA_MARGIN: i32 = 200;
@@ -54,6 +61,9 @@ impl Board {
     pub fn alpha_beta(&mut self, search: &Search, mut alpha: i32, mut beta: i32, depth: u8) -> i32 {
         #[cfg(debug_assertions)] { self.check_board(fn_name!()); }
 
+        if search.nodes_visited.load(Ordering::Relaxed) & 2048 == 0 && search.should_stop() { return 0 }
+        if search.stop_flag.load(Ordering::Relaxed) { return 0 }
+
         search.nodes_visited.fetch_add(1, Ordering::Relaxed);
 
         if depth <= 0 { return self.quiescence(search, alpha, beta) }
@@ -63,8 +73,11 @@ impl Board {
         let position_key = self.position_key;
         let original_alpha = alpha;
         
-        // Transposition table
+        // Transposition table prune
+        let mut transposition_move = Move::default();
         if let Some(transposition_data) = search.transposition_table.probe(position_key) {
+            transposition_move = transposition_data.get_move();
+
             if transposition_data.get_depth() >= depth {
                 let mut transposition_score = transposition_data.get_score() as i32;
                 if transposition_score >= MATE_THRESHOLD { transposition_score -= self.ply as i32; }
@@ -90,10 +103,27 @@ impl Board {
 
         let mut movelist = MoveList::new();
         movelist.generate_all_moves(self);
+
+        // Boost transposition table move
+        for mv in movelist.iter_mut() {
+            if mv.mv.0 == transposition_move.0 {
+                mv.score = 30000;
+                break;
+            }
+        }
+
         movelist.sort();
 
         for scored_move in movelist.iter() {
             let mv = scored_move.mv;
+
+            // SEE pruning
+            // if depth <= 4 && self.static_exchange_evaluation(
+            //     mv.from_square(), 
+            //     mv.to_square(), 
+            //     Piece(mv.captured() as u8).piece_type(), 
+            //     self.pieces[mv.from_square()].piece_type()
+            // ) < -50 { continue }
 
             if !self.make_move(mv) { continue; }
             let evaluation = -self.alpha_beta(search, -beta, -alpha, depth - 1);
@@ -107,7 +137,24 @@ impl Board {
                 best_move = mv;
             }
 
-            if beta <= alpha { break } // prune/cutoff because move is too good
+            if beta <= alpha { // prune/cutoff because move is too good
+                if mv.captured() == 0 { 
+                    // Killer moves
+                    let ply = self.ply as usize;
+                    if ply < MAX_DEPTH && self.killers[ply][0] != Some(mv) {
+                        self.killers[ply][1] = self.killers[ply][0];
+                        self.killers[ply][0] = Some(mv);
+                    }
+
+                    self.update_history(mv, depth, true); // history heuristic
+
+                    // Reduce the score for all quiet moves before this one (because they didn't cause a cutoff)
+                    for prev in movelist.iter().take_while(|m| m.mv != mv) {
+                        if prev.mv.captured() == 0 { self.update_history(prev.mv, depth, false); }
+                    }
+                }
+                break 
+            }
         }
 
         if found_any_legal_moves {
@@ -138,11 +185,22 @@ impl Board {
     pub fn iterative_deepen(&mut self, search: &Search, depth: u8, yes_print: bool) -> Option<Move> {
         search.age.fetch_add(1, Ordering::Relaxed);
 
+        search.stop_flag.store(false, Ordering::Relaxed);
+
         let root_key = self.position_key;
         let mut best_move = None;
         
         for current_depth in 1..=depth {
+            // Simple gravity, dividing by 2
+            for piece_type in 0..Piece::COUNT {
+                for i in 0..64 {
+                    self.history_heuristic[piece_type][i] >>= 1; 
+                }
+            }
+
             let evaluation = self.alpha_beta(search, -30000, 30000, current_depth);
+
+            if search.stop_flag.load(Ordering::Relaxed) { break; }
 
             if let Some(transposition_data) = search.transposition_table.probe(root_key) {
                 let mv = transposition_data.get_move();
@@ -151,7 +209,20 @@ impl Board {
 
             if let Some(mv) = best_move {
                 if yes_print {
-                    println!("depth {} score {} best {} raw {:?}", current_depth, evaluation, mv, best_move);
+                    let pv_line = self.get_pv_line(search, current_depth);
+                    let pv_string = pv_line.iter()
+                        .map(|m| m.to_string())
+                        .collect::<Vec<String>>()
+                        .join(" ");
+
+                    let time = search.start_time.elapsed().as_millis();
+                    let nodes = search.nodes_visited.load(Ordering::Relaxed);
+                    let nps = if time > 0 { (nodes as u128 * 1000) / time } else { 0 };
+                    
+                    println!(
+                        "info depth {} score cp {} nodes {} time {} nps {} pv {}", 
+                        current_depth, evaluation, nodes, time, nps, pv_string
+                    );
                 }
             }
         }

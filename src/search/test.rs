@@ -2,10 +2,10 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::Ordering;
+    use std::sync::{Arc, atomic::Ordering};
 
     use super::*;
-    use crate::{board, fn_name, search::{self, Search, search::{MATE_SCORE, MATE_THRESHOLD}}, transposition_table::{EXACT_FLAG, TranspositionData, TranspositionTable}};
+    use crate::{board::{self, MAX_DEPTH}, fn_name, search::{self, Search, evaluate::PIECE_VALUE, search::{MATE_SCORE, MATE_THRESHOLD}}, squares::squares::{A1, A2, A3, A5, B2, B3, D5, E4}, transposition_table::{self, EXACT_FLAG, TranspositionData, TranspositionTable}};
     use crate::{board::Board, defs::PieceType, fens::FEN_START, movegen::{MOVE_FLAG_NONE, Move}, squares::squares::{B1, B8, C3, C6}};
 
     #[test]
@@ -31,7 +31,8 @@ mod tests {
 
     #[test]
     fn finds_mate_in_one() {
-        let mut search = Search::new(20);
+        let transposition_table = Arc::new(TranspositionTable::new(20));
+        let mut search = Search::new(transposition_table, 0);
         let mut board = Board::new("6k1/5ppp/8/8/8/8/8/R6K w - - 0 1");
 
         let best_move = board.iterative_deepen(&search, 2, false);
@@ -43,7 +44,8 @@ mod tests {
 
     #[test]
     fn test_tt_pruning_effectiveness() {
-        let mut search = Search::new(20);
+        let transposition_table = Arc::new(TranspositionTable::new(20));
+        let mut search = Search::new(transposition_table, 0);
         let mut board = Board::new(FEN_START);
         
         // 1. First Run: Cold Start (TT is empty)
@@ -65,7 +67,8 @@ mod tests {
 
     #[test]
     fn test_tt_storage_flags() {
-        let search = Search::new(20); // 1 MB
+        let transposition_table = Arc::new(TranspositionTable::new(20));
+        let search = Search::new(transposition_table, 0); // 1 MB
         let mut board = Board::new(FEN_START); // Start position
         let root_key = board.position_key;
 
@@ -93,7 +96,8 @@ mod tests {
 
     #[test]
     fn prefers_shorter_mate() {
-        let mut search = Search::new(20);
+        let transposition_table = Arc::new(TranspositionTable::new(20));
+        let mut search = Search::new(transposition_table, 0);
         // A position where white can mate in 1 (Ra8#) or mate in 2 (others)
         // 7k/R7/8/8/8/8/8/7K w - - 0 1
         let mut board = Board::new("7k/Q7/8/1R6/8/8/8/K7 w - - 0 1"); 
@@ -108,7 +112,8 @@ mod tests {
 
     #[test]
     fn recognizes_stalemate() {
-        let mut search = Search::new(20);
+        let transposition_table = Arc::new(TranspositionTable::new(20));
+        let mut search = Search::new(transposition_table, 0);
         // Black king at h8, White Queen at f7. Black has no moves, but is not in check.
         let mut board = Board::new("7k/Q7/8/6R1/8/8/8/K7 b - - 0 1");
 
@@ -120,7 +125,8 @@ mod tests {
 
     #[test]
     fn tt_stores_best_move_at_root() {
-        let search = Search::new(20);
+        let transposition_table = Arc::new(TranspositionTable::new(20));
+        let search = Search::new(transposition_table, 0);
         let mut board = Board::new(FEN_START);
         
         board.alpha_beta(&search, -30000, 30000, 4);
@@ -244,10 +250,114 @@ mod tests {
     #[test]
     fn quiescence_poison() {
         let mut position = Board::new("5k2/8/2p5/3p4/3Q4/8/8/7K w - - 0 1");
-        println!("{}", position);
-        let mut search = Search::new(20);
+        let transposition_table = Arc::new(TranspositionTable::new(20));
+        let mut search = Search::new(transposition_table, 0);
         let score = position.iterative_deepen(&search, 1, true).unwrap();
         println!("{}", score);
         // edit the return to quiesence in alpha-beta to evaluate
+    }
+
+    #[test]
+    fn test_see_hanging_piece() {
+        // Scenario: White Rook (A1) captures hanging Black Pawn (A5)
+        // Expected: +100 (Gain Pawn)
+        let mut board = Board::new("8/8/8/p7/8/8/8/R7 w - - 0 1");
+        
+        let score = board.static_exchange_evaluation(
+            A1,        // To: A5
+            A5,    // Target: Pawn
+            PieceType::PAWN,        // From: A1
+            PieceType::ROOK     // Actor: Rook
+        );
+
+        assert_eq!(score, PIECE_VALUE[PieceType::PAWN.index()], "Capturing undefended pawn should return Pawn Value");
+    }
+
+    #[test]
+    fn test_see_bad_capture() {
+        // Scenario: White Rook (A1) captures Black Pawn (A5) defended by Black Rook (A8)
+        // Exchange: RxP (+100) -> RxR (-500)
+        // Result: White loses 400.
+        let mut board = Board::new("r7/8/8/p7/8/8/8/R7 w - - 0 1");
+
+        let score = board.static_exchange_evaluation(
+            A1,
+            A5,
+            PieceType::PAWN,
+            PieceType::ROOK
+        );
+
+        // Score should be negative (Value of Pawn - Value of Rook)
+        assert_eq!(score, PIECE_VALUE[PieceType::PAWN.index()] - PIECE_VALUE[PieceType::ROOK.index()], "Trading Rook for Pawn should be negative");
+    }
+
+    #[test]
+    fn xray_exchange() {
+        let mut board = Board::new("r7/8/8/p7/8/8/Q7/R7 w - - 0 1");
+        let score = board.static_exchange_evaluation(
+            A1, 
+            A5, 
+            PieceType::PAWN, 
+            PieceType::ROOK
+        );
+
+        assert_eq!(score, PIECE_VALUE[PieceType::PAWN.index()], "Battery should make capture safe (+100)");
+    }
+
+    #[test]
+    fn complex_exchange() {
+        let mut board = Board::new("3q4/8/4p3/3p4/4B3/2N5/8/8 w - - 0 1");
+        let score = board.static_exchange_evaluation(
+            E4, 
+            D5, 
+            PieceType::PAWN, 
+            PieceType::KNIGHT
+        );
+
+        assert_eq!(score, PIECE_VALUE[PieceType::PAWN.index()] - PIECE_VALUE[PieceType::KNIGHT.index()], "Result should be losing the Knight for the Pawn (-220)");
+    }
+
+    #[test]
+    fn test_killer_moves_logic() {
+        pub fn store_killer(position: &mut Board, mv: Move) {
+            if mv.captured() != 0 { return; } // Only quiet moves
+            
+            let ply = position.ply as usize;
+            if ply >= MAX_DEPTH { return; }
+
+            // Prevent duplication
+            if position.killers[ply][0] != Some(mv) {
+                position.killers[ply][1] = position.killers[ply][0];
+                position.killers[ply][0] = Some(mv);
+            }
+        }
+        let mut position = Board::new(FEN_START);
+        
+        let move_a = Move::new(A2, A3, 0, 0, 0);
+        let move_b = Move::new(B2, B3, 0, 0, 0);
+        
+        let ply = 5; 
+        position.ply = ply as u8;
+
+        // --- TEST 1: Store First Killer ---
+        // Simulate beta cutoff with Move A
+        store_killer(&mut position, move_a); 
+
+        assert_eq!(position.killers[ply][0], Some(move_a), "Move A should be in Slot 0");
+        assert_eq!(position.killers[ply][1], None, "Slot 1 should still be empty");
+
+        // --- TEST 2: Store Second Killer (Shift) ---
+        // Simulate beta cutoff with Move B
+        store_killer(&mut position, move_b); 
+
+        assert_eq!(position.killers[ply][0], Some(move_b), "Move B should be new Slot 0");
+        assert_eq!(position.killers[ply][1], Some(move_a), "Move A should have shifted to Slot 1");
+
+        // --- TEST 3: Duplicate Prevention ---
+        // Simulate beta cutoff with Move B AGAIN
+        store_killer(&mut position, move_b); 
+
+        assert_eq!(position.killers[ply][0], Some(move_b), "Slot 0 should stay Move B");
+        assert_eq!(position.killers[ply][1], Some(move_a), "Slot 1 should NOT become Move B");
     }
 }

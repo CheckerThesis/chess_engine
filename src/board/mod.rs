@@ -10,7 +10,7 @@ use colored::Colorize;
 use crate::{defs::{BLACK_KING_CASTLE, BLACK_QUEEN_CASTLE, Color, Files, Piece, PieceType, Ranks, WHITE_KING_CASTLE, WHITE_QUEEN_CASTLE, fr2sq}, movegen::Move};
 
 pub const MAX_GAME_MOVES: usize = 2048;
-pub const MAX_DEPTH: usize = 32;
+pub const MAX_DEPTH: usize = 64;
 
 pub fn set_bit(bb: &mut u64, square: usize) { *bb |= 1u64 << square; }
 pub fn clear_bit(bb: &mut u64, square: usize) { *bb &= !(1u64 << square); }
@@ -55,14 +55,9 @@ pub struct Board {
 
     pub history: [Undo; MAX_GAME_MOVES],
 
-    // principal variation is the best sequence of moves,
-    // ie. the best according to the engine
-    // ie. expected moves played
-    pub pv_array: [u32; MAX_DEPTH],
-
     // for move ordering, rough way to record non-capture moves that are good enough to cause beta cut-off or good alpha
-    pub search_history: [[u32; 64]; 13], // stores when a score has beaten alpha, history heuristic
-    pub search_killers: [[u32; MAX_DEPTH]; 2], // stores when a score has beaten beta but is not a capture, killer moves
+    pub history_heuristic: [[i16; 64]; Piece::COUNT], // stores when a score has beaten alpha, history heuristic
+    pub killers: [[Option<Move>; 2]; MAX_DEPTH], // stores when a score has beaten beta but is not a capture, killer moves
 }
 impl Board {
     pub fn new(fen: &str) -> Self {
@@ -117,6 +112,14 @@ impl Board {
         for piece in Piece::BLACK_PIECES { computed_black_occupancy |= self.bitboards[piece.index()]; }
         if white_occupancy != computed_white_occupancy { 
             eprintln!("{}", format!("check_board ({}): white occupancy mismatch", location_called).red()); 
+            println!("white_occupancy");
+            print_bitboard(white_occupancy);
+            
+            println!("computed_white_occupancy");
+            print_bitboard(computed_white_occupancy);
+
+            println!("{self}");
+
             panic!();
         }
         if black_occupancy != computed_black_occupancy { 
@@ -176,6 +179,7 @@ impl Board {
         fn reset_board(position: &mut Board) {
             for square in 0..64 { position.pieces[square] = Piece::NONE; }
             position.bitboards.fill(0);
+            position.occupancies.fill(0);
             position.en_passant = None;
             position.fifty_move = 0;
             position.ply = 0;
@@ -440,9 +444,8 @@ impl Default for Board {
             castle_permission: 0,
             position_key: 0,
             history: [Undo::default(); MAX_GAME_MOVES],
-            pv_array: [0; MAX_DEPTH],
-            search_history: [[0; 64]; 13],
-            search_killers: [[0; MAX_DEPTH]; 2]
+            history_heuristic: [[0; 64]; Piece::COUNT],
+            killers: [[None; 2]; MAX_DEPTH]
         }
     }
 }

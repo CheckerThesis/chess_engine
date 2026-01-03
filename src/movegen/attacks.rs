@@ -43,3 +43,53 @@ pub fn square_attacked(square: usize, side: Color, position: &Board) -> bool {
 
     false
 }
+
+impl Board {
+    pub fn get_smallest_attacker(&self, square: usize, side: Color, occupancy: u64) -> Option<(PieceType, u64)> {
+        let pawns = self.bitboards[PieceType::PAWN.bb_index(side)] & occupancy;
+        if pawns != 0 {
+            let attack_mask = 
+                if side == Color::WHITE { BLACK_PAWN_ATTACKS[square] }
+                else { WHITE_PAWN_ATTACKS[square] };
+            let attackers = attack_mask & pawns;
+            if attackers != 0 { return Some((PieceType::PAWN, attackers & attackers.wrapping_neg())) }
+        }
+
+        let knights = self.bitboards[PieceType::KNIGHT.bb_index(side)] & occupancy;
+        if knights != 0 {
+            let attackers = KNIGHT_RAYS[square] & knights;
+            if attackers != 0 {
+                return Some((PieceType::KNIGHT, attackers & attackers.wrapping_neg()));
+            }
+        }
+
+        let bishops = self.bitboards[PieceType::BISHOP.bb_index(side)] & occupancy;
+        let queens = self.bitboards[PieceType::QUEEN.bb_index(side)] & occupancy;
+        if bishops | queens != 0 {
+            let diagonal_attacks = get_bishop_attacks(square, occupancy);
+            let bishop_attackers = diagonal_attacks & bishops;
+            if bishop_attackers != 0 { return Some((PieceType::BISHOP, bishop_attackers & bishop_attackers.wrapping_neg())); }
+        }
+
+        let rooks = self.bitboards[PieceType::ROOK.bb_index(side)] & occupancy;
+        if rooks | queens != 0 {
+            let rook_attacks = get_rook_attacks(square, occupancy);
+            let rook_attackers = rook_attacks & rooks;
+            if rook_attackers != 0 { return Some((PieceType::ROOK, rook_attackers & rook_attackers.wrapping_neg())); }
+        
+            let mut queen_attackers = 0;
+            if queens != 0 {
+                let all_attacks = get_bishop_attacks(square, occupancy) | get_rook_attacks(square, occupancy);
+                queen_attackers = all_attacks & queens;
+                if queen_attackers != 0 { return Some((PieceType::QUEEN, queen_attackers & queen_attackers.wrapping_neg())); }
+            }
+        }
+
+        let king = self.bitboards[PieceType::KING.bb_index(side)] & occupancy;
+        if (KING_RAYS[square] & king) != 0 {
+            return Some((PieceType::KING, king));
+        }
+
+        None
+    }
+}

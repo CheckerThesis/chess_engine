@@ -90,6 +90,7 @@ impl MoveList {
     pub fn len(&self) -> usize { self.count }
 
     pub fn iter(&self) -> std::slice::Iter<'_, ScoredMove> { self.moves[..self.count].iter() }
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, ScoredMove> { self.moves[..self.count].iter_mut() }
 
     pub fn sort(&mut self) {
         self.moves[..self.count].sort_unstable_by(|a, b| b.score.cmp(&a.score));
