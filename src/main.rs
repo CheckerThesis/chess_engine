@@ -40,7 +40,7 @@ fn test_perft_changes() {
 }
 
 fn test_search_changes() {
-    const SAMPLES: usize = 7;
+    const SAMPLES: usize = 10;
     const ITERATIONS: u32 = 2;
     const DEPTH: u8 = 10;
 
@@ -146,22 +146,26 @@ fn test_move_ordering(depth: u8) -> (f64, f64) {
     // );
 }
 
+// TODO Eval king safety
+// TODO Pawn structure (doubled, isolated, passed pawns)
+// TODO Piece mobility
+// TODO Piece coordination
+
 // Future:
 // Bucket transposition table
 fn main() {
-    test_search_changes();
-    run_suites("/home/tien/code/chess_engine/src/test_suites/wac/wac.epd");
+    // test_search_changes();
+    // run_suites("/home/tien/code/chess_engine/src/test_suites/wac/wac.epd");
 
-    // let tt = Arc::new(TranspositionTable::new(24));
-    // let mut position = Board::new(KIWIPETE);
-    // let search = Arc::new(Search::new(tt.clone(), 0));
-    // let best_move = position.iterative_deepen(&search, 15, true);
-    // // println!("{:.2}%", (search.first_cutoffs.load(Ordering::Relaxed) / search.total_cutoffs.load(Ordering::Relaxed) * 100));
-    // let first = search.first_cutoffs.load(Ordering::Relaxed);
-    // let total = search.total_cutoffs.load(Ordering::Relaxed);
-    // println!("first: {}    total: {}    percent: {:.2}%", 
-    //     first,
-    //     total,
-    //     (first as f64 / total as f64) * 100.0
-    // );
+    let tt = Arc::new(TranspositionTable::new(24));
+    let mut position = Board::new(KIWIPETE);
+    let search = Arc::new(Search::new(tt.clone(), 0));
+    let best_move = position.iterative_deepen(&search, 17, true);
+    let first = search.first_cutoffs.load(Ordering::Relaxed);
+    let total = search.total_cutoffs.load(Ordering::Relaxed);
+    println!("first: {}    total: {}    percent: {:.2}%", 
+        first,
+        total,
+        (first as f64 / total as f64) * 100.0
+    );
 }

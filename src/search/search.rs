@@ -100,6 +100,11 @@ impl Board {
         let side = self.side.index();
         let in_check = square_attacked(self.king_square[self.side.index()], self.side, self);
 
+        // Internal iterative reduction
+        // let depth = 
+        //     if transposition_move == Move::default() && depth >= 4 && !in_check { depth - 1 } 
+        //     else { depth };
+
         // Null move prune
         const R: u8 = 4; // null move reduction factor
         if do_null &&!in_check && self.ply > 0 && self.has_non_pawn_material() && depth >= R {
@@ -262,13 +267,18 @@ impl Board {
     }
 
     pub fn iterative_deepen(&mut self, search: &Search, depth: u8, yes_print: bool) -> Option<Move> {
-        search.age.fetch_add(1, Ordering::Relaxed);
+        let mut re_search = 0;
+        let mut total = 0;
 
+        search.age.fetch_add(1, Ordering::Relaxed);
         search.stop_flag.store(false, Ordering::Relaxed);
 
         let root_key = self.position_key;
         let mut best_move = None;
+        let mut score = 0;
         
+        const ASPIRATION_WINDOW: i32 = 60;
+
         for current_depth in 1..=depth {
             // Simple gravity, dividing by 2
             for piece_type in 0..Piece::COUNT {
@@ -276,6 +286,34 @@ impl Board {
                     self.history_heuristic[piece_type][i] >>= 1; 
                 }
             }
+
+            // Aspiration window
+            // let mut alpha = -30000;
+            // let mut beta = 30000;
+            // let mut delta = ASPIRATION_WINDOW;
+            // if current_depth >= 4 {
+            //     alpha = score - delta;
+            //     beta = score + delta;
+            // }
+            // loop {
+            //     total += 1;
+            //     let evaluation = self.alpha_beta(search, alpha, beta, current_depth, true);
+
+            //     if search.stop_flag.load(Ordering::Relaxed) { return best_move; }
+
+            //     if evaluation <= alpha { // fail low, widen alpha
+            //         re_search += 1;
+            //         alpha = (evaluation - delta).max(-30000);
+            //         delta *= 2;
+            //     } else if evaluation >= beta { // fail high, widen beta
+            //         re_search += 1;
+            //         beta = (evaluation + delta).min(30000);
+            //         delta *= 2;
+            //     } else {
+            //         score = evaluation;
+            //         break;
+            //     }
+            // }
 
             let evaluation = self.alpha_beta(search, -30000, 30000, current_depth, true);
 
@@ -300,11 +338,17 @@ impl Board {
                     
                     println!(
                         "info depth {} score cp {} nodes {} time {} nps {} pv {}", 
-                        current_depth, evaluation, nodes, time, nps, pv_string
+                        current_depth, score, nodes, time, nps, pv_string
                     );
                 }
             }
         }
+
+        // println!("re-search: {}    total: {}    percent: {:.2}%", 
+        //     re_search,
+        //     total,
+        //     (re_search as f64 / total as f64) * 100.0
+        // );
 
         best_move
     }
