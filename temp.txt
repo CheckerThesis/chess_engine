@@ -1,14 +1,24 @@
-# Old testing
-Pre-changes: 1.59
-Inline set/clear bit and makemove helpers: 1.59
-Moving capture to the top: 1.57
-Change castling to using switch statement and removing old crossing: 1.54
-Quiet move piece: 1.57
+if !self.make_move(mv) { continue; }
+let mut evaluation: i32;
+if moves_searched == 0 {
+    evaluation = -self.alpha_beta(search, -beta, -alpha, depth - 1, true);
+} else {
+    let gives_check = square_attacked(self.king_square[self.side.index()], self.side, self);
+    let do_lmr = moves_searched >= 16 &&
+                        depth >= 2 &&
+                        !in_check &&
+                        !gives_check &&
+                        mv.captured() == 0 &&
+                        mv.promoted() == 0;
+    if do_lmr { // late move reduction
+        let reduction = if moves_searched >= 18 { 2 } else { 1 };
+        evaluation = -self.alpha_beta(search, -alpha - 1, -alpha, depth.saturating_sub(1 + reduction), do_null);
+    } else {
+        evaluation = -self.alpha_beta(search, -alpha - 1, -alpha, depth - 1, true);
+    }
 
-# New testing
-All prev changes: 1.5989
-Promoted piece is no longer same as move piece: 1.506
-No hashing in takemove: 1.5
-Remove extra square attacked in castling: 1.498
-Remove branch from captured: Same
-Remove double castle: 1.51
+    if evaluation > alpha { // if beats alpha, re-search at full depth
+        evaluation = -self.alpha_beta(search, -beta, -alpha, depth - 1, do_null);
+    }
+}
+self.take_move();

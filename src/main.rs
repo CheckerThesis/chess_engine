@@ -40,7 +40,7 @@ fn test_perft_changes() {
 }
 
 fn test_search_changes() {
-    const SAMPLES: usize = 4;
+    const SAMPLES: usize = 7;
     const ITERATIONS: u32 = 2;
     const DEPTH: u8 = 10;
 
@@ -87,10 +87,10 @@ fn test_search_changes() {
 
     let total_iterations = ITERATIONS as u64 * test_positions.len() as u64;
     println!("----------------------------------------");
-    println!("Median Time:  {:?}", median_time);
-    println!("Median Nodes: {})", median_nodes);
+    println!("Median Time: {:?}", median_time);
+    println!("Median Nodes: {}", median_nodes);
     println!(
-        "Speed:        {:.2} Mnps", 
+        "Speed: {:.2} Mnps", 
         median_nodes as f64 / median_time.as_secs_f64() / 1_000_000.0
     );
 }
@@ -149,11 +149,19 @@ fn test_move_ordering(depth: u8) -> (f64, f64) {
 // Future:
 // Bucket transposition table
 fn main() {
-    // test_search_changes();
-    // run_suites("/home/tien/code/chess_engine/src/test_suites/wac/wac.epd");
+    test_search_changes();
+    run_suites("/home/tien/code/chess_engine/src/test_suites/wac/wac.epd");
 
-    let tt = Arc::new(TranspositionTable::new(24));
-    let mut position = Board::new(KIWIPETE);
-    let search = Arc::new(Search::new(tt.clone(), 0));
-    let best_move = position.iterative_deepen(&search, 13, true);
+    // let tt = Arc::new(TranspositionTable::new(24));
+    // let mut position = Board::new(KIWIPETE);
+    // let search = Arc::new(Search::new(tt.clone(), 0));
+    // let best_move = position.iterative_deepen(&search, 15, true);
+    // // println!("{:.2}%", (search.first_cutoffs.load(Ordering::Relaxed) / search.total_cutoffs.load(Ordering::Relaxed) * 100));
+    // let first = search.first_cutoffs.load(Ordering::Relaxed);
+    // let total = search.total_cutoffs.load(Ordering::Relaxed);
+    // println!("first: {}    total: {}    percent: {:.2}%", 
+    //     first,
+    //     total,
+    //     (first as f64 / total as f64) * 100.0
+    // );
 }

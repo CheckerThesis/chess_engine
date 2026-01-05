@@ -17,6 +17,9 @@ pub const MATE_THRESHOLD: i32 = MATE_SCORE - 1000;
 
 impl Board {
     fn quiescence(&mut self, search: &Search, mut alpha: i32, mut beta: i32) -> i32 {
+        if search.nodes_visited.load(Ordering::Relaxed) & 2048 == 0 && search.should_stop() { return 0 }
+        if search.stop_flag.load(Ordering::Relaxed) { return 0 }
+        
         search.nodes_visited.fetch_add(1, Ordering::Relaxed);
 
         // If draw
@@ -113,10 +116,10 @@ impl Board {
 
         // Reverse futility prune
         let static_eval = if !in_check { self.evaluate() } else { 0 };
-        const RFP_MARGINS: [i32; 7] = [0, 100, 180, 260, 340, 420, 500]; // depth 0-6
+        const RFP_MARGIN: [i32; 7] = [0, 100, 180, 260, 340, 420, 500]; // depth 0-6
         if depth <= 4 && !in_check && beta.abs() < MATE_THRESHOLD {
             // TODO Adjusting the return value of RFP is also found to gain strength in some engines. For example, some engines return (eval + beta) / 2 or beta + (eval - beta) / 3 on successful RFP. 
-            if static_eval - RFP_MARGINS[depth as usize] >= beta { return beta }
+            if static_eval - RFP_MARGIN[depth as usize] >= beta { return beta }
         }
 
         let mut best_move = Move::default();
@@ -136,13 +139,12 @@ impl Board {
 
         movelist.sort();
 
-        // const FUTILITY_MARGIN: [i32; 4] = [0, 100, 200, 300];  // depth 0, 1, 2, 3
-
-        // let futility_pruning_enabled = depth <= 3 
+        // const FUTILITY_MARGIN: [i32; 4] = [0, 400, 600, 750]; // depth 0, 1, 2, 3
+        // let futility_pruning_enabled = depth <= 2
         //     && !in_check 
         //     && alpha.abs() < MATE_THRESHOLD;
 
-
+        let mut moves_searched = 0;
         for scored_move in movelist.iter() {
             let mv = scored_move.mv;
 
@@ -159,13 +161,44 @@ impl Board {
                 if see_value < see_threshold { continue; }
             }*/
 
-            // Futility prune
+            /*// Futility prune
+            if futility_pruning_enabled 
+               && moves_searched > 0
+               && mv.captured() == 0
+               &&  mv.promoted() == 0
+               && scored_move.score < 9000 
+            {
+                let futility_value = static_eval + FUTILITY_MARGIN[depth as usize];
+                if futility_value <= alpha {
+                    if futility_value > best_score { best_score = futility_value; } // update for TT storage
+                    continue;
+                }
+            }*/
 
             if !self.make_move(mv) { continue; }
-            let evaluation = -self.alpha_beta(search, -beta, -alpha, depth - 1, true);
+            let mut evaluation: i32;
+            // Late move reduction
+            let gives_check = square_attacked(self.king_square[self.side.index()], self.side, self);
+            let do_lmr = moves_searched >= 16 &&
+                                   depth >= 2 &&
+                                   !in_check &&
+                                   !gives_check &&
+                                   mv.captured() == 0 &&
+                                   mv.promoted() == 0;
+            if do_lmr {
+                let reduction = if moves_searched >= 18 { 2 } else { 1 };
+                // Search at lower depth
+                evaluation = -self.alpha_beta(search, -alpha - 1, -alpha, depth.saturating_sub(1 + reduction), do_null);
+                if evaluation > alpha { // if beats alpha re-search at full depth
+                    evaluation = -self.alpha_beta(search, -beta, -alpha, depth - 1, do_null);
+                }
+            } else {
+                evaluation = -self.alpha_beta(search, -beta, -alpha, depth - 1, true);
+            }
             self.take_move();
 
             found_any_legal_moves = true;
+            moves_searched += 1;
             best_score = max(best_score, evaluation);
 
             if evaluation > alpha {
@@ -174,6 +207,8 @@ impl Board {
             }
 
             if beta <= alpha { // prune/cutoff because move is too good
+                if moves_searched == 1 { search.first_cutoffs.fetch_add(1, Ordering::Relaxed); }
+                search.total_cutoffs.fetch_add(1, Ordering::Relaxed);
                 if mv.captured() == 0 { 
                     // Killer moves
                     let ply = self.ply as usize;

@@ -14,6 +14,9 @@ pub struct Search {
     pub stop_flag: AtomicBool,
     pub start_time: Instant,
     pub time_limit_ms: u128,
+
+    pub first_cutoffs: AtomicUsize,
+    pub total_cutoffs: AtomicUsize,
 }
 impl Search {
     pub fn new(transposition_table: Arc<TranspositionTable>, time_limit_ms: u128) -> Self {
@@ -25,11 +28,16 @@ impl Search {
             stop_flag: AtomicBool::new(false),
             start_time: Instant::now(),
             time_limit_ms: time_limit_ms,
+
+            first_cutoffs: AtomicUsize::new(0),
+            total_cutoffs: AtomicUsize::new(0),
         }
     }
 
     pub fn reset_stats(&self) {
         self.nodes_visited.store(0, Ordering::Relaxed);
+        self.first_cutoffs.store(0, Ordering::Relaxed);
+        self.total_cutoffs.store(0, Ordering::Relaxed);
     }
 
     pub fn reset(&self) {

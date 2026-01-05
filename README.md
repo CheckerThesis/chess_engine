@@ -12,11 +12,18 @@
 - Reverse futility prune: Position is so good that losing a margin still beats beta
 - Futility prune: If the best possible improvement can't raise alpha, position is too bad, don't search
 
-## Evaluation
-- Piece square tables
+## Reductions
+- Late move reduction: Moves later in the movelist are generally worse so search them to a lesser ply
+- PVS
+
+## Etc
 - Quiescence
     - Delta pruning
     - SEE pruning
+- Iterative deepening
+
+## Evaluation
+- Piece square tables
 
 # Tests
 ## Move ordering node count
@@ -48,23 +55,35 @@ With quiescence (and delta prune)
     - Median Time: 7.374740213s
     - Median Nodes: 49764980
     - Speed: 6.75 Mnps
-- Reverse futility prune (margin 120, depth 6)
+- Reverse futility prune (margin 120, depth 6) (will not continue with)
     - Final Score: 220/300 (73.3%)
     - Median Time: 1.27778892s
     - Median Nodes: 13357720
     - Speed: 10.45 Mnps
-- Reverse futility prune (margin 120, depth 4)
+- Reverse futility prune (margin 120, depth 4) (will not continue with)
     - Final Score: 225/300 (75.0%)
     - Median Time: 1.377877393s
     - Median Nodes: 13809616
     - Speed: 10.02 Mnps
 - Reverse futility prune (margin [0, 100, 180, 260, 340, 420, 500], depth 4)
-    - Final Score: Final Score: 230/300 (76.7%)
+    - Final Score: 230/300 (76.7%)
     - Median Time: 1.52705463s
     - Median Nodes: 16096088
     - Speed: 10.54 Mnps
+- Late move reduction (moves searched 6, depth 2, reduction, >= 18 ? 2 : 1)
+    - Final Score: 223/300 (74.3%)
+    - Median Time: 728.625984ms
+    - Median Nodes: 7992482
+    - Speed: 10.54 Mnps
+- PVS
+    - Final Score: 215/300 (71.7%)
+    - Median Time: 606.397042ms
+    - Median Nodes: 6410716
+    - Speed: 10.57 Mnps
 
 # Things to vary
 - Reverse futility prune, increase RFP_MARGIN and decrease max depth makes more accurate
+- Futility prune, increase margin to make more conservative
+- LMR, increase moved searched
 - SEE comparison values (and pruning in general)
 - Piece values
