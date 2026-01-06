@@ -1,3 +1,26 @@
+pub fn move_to_indices(mv: &str) -> Option<(usize, usize)> {
+    if mv.len() != 4 {
+        return None;
+    }
+
+    let bytes = mv.as_bytes();
+
+    fn square(file: u8, rank: u8) -> Option<usize> {
+        if !(b'a'..=b'h').contains(&file) || !(b'1'..=b'8').contains(&rank) {
+            return None;
+        }
+        let file = (file - b'a') as usize;
+        let rank = (rank - b'1') as usize;
+        Some(rank * 8 + file)
+    }
+
+    let from = square(bytes[0], bytes[1])?;
+    let to   = square(bytes[2], bytes[3])?;
+
+    Some((from, to))
+}
+
+
 pub mod squares {
     // Rank 1
     pub const A1: usize = 0;

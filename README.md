@@ -40,7 +40,7 @@ Tested with tt size of 20, reseting tt each time, depth 9, no pruning (except fo
 - SEE:         120827687 nodes, 9.04s (13.36 Mnps)
 - Countermove: 123477893 nodes, 9.30s (12.98 Mnps) 
 
-## Evaluation STS suite
+## Pruning with WAC suite
 With quiescence (and delta prune)
 - TT 
     - Final Score: 245/300 (81.7%)
@@ -82,6 +82,9 @@ With quiescence (and delta prune)
     - Median Time: 606.397042ms
     - Median Nodes: 6410716
     - Speed: 10.57 Mnps
+
+## Evaluation
+
 
 # Things to vary
 - Reverse futility prune, increase RFP_MARGIN and decrease max depth makes more accurate

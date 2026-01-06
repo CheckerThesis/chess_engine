@@ -2,7 +2,7 @@
 use std::{hint::black_box, sync::{Arc, atomic::Ordering}, time::{Duration, Instant}};
 
 use vault::{
-    board::Board, defs::{Color, Piece, PieceType}, fens::{ENDGAME1, FEN_MATE_IN_4, FEN_START, ITALIAN, KIWIPETE, MIDDLEGAME1, POSITION3, POSITION4}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, attacks::square_attacked}, perft::perft, search::Search, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}, test_suites::run_suites, transposition_table::{self, TranspositionTable}
+    board::Board, defs::{Color, Piece, PieceType}, fens::{ENDGAME1, FEN_MATE_IN_4, FEN_START, ITALIAN, KIWIPETE, MIDDLEGAME1, POSITION3, POSITION4}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, attacks::square_attacked}, perft::perft, search::Search, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}, test_suites::run_suites, transposition_table::{self, TranspositionTable}, uci::uci_loop
 };
 /*
 lto = "fat"
@@ -157,15 +157,17 @@ fn main() {
     // test_search_changes();
     // run_suites("/home/tien/code/chess_engine/src/test_suites/wac/wac.epd");
 
-    let tt = Arc::new(TranspositionTable::new(24));
-    let mut position = Board::new(KIWIPETE);
-    let search = Arc::new(Search::new(tt.clone(), 0));
-    let best_move = position.iterative_deepen(&search, 17, true);
-    let first = search.first_cutoffs.load(Ordering::Relaxed);
-    let total = search.total_cutoffs.load(Ordering::Relaxed);
-    println!("first: {}    total: {}    percent: {:.2}%", 
-        first,
-        total,
-        (first as f64 / total as f64) * 100.0
-    );
+    // let tt = Arc::new(TranspositionTable::new(24));
+    // let mut position = Board::new(KIWIPETE);
+    // let search = Arc::new(Search::new(tt.clone(), 0));
+    // let best_move = position.iterative_deepen(&search, 17, true);
+    // let first = search.first_cutoffs.load(Ordering::Relaxed);
+    // let total = search.total_cutoffs.load(Ordering::Relaxed);
+    // println!("first: {}    total: {}    percent: {:.2}%", 
+    //     first,
+    //     total,
+    //     (first as f64 / total as f64) * 100.0
+    // );
+
+    uci_loop();
 }

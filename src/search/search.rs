@@ -81,7 +81,7 @@ impl Board {
         if let Some(transposition_data) = search.transposition_table.probe(position_key) {
             transposition_move = transposition_data.get_move();
 
-            if transposition_data.get_depth() >= depth {
+            if transposition_data.get_depth() >= depth && self.ply > 0 {
                 let mut transposition_score = transposition_data.get_score() as i32;
                 if transposition_score >= MATE_THRESHOLD { transposition_score -= self.ply as i32; }
                 else if transposition_score <= -MATE_THRESHOLD { transposition_score += self.ply as i32; }
@@ -349,6 +349,8 @@ impl Board {
         //     total,
         //     (re_search as f64 / total as f64) * 100.0
         // );
+
+        println!("bestmove {}", best_move.unwrap());
 
         best_move
     }

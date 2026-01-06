@@ -9,3 +9,4 @@ pub mod squares;
 pub mod transposition_table;
 pub mod search;
 pub mod test_suites;
+pub mod uci;
