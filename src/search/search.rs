@@ -350,7 +350,7 @@ impl Board {
         //     (re_search as f64 / total as f64) * 100.0
         // );
 
-        println!("bestmove {}", best_move.unwrap());
+        if yes_print { println!("bestmove {}", best_move.unwrap()); }
 
         best_move
     }

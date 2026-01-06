@@ -19,6 +19,9 @@ impl Board {
                 eprintln!("{}", format!("clear_piece: Tried to remove NONE on square {}", square).red());
             }
         }
+
+        self.eval_score -= self.piece_value_at(piece, square);
+
         self.hash_piece(piece, square);
         clear_bit(&mut self.bitboards[piece.index()], square);
         clear_bit(&mut self.occupancies[piece.color().index()], square);
@@ -38,6 +41,8 @@ impl Board {
         if piece.piece_type() == PieceType::KING {
             self.king_square[piece.color().index()] = square;
         }
+
+        self.eval_score += self.piece_value_at(piece, square);
     }
 
     pub(crate) fn move_piece(&mut self, from: usize, to: usize) {
@@ -47,6 +52,9 @@ impl Board {
                 eprintln!("{}", format!("move_piece_quiet: Tried to remove NONE on square {}", from).red());
             }
         }
+
+        self.eval_score -= self.piece_value_at(piece, from);
+        self.eval_score += self.piece_value_at(piece, to);
 
         self.position_key ^= PIECE_KEYS[piece.index()][from] ^ PIECE_KEYS[piece.index()][to];
         

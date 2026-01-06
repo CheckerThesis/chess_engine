@@ -57,12 +57,15 @@ pub struct Board {
 
     pub history_heuristic: [[i16; 64]; Piece::COUNT],
     pub killers: [[Option<Move>; 2]; MAX_DEPTH],
-    pub countermoves: [[[Option<Move>; 64]; PieceType::COUNT]; 2]
+    pub countermoves: [[[Option<Move>; 64]; PieceType::COUNT]; 2],
+
+    pub eval_score: i32,
 }
 impl Board {
     pub fn new(fen: &str) -> Self {
         let mut board = Board::default();
         board.parse_fen(fen);
+        board.init_eval();
         board
     }
 
@@ -256,6 +259,8 @@ impl Board {
         }
 
         self.position_key = self.generate_position_key();
+
+        self.init_eval();
     }
 
     pub fn get_fen(&self) -> String {
@@ -446,7 +451,8 @@ impl Default for Board {
             history: [Undo::default(); MAX_GAME_MOVES],
             history_heuristic: [[0; 64]; Piece::COUNT],
             killers: [[None; 2]; MAX_DEPTH],
-            countermoves: [[[None; 64]; PieceType::COUNT]; 2]
+            countermoves: [[[None; 64]; PieceType::COUNT]; 2],
+            eval_score: 0,
         }
     }
 }

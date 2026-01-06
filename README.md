@@ -84,7 +84,16 @@ With quiescence (and delta prune)
     - Speed: 10.57 Mnps
 
 ## Evaluation
-
+### Iterative eval
+Depth 13, 20 TT
+- Pre
+    - Median Time: 16.280362353s
+    - Median Nodes: 190563485
+    - Speed: 11.71 Mnps
+- Post
+    - Median Time: 13.750168906s
+    - Median Nodes: 178678340
+    - Speed: 12.99 Mnps
 
 # Things to vary
 - Reverse futility prune, increase RFP_MARGIN and decrease max depth makes more accurate

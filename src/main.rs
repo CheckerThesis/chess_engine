@@ -2,7 +2,7 @@
 use std::{hint::black_box, sync::{Arc, atomic::Ordering}, time::{Duration, Instant}};
 
 use vault::{
-    board::Board, defs::{Color, Piece, PieceType}, fens::{ENDGAME1, FEN_MATE_IN_4, FEN_START, ITALIAN, KIWIPETE, MIDDLEGAME1, POSITION3, POSITION4}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, attacks::square_attacked}, perft::perft, search::Search, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}, test_suites::run_suites, transposition_table::{self, TranspositionTable}, uci::uci_loop
+    board::Board, defs::{Color, Piece, PieceType}, fens::{ENDGAME1, FEN_MATE_IN_4, FEN_START, ITALIAN, KIWIPETE, MIDDLEGAME1, POSITION3, POSITION4, POSITION4_FLIPPED}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, attacks::square_attacked}, perft::perft, search::Search, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}, test_suites::run_suites, transposition_table::{self, TranspositionTable}, uci::uci_loop
 };
 /*
 lto = "fat"
@@ -40,9 +40,9 @@ fn test_perft_changes() {
 }
 
 fn test_search_changes() {
-    const SAMPLES: usize = 10;
-    const ITERATIONS: u32 = 2;
-    const DEPTH: u8 = 10;
+    const SAMPLES: usize = 5;
+    const ITERATIONS: u32 = 5;
+    const DEPTH: u8 = 13;
 
     let test_positions = [
         ("Tactical", KIWIPETE),
@@ -169,5 +169,22 @@ fn main() {
     //     (first as f64 / total as f64) * 100.0
     // );
 
-    uci_loop();
+    // uci_loop();
+
+    let tt = Arc::new(TranspositionTable::new(24));
+    let mut position = Board::new(KIWIPETE);
+    let search = Arc::new(Search::new(tt.clone(), 0));
+    let best_move = position.iterative_deepen(&search, 15, true);
+
+    // let mut position = Board::new(KIWIPETE);
+    // println!("{}", position.evaluate()); // 90
+
+    // position.parse_fen(POSITION3);
+    // println!("{}", position.evaluate()); // -5
+
+    // position.parse_fen(POSITION4);
+    // println!("{}", position.evaluate()); // 175
+
+    // position.parse_fen(POSITION4_FLIPPED); // 175
+    // println!("{}", position.evaluate());
 }
