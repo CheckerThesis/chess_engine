@@ -6,7 +6,7 @@ mod tests {
     use crate::fn_name;
 
     #[test]
-    fn test_generate_all_moves() {        
+    fn test_generate_all_moves() {
         pub const FEN_START: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         pub const KIWIPETE: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
         pub const POSITION3: &str = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
@@ -39,5 +39,10 @@ mod tests {
         #[cfg(debug_assertions)] { position.check_board(fn_name!()); }
         move_list.generate_all_moves(&position);
         assert_eq!(move_list.count, 38, "The POSITION4_MIRRORED should have 38 moves"); // 6 with fully legal movegen
+    }
+
+    #[test]
+    fn test_promotion() {
+        
     }
 }

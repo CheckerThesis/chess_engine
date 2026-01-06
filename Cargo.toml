@@ -1,5 +1,7 @@
 [profile.release]
-debug = true
+debug = false
+lto = "fat"
+codegen-units = 1
 
 [package]
 name = "vault"

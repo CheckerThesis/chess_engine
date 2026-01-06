@@ -1,7 +1,5 @@
 pub fn move_to_indices(mv: &str) -> Option<(usize, usize)> {
-    if mv.len() != 4 {
-        return None;
-    }
+    if mv.len() < 4 { return None; }
 
     let bytes = mv.as_bytes();
 

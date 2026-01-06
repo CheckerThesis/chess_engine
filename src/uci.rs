@@ -20,7 +20,7 @@ pub enum UciCommand {
 
 pub fn uci_loop() {
     fn print_uci_id() {
-        let name = "Vault";
+        let name = "Vault2";
         let author = "Tein Cow";
         println!("id name {}\nid author {}\nuciok", name, author);
     }
@@ -35,12 +35,22 @@ pub fn uci_loop() {
             let mut promote = PieceType::NONE.index();
 
             if move_string.len() == 5 {
-                promote = match move_string.as_bytes()[4] {
-                    b'n' => PieceType::KNIGHT.index(),
-                    b'b' => PieceType::BISHOP.index(),
-                    b'r' => PieceType::ROOK.index(),
-                    b'q' => PieceType::QUEEN.index(),
-                    _ => PieceType::NONE.index(),
+                if position.side == Color::WHITE {
+                    promote = match move_string.as_bytes()[4] {
+                        b'n' => Piece::WHITE_KNIGHT.index(),
+                        b'b' => Piece::WHITE_BISHOP.index(),
+                        b'r' => Piece::WHITE_ROOK.index(),
+                        b'q' => Piece::WHITE_QUEEN.index(),
+                        _ => PieceType::NONE.index(),
+                    };
+                } else {
+                    promote = match move_string.as_bytes()[4] {
+                        b'n' => Piece::BLACK_KNIGHT.index(),
+                        b'b' => Piece::BLACK_BISHOP.index(),
+                        b'r' => Piece::BLACK_ROOK.index(),
+                        b'q' => Piece::BLACK_QUEEN.index(),
+                        _ => PieceType::NONE.index(),
+                    };
                 }
             }
 
@@ -177,7 +187,8 @@ pub fn uci_loop() {
 
             Some("position") => {
                 position = parse_position(&tokens[1..]);
-                println!("{}", position);
+                // println!("{}", position);
+                // println!("{}", position.get_fen());
             },
 
             Some("ucinewgame") => {

@@ -81,6 +81,7 @@ impl Board {
                 if self.make_move(mv) {
                     pv_moves.push(mv);
                     moves_made += 1;
+                    if self.is_repetition() || self.fifty_move >= 100 { break; }
                 }
                 else { break }
             }

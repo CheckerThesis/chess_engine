@@ -71,7 +71,7 @@ impl Board {
 
         if depth <= 0 { return self.quiescence(search, alpha, beta) }
         // If draw
-        if (self.is_repetition() || self.fifty_move >= 100) && self.ply == 1 { return 0 }
+        if (self.is_repetition() || self.fifty_move >= 100) && self.ply > 0 { return 0 }
 
         let position_key = self.position_key;
         let original_alpha = alpha;
@@ -100,10 +100,10 @@ impl Board {
         let side = self.side.index();
         let in_check = square_attacked(self.king_square[self.side.index()], self.side, self);
 
-        // Internal iterative reduction
-        // let depth = 
-        //     if transposition_move == Move::default() && depth >= 4 && !in_check { depth - 1 } 
-        //     else { depth };
+        /*// Internal iterative reduction
+        let depth = 
+            if transposition_move == Move::default() && depth >= 4 && !in_check { depth - 1 } 
+            else { depth };*/
 
         // Null move prune
         const R: u8 = 4; // null move reduction factor
@@ -222,13 +222,13 @@ impl Board {
                         self.killers[ply][0] = Some(mv);
                     }
 
-                    // Countermove heuristic
-                    // if let Some(previous_mv) = self.get_previous_move() {
-                    //     let previous_to = previous_mv.to_square();
-                    //     let opponent_side = self.side.opposite().index();
-                    //     let piece_index = self.pieces[previous_to].piece_type().index();
-                    //     self.countermoves[opponent_side][piece_index][previous_to] = Some(mv);
-                    // }
+                    /*// Countermove heuristic
+                    if let Some(previous_mv) = self.get_previous_move() {
+                        let previous_to = previous_mv.to_square();
+                        let opponent_side = self.side.opposite().index();
+                        let piece_index = self.pieces[previous_to].piece_type().index();
+                        self.countermoves[opponent_side][piece_index][previous_to] = Some(mv);
+                    }*/
 
                     // History heuristic
                     self.update_history(mv, depth, true); 
@@ -287,33 +287,33 @@ impl Board {
                 }
             }
 
-            // Aspiration window
-            // let mut alpha = -30000;
-            // let mut beta = 30000;
-            // let mut delta = ASPIRATION_WINDOW;
-            // if current_depth >= 4 {
-            //     alpha = score - delta;
-            //     beta = score + delta;
-            // }
-            // loop {
-            //     total += 1;
-            //     let evaluation = self.alpha_beta(search, alpha, beta, current_depth, true);
+            /*// Aspiration window
+            let mut alpha = -30000;
+            let mut beta = 30000;
+            let mut delta = ASPIRATION_WINDOW;
+            if current_depth >= 4 {
+                alpha = score - delta;
+                beta = score + delta;
+            }
+            loop {
+                total += 1;
+                let evaluation = self.alpha_beta(search, alpha, beta, current_depth, true);
 
-            //     if search.stop_flag.load(Ordering::Relaxed) { return best_move; }
+                if search.stop_flag.load(Ordering::Relaxed) { return best_move; }
 
-            //     if evaluation <= alpha { // fail low, widen alpha
-            //         re_search += 1;
-            //         alpha = (evaluation - delta).max(-30000);
-            //         delta *= 2;
-            //     } else if evaluation >= beta { // fail high, widen beta
-            //         re_search += 1;
-            //         beta = (evaluation + delta).min(30000);
-            //         delta *= 2;
-            //     } else {
-            //         score = evaluation;
-            //         break;
-            //     }
-            // }
+                if evaluation <= alpha { // fail low, widen alpha
+                    re_search += 1;
+                    alpha = (evaluation - delta).max(-30000);
+                    delta *= 2;
+                } else if evaluation >= beta { // fail high, widen beta
+                    re_search += 1;
+                    beta = (evaluation + delta).min(30000);
+                    delta *= 2;
+                } else {
+                    score = evaluation;
+                    break;
+                }
+            }*/
 
             let evaluation = self.alpha_beta(search, -30000, 30000, current_depth, true);
 

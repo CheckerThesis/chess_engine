@@ -99,17 +99,17 @@ impl MoveList {
 
 fn get_promo_char(promo_index: usize) -> &'static str {
     match promo_index {
-        // White pieces (assuming N=2, B=3, R=4, Q=5)
-        2 => "n",
-        3 => "b",
-        4 => "r",
-        5 => "q",
-        // Black pieces (assuming n=8, b=9, r=10, q=11)
-        8 => "n",
-        9 => "b",
-        10 => "r",
-        11 => "q",
-        // Default: no promotion (index 0) or invalid (King/Pawn)
+        // Knights (White=8, Black=9)
+        8 | 9 => "n",
+        // Bishops (White=12, Black=13)
+        12 | 13 => "b",
+        // Rooks (White=16, Black=17)
+        16 | 17 => "r",
+        // Queens (White=20, Black=21)
+        20 | 21 => "q",
+        // Dragons (White=28, Black=29) - Optional, included if your variant needs it
+        28 | 29 => "d", 
+        // Default
         _ => "",
     }
 }
