@@ -72,13 +72,15 @@ impl ScoredMove {
 
 pub struct MoveList {
     pub moves: [ScoredMove; 256],
-    pub count: usize
+    pub count: usize,
+    pub current: usize,
 }
 impl MoveList {
     pub fn new() -> Self {
         Self {
             moves: [ScoredMove::new(Move::new(0, 0, 0, 0, 0), 0); 256],
             count: 0,
+            current: 0,
         }
     }
 
@@ -94,6 +96,26 @@ impl MoveList {
 
     pub fn sort(&mut self) {
         self.moves[..self.count].sort_unstable_by(|a, b| b.score.cmp(&a.score));
+    }
+
+    pub fn pick_next_move(&mut self) -> Move {
+        if self.current >= self.count { return Move::default(); }
+
+        let mut best_index = self.current;
+        let mut best_score = self.moves[self.current].score;
+
+        for i in (self.current + 1)..self.count {
+            if self.moves[i].score > best_score {
+                best_score = self.moves[i].score;
+                best_index = i;
+            }
+        }
+
+        self.moves.swap(self.current, best_index);
+        let mv = self.moves[self.current].mv;
+        self.current += 1;
+
+        mv
     }
 }
 

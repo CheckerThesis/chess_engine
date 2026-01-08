@@ -95,6 +95,16 @@ Depth 13, 20 TT
     - Median Nodes: 178678340
     - Speed: 12.99 Mnps
 
+## Etc.
+- Full sort
+    - Median Time: 13.231288695s
+    - Median Nodes: 177297730
+    - Speed: 13.40 Mnps
+- Incremental selection sort
+    - Median Time: 11.989680042s
+    - Median Nodes: 175756860
+    - Speed: 14.66 Mnps
+
 # Things to vary
 - Reverse futility prune, increase RFP_MARGIN and decrease max depth makes more accurate
 - Futility prune, increase margin to make more conservative
