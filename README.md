@@ -147,6 +147,16 @@ LOS: 5.35 %, DrawRatio: 59.60 %, PairsRatio: 0.71
 Games: 500, Wins: 226, Losses: 256, Draws: 18, Points: 235.0 (47.00 %)
 Ptnml(0-2): [48, 11, 149, 7, 35], WL/DD Ratio: inf
 
+## Open files
+- Pre
+    - Median Time: 22.352756206s
+    - Median Nodes: 259449640
+    - Speed: 11.61 Mnps
+- Post
+    - Median Time: 17.958562985s
+    - Median Nodes: 203897640
+    - Speed: 11.35 Mnps
+
 # Things to vary
 - Reverse futility prune, increase RFP_MARGIN and decrease max depth makes more accurate
 - Futility prune, increase margin to make more conservative

@@ -109,6 +109,11 @@ const FILE_MASKS: [u64; 8] = [
     0x8080808080808080, // H file
 ];
 
+pub const ROOK_OPEN_FILE_BONUS: i32 = 30;
+pub const ROOK_SEMI_OPEN_FILE_BONUS: i32 = 15;
+const QUEEN_OPEN_FILE_BONUS: i32 = 10;
+const QUEEN_SEMI_OPEN_FILE_BONUS: i32 = 5;
+
 pub static EVAL_CALLS: AtomicU64 = AtomicU64::new(0);
 pub static EVAL_TIME_NS: AtomicU64 = AtomicU64::new(0);
 
@@ -144,7 +149,23 @@ impl Board {
                 score += PIECE_VALUE[piece.piece_type().index()];
                 score += OPENING_PIECE_SQUARE[piece.piece_type().index()][square];
             
-                if piece.piece_type() == PieceType::BISHOP { bishop_count[piece.color().index()] += 1; }
+                let piece_type = piece.piece_type();
+                if piece_type == PieceType::BISHOP { bishop_count[piece.color().index()] += 1; }
+                else if piece_type == PieceType::ROOK || piece_type == PieceType::QUEEN {
+                    let bonuses =
+                        if piece_type == PieceType::ROOK { [ROOK_OPEN_FILE_BONUS, ROOK_SEMI_OPEN_FILE_BONUS] }
+                        else { [QUEEN_OPEN_FILE_BONUS, QUEEN_SEMI_OPEN_FILE_BONUS] };
+
+                    let file = square % 8;
+                    let file_mask = FILE_MASKS[file];
+                    let white_pawns = self.bitboards[Piece::WHITE_PAWN.index()];
+                    let black_pawns = self.bitboards[Piece::BLACK_PAWN.index()];
+                
+                    let open_file = file_mask & (white_pawns | black_pawns) == 0;
+                    let semi_open_file = file_mask & (black_pawns) == 0;
+                    if open_file { score += bonuses[0]; }
+                    else if semi_open_file { score += bonuses[1]; }
+                }
             }
         }
 
@@ -156,13 +177,29 @@ impl Board {
                 score -= PIECE_VALUE[piece.piece_type().index()];
                 score -= OPENING_PIECE_SQUARE[piece.piece_type().index()][MIRROR64[square]];
             
-                if piece.piece_type() == PieceType::BISHOP { bishop_count[piece.color().index()] += 1; }
+                let piece_type = piece.piece_type();
+                if piece_type == PieceType::BISHOP { bishop_count[piece.color().index()] += 1; }
+                else if piece_type == PieceType::ROOK || piece_type == PieceType::QUEEN {
+                    let bonuses =
+                        if piece_type == PieceType::ROOK { [ROOK_OPEN_FILE_BONUS, ROOK_SEMI_OPEN_FILE_BONUS] }
+                        else { [QUEEN_OPEN_FILE_BONUS, QUEEN_SEMI_OPEN_FILE_BONUS] };
+
+                    let file = square % 8;
+                    let file_mask = FILE_MASKS[file];
+                    let white_pawns = self.bitboards[Piece::WHITE_PAWN.index()];
+                    let black_pawns = self.bitboards[Piece::BLACK_PAWN.index()];
+                
+                    let open_file = file_mask & (white_pawns | black_pawns) == 0;
+                    let semi_open_file = file_mask & (white_pawns) == 0;
+                    if open_file { score -= bonuses[0]; }
+                    else if semi_open_file { score -= bonuses[1]; }
+                }
+                
             }
         }
 
         score += Self::bishop_pair_bonus(bishop_count[Color::WHITE.index()]);
         score -= Self::bishop_pair_bonus(bishop_count[Color::BLACK.index()]);
-
 
         // EVAL_TIME_NS.fetch_add(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
         if self.side == Color::WHITE { score } 
