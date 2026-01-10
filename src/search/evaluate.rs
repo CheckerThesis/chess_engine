@@ -129,29 +129,40 @@ impl Board {
         else { -value }
     }
 
-    pub fn init_eval(&mut self) {
-        self.eval_score = 0;
-        self.bishop_count = [0; 2];
-
-        for square in 0..64 {
-            let piece = self.pieces[square];
-            if piece != Piece::NONE { 
-                self.eval_score += self.piece_value_at(piece, square); 
-                if piece.piece_type() == PieceType::BISHOP {
-                    self.bishop_count[piece.color().index()] += 1;
-                }
-            }
-        }
-
-        self.eval_score += Self::bishop_pair_bonus(self.bishop_count[Color::WHITE.index()]);
-        self.eval_score -= Self::bishop_pair_bonus(self.bishop_count[Color::BLACK.index()]);
-    }
-
     pub fn evaluate(&self) -> i32 {
         // let start = Instant::now();
         // EVAL_CALLS.fetch_add(1, Ordering::Relaxed);
 
-        let mut score = self.eval_score;
+        let mut score = 0;
+        let mut bishop_count: [u8; 2] = [0; 2];
+        
+        for &piece in Piece::WHITE_PIECES {
+            let mut bitboard = self.bitboards[piece.index()];
+            while bitboard != 0 {
+                let square = bitboard.trailing_zeros() as usize;
+                bitboard &= bitboard - 1;
+                score += PIECE_VALUE[piece.piece_type().index()];
+                score += OPENING_PIECE_SQUARE[piece.piece_type().index()][square];
+            
+                if piece.piece_type() == PieceType::BISHOP { bishop_count[piece.color().index()] += 1; }
+            }
+        }
+
+        for &piece in Piece::BLACK_PIECES {
+            let mut bitboard = self.bitboards[piece.index()];
+            while bitboard != 0 {
+                let square = bitboard.trailing_zeros() as usize;
+                bitboard &= bitboard - 1;
+                score -= PIECE_VALUE[piece.piece_type().index()];
+                score -= OPENING_PIECE_SQUARE[piece.piece_type().index()][MIRROR64[square]];
+            
+                if piece.piece_type() == PieceType::BISHOP { bishop_count[piece.color().index()] += 1; }
+            }
+        }
+
+        score += Self::bishop_pair_bonus(bishop_count[Color::WHITE.index()]);
+        score -= Self::bishop_pair_bonus(bishop_count[Color::BLACK.index()]);
+
 
         // EVAL_TIME_NS.fetch_add(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
         if self.side == Color::WHITE { score } 

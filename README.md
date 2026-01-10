@@ -126,7 +126,26 @@ Games: 200, Wins: 111, Losses: 85, Draws: 4, Points: 113.0 (56.50 %)
 Ptnml(0-2): [13, 2, 57, 2, 26], WL/DD Ratio: inf
 
 ## Switch to normal from iterative eval (for simplicity)
+- Default (no iterative)
+    - Median Time: 16.280362353s
+    - Median Nodes: 190563485
+    - Speed: 11.71 Mnps
+- Bishop pairs
+    - Median Time: 22.352756206s
+    - Median Nodes: 259449640
+    - Speed: 11.61 Mnps
 
+Results of no_iter_bishop_pairs vs no_iter (10+0.1, NULL, NULL, 2moves_v1.epd):
+Elo: 55.86 +/- 51.28, nElo: 64.75 +/- 57.97
+LOS: 98.57 %, DrawRatio: 56.52 %, PairsRatio: 2.33
+Games: 138, Wins: 78, Losses: 56, Draws: 4, Points: 80.0 (57.97 %)
+Ptnml(0-2): [8, 1, 39, 3, 18], WL/DD Ratio: inf
+
+Results of no_iter_bishop_pairs vs bishop_pairs (10+0.1, NULL, NULL, 2moves_v1.epd):
+Elo: -20.87 +/- 25.49, nElo: -25.05 +/- 30.45
+LOS: 5.35 %, DrawRatio: 59.60 %, PairsRatio: 0.71
+Games: 500, Wins: 226, Losses: 256, Draws: 18, Points: 235.0 (47.00 %)
+Ptnml(0-2): [48, 11, 149, 7, 35], WL/DD Ratio: inf
 
 # Things to vary
 - Reverse futility prune, increase RFP_MARGIN and decrease max depth makes more accurate

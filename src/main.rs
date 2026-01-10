@@ -40,7 +40,7 @@ fn test_perft_changes() {
 }
 
 fn test_search_changes() {
-    const SAMPLES: usize = 5;
+    const SAMPLES: usize = 1;
     const ITERATIONS: u32 = 5;
     const DEPTH: u8 = 13;
 
@@ -79,7 +79,7 @@ fn test_search_changes() {
         );
     }
 
-    let valid_samples = &mut samples[1..];
+    let valid_samples = &mut samples[0..];
     valid_samples.sort_by_key(|(d, _)| *d);
 
     let median_idx = valid_samples.len() / 2;
@@ -154,7 +154,7 @@ fn test_move_ordering(depth: u8) -> (f64, f64) {
 // Future:
 // Bucket transposition table
 fn main() {
-    test_search_changes();
+    // test_search_changes();
     // run_suites("/home/tien/code/chess_engine/src/test_suites/wac/wac.epd");
 
     // let tt = Arc::new(TranspositionTable::new(24));
@@ -169,7 +169,7 @@ fn main() {
     //     (first as f64 / total as f64) * 100.0
     // );
 
-    // uci_loop();
+    uci_loop();
 
     // let tt = Arc::new(TranspositionTable::new(20));
     // let mut position = Board::new(FEN_START);
@@ -200,4 +200,13 @@ fn main() {
     // }
 
     // print_eval_stats();
+
+    // let mut position = Board::new(FEN_START);
+    // println!("START: {}", position.evaluate());
+    // position = Board::new(KIWIPETE);
+    // println!("KIWIPETE: {}", position.evaluate());
+    // position = Board::new(POSITION3);
+    // println!("POSITION3: {}", position.evaluate());
+    // position = Board::new(POSITION4);
+    // println!("POSITION4: {}", position.evaluate());
 }
