@@ -142,8 +142,6 @@ impl Board {
             }
         }
 
-        // movelist.sort();
-
         // const FUTILITY_MARGIN: [i32; 4] = [0, 400, 600, 750]; // depth 0, 1, 2, 3
         // let futility_pruning_enabled = depth <= 2
         //     && !in_check 
@@ -151,8 +149,6 @@ impl Board {
 
         let mut moves_searched = 0;
         for _ in 0..movelist.count {
-        // for scored_move in movelist.iter() {
-        //     let mv = scored_move.mv;
             let mv = movelist.pick_next_move();
 
             /*// SEE pruning
@@ -340,7 +336,7 @@ impl Board {
                     
                     println!(
                         "info depth {} score cp {} nodes {} time {} nps {} pv {}", 
-                        current_depth, score, nodes, time, nps, pv_string
+                        current_depth, evaluation, nodes, time, nps, pv_string
                     );
                 }
             }

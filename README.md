@@ -105,6 +105,29 @@ Depth 13, 20 TT
     - Median Nodes: 175756860
     - Speed: 14.66 Mnps
 
+## Bishop pair
+- Pre
+    - Median Time: 11.989680042s
+    - Median Nodes: 175756860
+    - Speed: 14.66 Mnps
+- Post
+    - Median Time: 15.745234327s
+    - Median Nodes: 229843675
+    - Speed: 14.60 Mnps
+- Post but removing full release speed (from now and on)
+    - Median Time: 16.916820527s
+    - Median Nodes: 219745785
+    - Speed: 12.99 Mnps
+
+Results of bishop_pair vs simple (10+0.1, NULL, NULL, 2moves_v1.epd):
+Elo: 45.42 +/- 43.10, nElo: 51.60 +/- 48.15
+LOS: 98.22 %, DrawRatio: 57.00 %, PairsRatio: 1.87
+Games: 200, Wins: 111, Losses: 85, Draws: 4, Points: 113.0 (56.50 %)
+Ptnml(0-2): [13, 2, 57, 2, 26], WL/DD Ratio: inf
+
+## Switch to normal from iterative eval (for simplicity)
+
+
 # Things to vary
 - Reverse futility prune, increase RFP_MARGIN and decrease max depth makes more accurate
 - Futility prune, increase margin to make more conservative

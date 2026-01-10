@@ -1,3 +1,5 @@
+use std::{sync::atomic::{AtomicU64, Ordering}, time::Instant};
+
 use crate::{board::Board, defs::{Color, Piece, PieceType}, movegen::{magic::{get_bishop_attacks, get_rook_attacks}}};
 
 pub const PIECE_VALUE: [i32; 8] = [
@@ -96,8 +98,23 @@ pub const OPENING_PIECE_SQUARE: [[i32; 64]; 8] = [
     ],
 ];
 
+const FILE_MASKS: [u64; 8] = [
+    0x0101010101010101, // A file
+    0x0202020202020202, // B file
+    0x0404040404040404, // C file
+    0x0808080808080808, // D file
+    0x1010101010101010, // E file
+    0x2020202020202020, // F file
+    0x4040404040404040, // G file
+    0x8080808080808080, // H file
+];
+
+pub static EVAL_CALLS: AtomicU64 = AtomicU64::new(0);
+pub static EVAL_TIME_NS: AtomicU64 = AtomicU64::new(0);
 
 impl Board {
+    pub fn bishop_pair_bonus(count: u8) ->i32 { if count >= 2 { return 40 } 0 }
+
     pub fn piece_value_at(&self, piece: Piece, square: usize) -> i32 {
         let piece_type = piece.piece_type();
         let color = piece.color();
@@ -114,16 +131,31 @@ impl Board {
 
     pub fn init_eval(&mut self) {
         self.eval_score = 0;
+        self.bishop_count = [0; 2];
 
         for square in 0..64 {
             let piece = self.pieces[square];
-            if piece != Piece::NONE { self.eval_score += self.piece_value_at(piece, square); }
+            if piece != Piece::NONE { 
+                self.eval_score += self.piece_value_at(piece, square); 
+                if piece.piece_type() == PieceType::BISHOP {
+                    self.bishop_count[piece.color().index()] += 1;
+                }
+            }
         }
+
+        self.eval_score += Self::bishop_pair_bonus(self.bishop_count[Color::WHITE.index()]);
+        self.eval_score -= Self::bishop_pair_bonus(self.bishop_count[Color::BLACK.index()]);
     }
- 
+
     pub fn evaluate(&self) -> i32 {
-        if self.side == Color::WHITE { self.eval_score } 
-        else { -self.eval_score }
+        // let start = Instant::now();
+        // EVAL_CALLS.fetch_add(1, Ordering::Relaxed);
+
+        let mut score = self.eval_score;
+
+        // EVAL_TIME_NS.fetch_add(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        if self.side == Color::WHITE { score } 
+        else { -score }
     }
 
     fn get_least_valuable_piece(&self, attackers_bb: u64, side: Color) -> Option<(PieceType, u64)> {

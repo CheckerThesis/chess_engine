@@ -5,7 +5,7 @@ mod tests {
     use std::sync::{Arc, atomic::Ordering};
 
     use super::*;
-    use crate::{board::{self, MAX_DEPTH}, fn_name, search::{self, Search, evaluate::PIECE_VALUE, search::{MATE_SCORE, MATE_THRESHOLD}}, squares::squares::{A1, A2, A3, A5, B2, B3, D5, E4}, transposition_table::{self, EXACT_FLAG, TranspositionData, TranspositionTable}};
+    use crate::{board::{self, MAX_DEPTH}, defs::Color, fn_name, search::{self, Search, evaluate::{PIECE_VALUE}, search::{MATE_SCORE, MATE_THRESHOLD}}, squares::squares::{A1, A2, A3, A5, B2, B3, D5, E4}, transposition_table::{self, EXACT_FLAG, TranspositionData, TranspositionTable}};
     use crate::{board::Board, defs::PieceType, fens::FEN_START, movegen::{MOVE_FLAG_NONE, Move}, squares::squares::{B1, B8, C3, C6}};
 
     #[test]

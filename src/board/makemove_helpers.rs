@@ -22,6 +22,20 @@ impl Board {
 
         self.eval_score -= self.piece_value_at(piece, square);
 
+        if piece.piece_type() == PieceType::BISHOP {
+            let color_index = piece.color().index();
+            
+            let old_bonus = Self::bishop_pair_bonus(self.bishop_count[color_index]);
+            self.bishop_count[color_index] -= 1;
+            
+            let new_bonus = Self::bishop_pair_bonus(self.bishop_count[color_index]);
+            let bonus_delta = new_bonus - old_bonus;
+
+            self.eval_score +=
+                if piece.color() == Color::WHITE { bonus_delta }
+                else { -bonus_delta };
+        } 
+
         self.hash_piece(piece, square);
         clear_bit(&mut self.bitboards[piece.index()], square);
         clear_bit(&mut self.occupancies[piece.color().index()], square);
@@ -43,6 +57,20 @@ impl Board {
         }
 
         self.eval_score += self.piece_value_at(piece, square);
+
+        if piece.piece_type() == PieceType::BISHOP {
+            let color_index = piece.color().index();
+            
+            let old_bonus = Self::bishop_pair_bonus(self.bishop_count[color_index]);
+            self.bishop_count[color_index] += 1;
+            
+            let new_bonus = Self::bishop_pair_bonus(self.bishop_count[color_index]);
+            let bonus_delta = new_bonus - old_bonus;
+
+            self.eval_score +=
+                if piece.color() == Color::WHITE { bonus_delta }
+                else { -bonus_delta };
+        } 
     }
 
     pub(crate) fn move_piece(&mut self, from: usize, to: usize) {
@@ -68,6 +96,6 @@ impl Board {
 
         if piece.piece_type() == PieceType::KING {
             self.king_square[piece.color().index()] = to;
-        }
+        } 
     }
 }
