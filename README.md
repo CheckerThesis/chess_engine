@@ -157,6 +157,18 @@ Ptnml(0-2): [48, 11, 149, 7, 35], WL/DD Ratio: inf
     - Median Nodes: 203897640
     - Speed: 11.35 Mnps
 
+Results of no_iter_open_files vs no_iter_bishop_pairs (10+0.1, NULL, NULL, 2moves_v1.epd):
+Elo: 42.60 +/- 28.13, nElo: 46.69 +/- 30.45
+LOS: 99.87 %, DrawRatio: 51.60 %, PairsRatio: 1.81
+Games: 500, Wins: 271, Losses: 210, Draws: 19, Points: 280.5 (56.10 %)
+Ptnml(0-2): [38, 5, 129, 14, 64], WL/DD Ratio: inf
+
+Results of no_iter_open_files vs bishop_pairs (10+0.1, NULL, NULL, 2moves_v1.epd):
+Elo: 38.37 +/- 28.42, nElo: 41.56 +/- 30.45
+LOS: 99.63 %, DrawRatio: 49.60 %, PairsRatio: 1.62
+Games: 500, Wins: 265, Losses: 210, Draws: 25, Points: 277.5 (55.50 %)
+Ptnml(0-2): [39, 9, 124, 14, 64], WL/DD Ratio: 123.00
+
 # Things to vary
 - Reverse futility prune, increase RFP_MARGIN and decrease max depth makes more accurate
 - Futility prune, increase margin to make more conservative

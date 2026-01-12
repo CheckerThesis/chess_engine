@@ -162,7 +162,7 @@ impl Board {
                     let black_pawns = self.bitboards[Piece::BLACK_PAWN.index()];
                 
                     let open_file = file_mask & (white_pawns | black_pawns) == 0;
-                    let semi_open_file = file_mask & (black_pawns) == 0;
+                    let semi_open_file = file_mask & (white_pawns) == 0;
                     if open_file { score += bonuses[0]; }
                     else if semi_open_file { score += bonuses[1]; }
                 }
@@ -190,7 +190,7 @@ impl Board {
                     let black_pawns = self.bitboards[Piece::BLACK_PAWN.index()];
                 
                     let open_file = file_mask & (white_pawns | black_pawns) == 0;
-                    let semi_open_file = file_mask & (white_pawns) == 0;
+                    let semi_open_file = file_mask & (black_pawns) == 0;
                     if open_file { score -= bonuses[0]; }
                     else if semi_open_file { score -= bonuses[1]; }
                 }

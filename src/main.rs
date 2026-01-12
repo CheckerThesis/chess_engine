@@ -209,4 +209,14 @@ fn main() {
     // println!("POSITION3: {}", position.evaluate());
     // position = Board::new(POSITION4);
     // println!("POSITION4: {}", position.evaluate());
+
+    // let mut position = Board::new("7r/7p/8/8/8/8/1P6/R7 w - - 0 1");
+    // println!("White: {}", position.evaluate()); // TODO should be 30 but is 15
+    // position.parse_fen("7r/7p/8/8/8/8/1P6/R7 b - - 0 1");
+    // println!("Black: {}", position.evaluate());
+
+    // position.parse_fen("7r/7p/8/8/8/8/P7/R7 w - - 0 1");
+    // println!("White: {}", position.evaluate());
+    // position.parse_fen("7r/7p/8/8/8/8/P7/R7 b - - 0 1");
+    // println!("Black: {}", position.evaluate());
 }
