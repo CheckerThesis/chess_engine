@@ -169,6 +169,13 @@ LOS: 99.63 %, DrawRatio: 49.60 %, PairsRatio: 1.62
 Games: 500, Wins: 265, Losses: 210, Draws: 25, Points: 277.5 (55.50 %)
 Ptnml(0-2): [39, 9, 124, 14, 64], WL/DD Ratio: 123.00
 
+## Small eval refactor
+Results of vault2_temp vs no_iter_open_files (10+0.1, NULL, NULL, 2moves_v1.epd):
+Elo: 3.37 +/- 42.28, nElo: 3.80 +/- 47.44
+LOS: 56.24 %, DrawRatio: 56.31 %, PairsRatio: 1.05
+Games: 206, Wins: 101, Losses: 99, Draws: 6, Points: 104.0 (50.49 %)
+Ptnml(0-2): [19, 3, 58, 3, 20], WL/DD Ratio: inf
+
 # Things to vary
 - Reverse futility prune, increase RFP_MARGIN and decrease max depth makes more accurate
 - Futility prune, increase margin to make more conservative

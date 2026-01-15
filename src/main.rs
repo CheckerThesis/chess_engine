@@ -146,6 +146,15 @@ fn test_move_ordering(depth: u8) -> (f64, f64) {
     // );
 }
 
+pub fn print_eval_stats() {
+    let calls = EVAL_CALLS.load(Ordering::Relaxed);
+    let total_ns = EVAL_TIME_NS.load(Ordering::Relaxed);
+    
+    println!("Eval calls: {}", calls);
+    println!("Total eval time: {:.2}s", total_ns as f64 / 1e9);
+    println!("Avg eval time: {:.1}ns", total_ns as f64 / calls as f64);
+}
+
 // TODO Eval king safety
 // TODO Pawn structure (doubled, isolated, passed pawns)
 // TODO Piece mobility
@@ -190,17 +199,6 @@ fn main() {
     // let mut position = Board::new(KIWIPETE);
     // position.evaluate();
 
-    // pub fn print_eval_stats() {
-    //     let calls = EVAL_CALLS.load(Ordering::Relaxed);
-    //     let total_ns = EVAL_TIME_NS.load(Ordering::Relaxed);
-        
-    //     println!("Eval calls: {}", calls);
-    //     println!("Total eval time: {:.2}s", total_ns as f64 / 1e9);
-    //     println!("Avg eval time: {:.1}ns", total_ns as f64 / calls as f64);
-    // }
-
-    // print_eval_stats();
-
     // let mut position = Board::new(FEN_START);
     // println!("START: {}", position.evaluate());
     // position = Board::new(KIWIPETE);
@@ -209,6 +207,8 @@ fn main() {
     // println!("POSITION3: {}", position.evaluate());
     // position = Board::new(POSITION4);
     // println!("POSITION4: {}", position.evaluate());
+
+    // print_eval_stats();
 
     // let mut position = Board::new("7r/7p/8/8/8/8/1P6/R7 w - - 0 1");
     // println!("White: {}", position.evaluate()); // TODO should be 30 but is 15
