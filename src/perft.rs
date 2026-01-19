@@ -1,65 +1,261 @@
-use std::time::Instant;
+use crate::{board::Board, fens::FEN_START, movegen::{MoveList, SQUARE_TO_STRING}};
 
-use colored::Colorize;
+pub fn perft(position: &mut Board, depth: usize) -> usize {
+    if depth == 0 { return 1 }
 
-use crate::{board::{check_board, parse_fen, Board}, defs::DEBUG, makemove::{make_move, take_move}, movegen::{extract_movelist_move, generate_all_moves, MoveList}};
+    let mut move_list = MoveList::new();
+    let mut nodes = 0;
 
-fn perft(depth: u8, position: &mut Board, leaf_nodes: &mut u64) {
-    if DEBUG { check_board(position); }
+    move_list.generate_all_moves(&position);
 
-    if depth == 0 {
-        *leaf_nodes += 1;
-        return;
+    for i in 0..move_list.count {
+        let mv = move_list.moves[i].mv;
+
+        #[cfg(debug_assertions)]
+        let snapshot = (
+            position.position_key,
+            position.en_passant,
+            position.castle_permission,
+            position.fifty_move,
+            position.side
+        );
+
+        if !position.make_move(mv) { continue; }
+        nodes += perft(position, depth - 1);
+        position.take_move();
+
+        #[cfg(debug_assertions)] {
+            let (key, ep, castle, fifty, side) = snapshot;
+
+            if position.position_key != key { panic!("Zobrist key mismatch after unmake_move"); }
+            if position.en_passant != ep { panic!("EP square mismatch after unmake_move"); }
+            if position.castle_permission != castle { panic!("Castling rights mismatch after unmake_move"); }
+            if position.fifty_move != fifty { panic!("Fifty-move counter mismatch after unmake_move"); }
+            if position.side != side { panic!("Side-to-move mismatch after unmake_move"); }
+
+            position.check_board("perft");
+
+        }
     }
 
-    let move_list = &mut MoveList::default();
-    generate_all_moves(position, move_list);
-
-    for move_number in 0..move_list.count {
-        if !make_move(position, extract_movelist_move(move_list.moves[move_number])) { continue; }
-
-        perft(depth - 1, position, leaf_nodes);
-        take_move(position);
-    }
+    return nodes
 }
 
-pub fn perft_test(depth: u8, position: &mut Board) -> u64 {
-    if DEBUG { check_board(position); }
+pub fn perft_divide(position: &mut Board, depth: usize) {
+    let mut move_list = MoveList::new();
+    let mut total = 0;
 
-    // print_board(position);
-    println!("Start test to depth: {}", depth);
-    let mut leaf_nodes = 0;
-    let now = Instant::now();
+    move_list.generate_all_moves(&position);
 
-    let move_list = &mut MoveList::default();
-    generate_all_moves(position, move_list);
+    for i in 0..move_list.count {
+        let mv = move_list.moves[i].mv;
+        let from = mv.from_square();
+        let to = mv.to_square();
+   
+        if !position.make_move(mv) { continue;  }
 
-    for move_number in 0..move_list.count {
-        let the_move = extract_movelist_move(move_list.moves[move_number]);
-        if !make_move(position, the_move) { continue; }
-        let old_leaf_nodes = leaf_nodes;
-        perft(depth - 1, position, &mut leaf_nodes);
-        take_move(position);
-        let _nodes = leaf_nodes - old_leaf_nodes;
-        // println!("move {} : {} : {}", move_number + 1, print_move(the_move), nodes);
+        let nodes = if depth == 1 { 1 } else { perft(position, depth - 1) };
+        total += nodes;
+
+        let mv = move_list.moves[i].mv;
+        let from = mv.from_square();
+        let to = mv.to_square();
+        println!("{}{}: {}", 
+            SQUARE_TO_STRING[from], 
+            SQUARE_TO_STRING[to], 
+            nodes
+        );
+
+        position.take_move();
     }
-
-    println!("Test complete: {} leaf nodes visited. Took {} seconds.", leaf_nodes, now.elapsed().as_secs());
-    leaf_nodes
+    println!("\nTotal: {}", total);
 }
 
-pub fn automatic_perft_test(position: &mut Board) {
-    let perft_outputs: [u64; 4] = [119060324, 8031647685, 11030083, 706045033];
-    let fens = [
-        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
-        "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
-        "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1 "
-    ];
+#[cfg(test)]
+mod tests {
+    use crate::fens::{KIWIPETE, POSITION3, POSITION4, POSITION4_FLIPPED, POSITION5, POSITION6};
 
-    for i in 0..4 {
-        parse_fen(fens[i], position);
-        if perft_test(6, position) == perft_outputs[i] { println!("position {} correct!", format!("{}", i).green()) }
+    use super::*;
 
+    #[test]
+    fn mm_perft_depth_1() {
+        let mut position = Board::new(FEN_START);
+        let mut perft_value = perft(&mut position, 1);
+        assert_eq!(perft_value, 20);
+
+        position = Board::new(KIWIPETE);
+        perft_value = perft(&mut position, 1);
+        assert_eq!(perft_value, 48);
+
+        position = Board::new(POSITION3);
+        perft_value = perft(&mut position, 1);
+        assert_eq!(perft_value, 14);
+
+        position = Board::new(POSITION4);
+        perft_value = perft(&mut position, 1);
+        assert_eq!(perft_value, 6);
+
+        position = Board::new(POSITION4_FLIPPED);
+        perft_value = perft(&mut position, 1);
+        assert_eq!(perft_value, 6);
+
+        position = Board::new(POSITION5);
+        perft_value = perft(&mut position, 1);
+        assert_eq!(perft_value, 44);
+
+        position = Board::new(POSITION6);
+        perft_value = perft(&mut position, 1);
+        assert_eq!(perft_value, 46);
     }
+
+    #[test]
+    fn mm_perft_depth_2() {
+        let mut position = Board::new(FEN_START);
+        let mut perft_value = perft(&mut position, 2);
+        assert_eq!(perft_value, 400);
+
+        position = Board::new(KIWIPETE);
+        perft_value = perft(&mut position, 2);
+        assert_eq!(perft_value, 2039);
+
+        position = Board::new(POSITION3);
+        perft_value = perft(&mut position, 2);
+        assert_eq!(perft_value, 191);
+
+        position = Board::new(POSITION4);
+        perft_value = perft(&mut position, 2);
+        assert_eq!(perft_value, 264);
+
+        position = Board::new(POSITION4_FLIPPED);
+        perft_value = perft(&mut position, 2);
+        assert_eq!(perft_value, 264);
+
+        position = Board::new(POSITION5);
+        perft_value = perft(&mut position, 2);
+        assert_eq!(perft_value, 1486);
+
+        position = Board::new(POSITION6);
+        perft_value = perft(&mut position, 2);
+        assert_eq!(perft_value, 2079);
+    }
+
+    #[test]
+    fn mm_perft_depth_3() {
+        let mut position = Board::new(FEN_START);
+        let mut perft_value = perft(&mut position, 3);
+        assert_eq!(perft_value, 8902);
+
+        position = Board::new(KIWIPETE);
+        perft_value = perft(&mut position, 3);
+        assert_eq!(perft_value, 97862);
+
+        position = Board::new(POSITION3);
+        perft_value = perft(&mut position, 3);
+        assert_eq!(perft_value, 2812);
+
+        position = Board::new(POSITION4);
+        perft_value = perft(&mut position, 3);
+        assert_eq!(perft_value, 9467);
+
+        position = Board::new(POSITION4_FLIPPED);
+        perft_value = perft(&mut position, 3);
+        assert_eq!(perft_value, 9467);
+
+        position = Board::new(POSITION5);
+        perft_value = perft(&mut position, 3);
+        assert_eq!(perft_value, 62379);
+
+        position = Board::new(POSITION6);
+        perft_value = perft(&mut position, 3);
+        assert_eq!(perft_value, 89890);
+    }
+
+    // #[test]
+    // fn perft_depth_4() {
+    //     let mut position = Board::new(FEN_START);
+    //     let mut perft_value = perft(&mut position, 4);
+    //     assert_eq!(perft_value, 197281);
+
+    //     position = Board::new(KIWIPETE);
+    //     perft_value = perft(&mut position, 4);
+    //     assert_eq!(perft_value, 4085603);
+
+    //     position = Board::new(POSITION3);
+    //     perft_value = perft(&mut position, 4);
+    //     assert_eq!(perft_value, 43238);
+
+    //     position = Board::new(POSITION4);
+    //     perft_value = perft(&mut position, 4);
+    //     assert_eq!(perft_value, 422333);
+
+    //     position = Board::new(POSITION4_FLIPPED);
+    //     perft_value = perft(&mut position, 4);
+    //     assert_eq!(perft_value, 422333);
+
+    //     position = Board::new(POSITION5);
+    //     perft_value = perft(&mut position, 4);
+    //     assert_eq!(perft_value, 2103487);
+
+    //     position = Board::new(POSITION6);
+    //     perft_value = perft(&mut position, 4);
+    //     assert_eq!(perft_value, 3894594);
+    // }
+
+    // #[test]
+    // fn perft_depth_5() {
+    //     let mut position = Board::new(FEN_START);
+    //     let mut perft_value = perft(&mut position, 5);
+    //     assert_eq!(perft_value, 4865609);
+
+    //     position = Board::new(KIWIPETE);
+    //     perft_value = perft(&mut position, 5);
+    //     assert_eq!(perft_value, 193690690);
+
+    //     position = Board::new(POSITION3);
+    //     perft_value = perft(&mut position, 5);
+    //     assert_eq!(perft_value, 674624);
+
+    //     position = Board::new(POSITION4);
+    //     perft_value = perft(&mut position, 5);
+    //     assert_eq!(perft_value, 15833292);
+
+    //     position = Board::new(POSITION4_FLIPPED);
+    //     perft_value = perft(&mut position, 5);
+    //     assert_eq!(perft_value, 15833292);
+
+    //     position = Board::new(POSITION5);
+    //     perft_value = perft(&mut position, 5);
+    //     assert_eq!(perft_value, 89941194);
+
+    //     position = Board::new(POSITION6);
+    //     perft_value = perft(&mut position, 5);
+    //     assert_eq!(perft_value, 164075551);
+    // }
+
+    // #[test]
+    // fn perft_depth_6() {
+    //     let mut position = Board::new(FEN_START);
+    //     let mut perft_value = perft(&mut position, 6);
+    //     assert_eq!(perft_value, 119060324);
+
+    //     position = Board::new(KIWIPETE);
+    //     perft_value = perft(&mut position, 6);
+    //     assert_eq!(perft_value, 8031647685);
+
+    //     position = Board::new(POSITION3);
+    //     perft_value = perft(&mut position, 6);
+    //     assert_eq!(perft_value, 11030083);
+
+    //     position = Board::new(POSITION4);
+    //     perft_value = perft(&mut position, 6);
+    //     assert_eq!(perft_value, 706045033);
+
+    //     position = Board::new(POSITION4_FLIPPED);
+    //     perft_value = perft(&mut position, 6);
+    //     assert_eq!(perft_value, 706045033);
+
+    //     position = Board::new(POSITION6);
+    //     perft_value = perft(&mut position, 6);
+    //     assert_eq!(perft_value, 6923051137);
+    // }
 }

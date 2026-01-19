@@ -5,40 +5,34 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug executable 'vault'",
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'vault'",
             "cargo": {
                 "args": [
-                    "build",
-                    "--bin=vault",
-                    "--package=vault"
-                ],
-                "filter": {
-                    "name": "vault",
-                    "kind": "bin"
-                }
+                    "run",
+                    "--bin=vault"
+                ]
             },
-            "args": [],
-            "cwd": "${workspaceFolder}"
+            "args": []
         },
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'vault'",
+            "name": "Debug WKC Test",
+            "sourceLanguages": ["rust"],
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=vault",
-                    "--package=vault"
+                    "--bin=chess_engine_2" // Change to "--bin=name" if testing a binary
                 ],
+                // This filter helps CodeLLDB pick the right artifact if multiple exist
                 "filter": {
-                    "name": "vault",
-                    "kind": "bin"
+                    "kind": "bin" // Change to "bin" if testing a binary
                 }
             },
-            "args": [],
+            "args": ["test_make_move_fail_illegal"], // Arguments to pass to the test executable itself
             "cwd": "${workspaceFolder}"
         }
     ]

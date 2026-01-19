@@ -1,366 +1,153 @@
-#![allow(dead_code)]
+#![allow(warnings)]
+use std::{hint::black_box, sync::{Arc, atomic::Ordering}, time::{Duration, Instant}};
 
-mod attack;
-mod bitboards;
-mod board;
-mod data;
-mod defs;
-mod evaluate;
-mod hashkeys;
-mod io;
-mod makemove;
-mod movegen;
-mod perft;
-mod polybook;
-mod pvtable;
-mod search;
-mod uci;
-mod validate;
+use vault::{
+    board::{Board, print_bitboard}, defs::{Color, Piece, PieceType}, fens::{ENDGAME1, FEN_MATE_IN_4, FEN_START, ITALIAN, KIWIPETE, MIDDLEGAME1, POSITION3, POSITION4, POSITION4_FLIPPED}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, attacks::square_attacked}, perft::perft, search::{Search, evaluate::{BLACK_PASSED_PAWN_MASKS, EVAL_CALLS, EVAL_TIME_NS, TOTAL_PHASE, WHITE_PASSED_PAWN_MASKS}}, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}, test_suites::run_suites, transposition_table::{self, TranspositionTable}, uci::uci_loop
+};
+/*
+lto = "fat"
+codegen-units = 1
+for release giga speed
+*/
 
-use uci::uci_loop;
+// cargo test mm_ && cargo test _gener && cargo test perft_depth_4 -r
+fn test_perft_changes() {
+    const SAMPLES: usize = 3;
+    const ITERATIONS: u32 = 3;
 
-use crate::pvtable::HASH_TABLE;
+    let mut samples: Vec<Duration> = Vec::with_capacity(SAMPLES);
+    for i in 1..=SAMPLES {
+        let start = Instant::now();
+        
+        for _ in 0..ITERATIONS {
+            let mut position = Board::new(KIWIPETE);
+            black_box(perft(&mut position, black_box(5)));
+        }
+        
+        let total_duration = start.elapsed();
+        let avg_per_run = total_duration / ITERATIONS;
+        
+        samples.push(avg_per_run);
+        
+        println!("Sample {}: {:?}", i, avg_per_run);
+    }
 
-// use std::io as std_io;
+    let valid_samples = &mut samples[1..]; 
+    valid_samples.sort();
+    let median = valid_samples[valid_samples.len() / 2];
 
-const FEN_START: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-// const FEN_WHITE_PAWNS: &str = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1";
-// const FEN_BLACK_PAWNS: &str = "rnbqkbnr/p1p1p3/3p3p/1p1p4/2P1Pp2/8/PP1P1PpP/RNBQKB1R b KQkq e3 0 1";
-// const FEN_KNIGHTS_KINGS: &str = "5k2/1n6/4n3/6N1/8/3N4/8/5K2 w - - 0 1";
-// const FEN_ROOKS: &str = "6k1/8/5r2/8/1nR5/5N2/8/6K1 b - - 0 1";
-// const FEN_QUEENS: &str = "6k1/8/4nq2/8/1nQ5/5N2/1N6/6K1 b - - 0 1";
-// const FEN_BISHOPS: &str = "6k1/1b6/4n3/8/1n4B1/1B3N2/1N6/2b3K1 b - - 0 1";
-// const FEN_CASTLE1: &str = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
-// const FEN_CASTLE2: &str = "3rk2r/8/8/8/8/8/6p1/R3K2R b KQk - 0 1";
-// const FEN_TRICKY: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-// const FEN_48: &str = "n1n5/PPPk4/8/8/8/8/4Kppp/5N1N w - - 0 1";
-// const FEN_60: &str = "2rr3k/pp3pp1/1nnqbN1p/3pN3/2pP4/2P3Q1/PPB4P/R4RK1 w - - 0 1";
-// const FEN_61: &str = "r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1";
+    println!("Final Median Time: {:?}", median);
+}
 
-// const FEN_WIKI3: &str = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
-// const FEN_WIKI4: &str = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
-// const FEN_WIKI4R: &str = "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1";
-// const FEN_WIKI5: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
-// const FEN_WIKI6: &str = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
+fn test_search_changes() {
+    const SAMPLES: usize = 1;
+    const ITERATIONS: u32 = 5;
+    const DEPTH: u8 = 13;
 
-// const FEN_POLY2: &str = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
-// const FEN_POLY3: &str = "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2";
-// const FEN_POLY4: &str = "rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2";
-// const FEN_POLY5: &str = "rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3";
-// const FEN_POLY6: &str = "rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPPKPPP/RNBQ1BNR b kq - 0 3";
-// const FEN_POLY7: &str = "rnbq1bnr/ppp1pkpp/8/3pPp2/8/8/PPPPKPPP/RNBQ1BNR w - - 0 4";
-// const FEN_POLY8: &str = "rnbqkbnr/p1pppppp/8/8/PpP4P/8/1P1PPPP1/RNBQKBNR b KQkq c3 0 3";
-// const FEN_POLY9: &str = "rnbqkbnr/p1pppppp/8/8/P6P/R1p5/1P1PPPP1/1NBQKBNR b Kkq - 0 4";
+    let test_positions = [
+        ("Tactical", KIWIPETE),
+        ("Opening", "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4"),
+        ("Quiet Mid", "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 8"),
+        ("Endgame", "8/pp3k2/2p2p2/3p1Pp1/3P2P1/2P2K2/PP6/8 w - - 0 1"),
+    ];
 
-// [lints.rust]
-// unused_imports = "allow"
+    let mut samples: Vec<(Duration, u64)> = Vec::with_capacity(SAMPLES);
 
-// [profile.release]
-// debug = false
-// unused_imports = "error"
-// lto = "fat"
-// codegen-units = 1
+    for sample_num in 1..=SAMPLES {
+        let start = Instant::now();
+        let mut total_nodes = 0;
+        let mut correctness_ok = true;
 
+        for _ in 0..ITERATIONS {
+            for (i, (name, fen)) in test_positions.iter().enumerate() {
+                let tt = Arc::new(TranspositionTable::new(20));
+                let mut position = Board::new(fen);
+                let search = Arc::new(Search::new(tt.clone(), 0));
+
+                let best_move = black_box(position.iterative_deepen(&search, black_box(DEPTH), false));
+                total_nodes += search.nodes_visited.load(Ordering::Relaxed);
+            }
+        }
+
+        let duration = start.elapsed();
+        samples.push((duration, total_nodes as u64));
+        println!(
+            "Sample {}: {:.2}s, {} nodes", 
+            sample_num, 
+            duration.as_secs_f64(), 
+            total_nodes,
+        );
+    }
+
+    let valid_samples = &mut samples[0..];
+    valid_samples.sort_by_key(|(d, _)| *d);
+
+    let median_idx = valid_samples.len() / 2;
+    let (median_time, median_nodes) = valid_samples[median_idx];
+
+    let total_iterations = ITERATIONS as u64 * test_positions.len() as u64;
+    println!("----------------------------------------");
+    println!("    - Median Time: {:?}", median_time);
+    println!("    - Median Nodes: {}", median_nodes);
+    println!(
+        "    - Speed: {:.2} Mnps", 
+        median_nodes as f64 / median_time.as_secs_f64() / 1_000_000.0
+    );
+}
+
+fn test_move_ordering(depth: u8) -> (f64, f64) {
+    let test_positions = [FEN_START, KIWIPETE, POSITION3, POSITION4, ITALIAN, MIDDLEGAME1, ENDGAME1];
+    let test_positions_names = ["Start", "Kiwipete", "3", "4", "Italian", "Mid game", "End game"];
+
+    let mut total_nodes = 0;
+    let total_start = Instant::now();
+
+    for (i, fen) in test_positions.iter().enumerate() {
+        let mut transposition_table = Arc::new(TranspositionTable::new(20));
+        let mut position = Board::new(fen);
+        let search = Arc::new(Search::new(transposition_table.clone(), 0));
+        
+        let pos_start = Instant::now();
+        position.iterative_deepen(&search, depth, false);
+        let pos_time = pos_start.elapsed();
+
+        let nodes = search.nodes_visited.load(Ordering::Relaxed);
+        total_nodes += nodes;
+
+        println!("{}: {}, {:.2}ms", test_positions_names[i], nodes, pos_time.as_secs_f64() * 1000.0);
+    }
+    let total_time = total_start.elapsed();
+    println!(
+        "TOTAL: {} nodes, {:.2}s ({:.2} Mnps)", 
+        total_nodes, 
+        total_time.as_secs_f64(),
+        total_nodes as f64 / total_time.as_secs_f64() / 1_000_000.0
+    );
+
+    (total_nodes as f64, total_time.as_secs_f64())
+}
+
+pub fn print_eval_stats() {
+    let calls = EVAL_CALLS.load(Ordering::Relaxed);
+    let total_ns = EVAL_TIME_NS.load(Ordering::Relaxed);
+    
+    println!("Eval calls: {}", calls);
+    println!("Total eval time: {:.2}s", total_ns as f64 / 1e9);
+    println!("Avg eval time: {:.1}ns", total_ns as f64 / calls as f64);
+}
+
+// TODO Eval king safety
+// TODO Pawn structure (doubled, isolated, passed pawns)
+// TODO Piece mobility
+// TODO Piece coordination
+
+// Future:
+// Bucket transposition table
 fn main() {
-    // let doc_content = include_str!("../docs/transposition-table.md");
-    // println!("{}", doc_content); // Print it to see if it reads correctly
-    HASH_TABLE.clear();
-    // println!("{}", HASH_TABLE.pv_table.capacity());
-    // let hash = HashEntry::default();
-    // println!("{}", size_of_val(&hash));
+    // run_suites("/home/tien/code/chess_engine/src/test_suites/wac/wac.epd");
+
+    // test_search_changes();
+    // print_eval_stats();
+
     uci_loop();
 }
-/*
------------------------------
-Test pop and set/clear masks:
-let mut board: u64 = 0;
-// decimal 0 in u64 is:     decimal 1 in u64 is:
-// 00000000                 00000000
-// 00000000                 00000000
-// 00000000                 00000000
-// 00000000                 00000000
-// 00000000                 00000000
-// 00000000                 00000000
-// 00000000                 00000000
-// 00000000                 00000001 = c
-// we use 1 << n, c moves n times left, then or's it with our original number
-board |= 1 << sq64(D2 as u8);
-board |= 1 << sq64(D3 as u8);
-board |= 1 << sq64(D4 as u8);
-board |= 1 << sq64(H2 as u8);
-println!("Popped bit: {}\nCount board: {}", pop_bit(&mut board), count_bits(board));
-
-print_bitboard(board);
-println!();
-set_bit(&mut board, B7 as u8);
-print_bitboard(board);
-println!();
-clear_bit(&mut board, D3 as u8);
-print_bitboard(board);
-
------------------------------
-Understand Rust nested arrays:
-let test = [[1; 120]; 13];
-println!("test outer length: {}\ntest inner length: {}", test.len(), test[0].len());
-
------------------------------
-Check print_board
-let fen2 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
-let fen3 = "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2";
-let fen4 = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2";
-let position: &mut Board = &mut Board::default();
-let result = parse_fen(START_FEN, position);
-match result {
-    Ok(_) => print!(""),
-    Err(e) => println!("{}", e),
-}
-print_board(position);
-parse_fen(&fen2, position);
-print_board(position);
-parse_fen(&fen3, position);
-print_board(position);
-parse_fen(&fen4, position);
-print_board(position);
-
------------------------------
-Pawn bitboards:
-let fen5 = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-
-let position: &mut Board = &mut Board::default();
-// debug_board(position);
-let result = parse_fen(fen5, position);
-match result {
-    Ok(_) => print!(""),
-    Err(e) => println!("{}", e),
-}
-print_board(position);
-
-println!("WhitePawn");
-print_bitboard(position.pawns[WHITE as usize]);
-println!("BlackPawns");
-print_bitboard(position.pawns[BLACK as usize]);
-println!("BothPawns");
-print_bitboard(position.pawns[BOTH as usize]);
-}
-
------------------------------
-Attack squares:
-let fen5 = "8/3q1p2/8/5P2/4Q3/8/8/8 w KQkq - 0 1";
-
-let position: &mut Board = &mut Board::default();
-let result = parse_fen(fen5, position);
-match result {
-    Ok(_) => print!(""),
-    Err(e) => println!("{}", e),
-}
-print_board(position);
-
-test_square_attacked(WHITE, position);
-println!();
-test_square_attacked(BLACK, position);
-
------------------------------
-Move integer bits:
-let fen5 = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-
-let position: &mut Board = &mut Board::default();
-// debug_board(position);
-match parse_fen(fen5, position) {
-    Ok(_) => print!(""),
-    Err(e) => println!("{}", e),
-}
-print_board(position);
-match check_board(position) {
-    Ok(_) => print!(""),
-    Err(e) => println!("{}", e),
-}
-
-println!();
-let mut el_move: u64 = 0;
-let from: u64 = 6;
-let to: u64 = 12;
-let cap: u64 = WhiteRook as u64;
-let pro: u64 = BlackRook as u64;
-el_move = from | (to << 7) | (cap << 14) | (pro << 20);
-println!("dec: {}   hex: {:x}", el_move, el_move);
-print_binary(el_move);
-println!("from: {}  to: {}  captured: {}    promoted: {}", from_square(el_move), to_square(el_move), captured(el_move), promoted(el_move));
-
-/*
-how the move flags work is by &ing everything out because it's all 0
-"el_move & MOVE_FLAG_PAWN_START", then if the bit is set, & will keep the bit, else 0
-*/
-el_move |= MOVE_FLAG_PAWN_START; // comment this in and out
-println!("is pawn start: {}", el_move & MOVE_FLAG_PAWN_START) != 0;
-
------------------------------
-Algebraic moves (send io into gui):
-let fen5 = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-let position: &mut Board = &mut Board::default();
-// debug_board(position);
-match parse_fen(fen5, position) {
-    Ok(_) => print!(""),
-    Err(e) => println!("{}", e),
-}
-print_board(position);
-match check_board(position) {
-    Ok(_) => print!(""),
-    Err(e) => println!("{}", e),
-}
-println!();
-
-let mut el_move: u64 = 0;
-let from = A2 as u64;
-let to = H7 as u64;
-
-let capture = WhiteRook as u64;
-let promote = BlackKing as u64;
-
-el_move = from | (to << 7) | (capture << 14) | (promote << 20);
-
-println!("from: {}  to: {}  capture: {}  promote: {}",
-    from_square(el_move),
-    to_square(el_move),
-    captured(el_move),
-    promoted(el_move)
-);
-println!("algebraic from: {}\nalgebraic to: {}\nalgebraic move: {}",
-    print_square(from as u8),
-    print_square(to as u8),
-    print_move(el_move)
-);
-
------------------------------
-See moves generated:
-let position: &mut Board = &mut Board::default();
-    match parse_fen(&FEN_START, position) {
-        Ok(_) => print!(""),
-        Err(e) => eprintln!("{}", e),
-    }
-    println!();
-
-    let move_list = &mut MoveList::default();
-    generate_all_moves(position, move_list);
-
-    let mut test = String::new();
-    for move_number in 0..move_list.count {
-        let the_move = move_list.moves[move_number].el_move;
-        println!("move_number: {}", move_number);
-
-        if !make_move(position, the_move) { continue; }
-
-        println!("MADE: {}", print_move(the_move));
-        print_board(position);
-
-        take_move(position);
-        println!("TAKEN: {}", print_move(the_move));
-        print_board(position);
-        std_io::stdin().read_line(&mut test).expect("Failed to read");
------------------------------
-MVVLVA:
-for attacker in WhitePawn as usize..BlackKing as usize {
-        for victim in WhitePawn as usize..BlackKing as usize {
-            println!("{} x {} = {}", PIECE_CHAR.chars().nth(attacker as usize).unwrap_or(' '), PIECE_CHAR.chars().nth(victim as usize).unwrap_or(' '), MVV_LVA_SCORES[victim][attacker]);
-        }
-    }
------------------------------
-Manual UCI:
-let position: &mut Board = &mut Board::default();
-    parse_fen(&FEN_61, position);
-    let info = &mut SearchInfo::default();
-    let mut user_input = String::new();
-
-    loop {
-        // break;
-        print_board(position);
-        user_input.clear();
-        println!("Enter a move: ");
-
-        std_io::stdin().read_line(&mut user_input).expect("Error");
-
-        user_input = user_input.trim().to_string();
-
-        if user_input == "q" {
-            break;
-        } else if user_input == "t" {
-            take_move(position);
-        } else if user_input == "p" {
-            perft_test(5, position);
-            // let maximum = get_pv_line(4, position);
-            // print!("\nPvLine of {} moves: ", maximum);
-
-            // for pv_number in 0..maximum {
-            //     let el_move = position.pv_array[pv_number];
-            //     print!(" {}", print_move(el_move));
-            // }
-            // println!();
-
-        } else if user_input == "s" {
-            info.depth = 7;
-            info.time = Instant::now();
-            info.time_set = true;
-            info.stop_time = 3;
-            search_position(position, info);
-        } else {
-            let the_move = parse_move(&user_input, position);
-            if the_move != NO_MOVE {
-                position.store_pv_move(the_move);
-                make_move(position, the_move);
-
-                // if is_repetition(position) { println!("{}", "REPETITION SEEN".green()); }
-            } else {
-                println!("Move not parsed");
-            }
-        }
-    }
------------------------------
-Manual UCI:
-let position: &mut Board = &mut Board::default();
-    parse_fen(&FEN_61, position);
-    let info = &mut SearchInfo::default();
-    let mut user_input = String::new();
-
-    loop {
-        // break;
-        print_board(position);
-        user_input.clear();
-        println!("Enter a move: ");
-
-        std_io::stdin().read_line(&mut user_input).expect("Error");
-
-        user_input = user_input.trim().to_string();
-
-        if user_input == "q" {
-            break;
-        } else if user_input == "t" {
-            take_move(position);
-        } else if user_input == "p" {
-            perft_test(5, position);
-            // let maximum = get_pv_line(4, position);
-            // print!("\nPvLine of {} moves: ", maximum);
-
-            // for pv_number in 0..maximum {
-            //     let el_move = position.pv_array[pv_number];
-            //     print!(" {}", print_move(el_move));
-            // }
-            // println!();
-
-        } else if user_input == "s" {
-            info.depth = 7;
-            info.time = Instant::now();
-            info.time_set = true;
-            info.stop_time = 3;
-            search_position(position, info);
-        } else {
-            let the_move = parse_move(&user_input, position);
-            if the_move != NO_MOVE {
-                position.store_pv_move(the_move);
-                make_move(position, the_move);
-
-                // if is_repetition(position) { println!("{}", "REPETITION SEEN".green()); }
-            } else {
-                println!("Move not parsed");
-            }
-        }
-    }
-*/
