@@ -410,9 +410,12 @@ impl Board {
                     end_score += bonus 
                 }
             
-                /*// Isolated pawns
+                // Isolated pawns
                 let is_isolated = (our_pawns & ISOLATED_PAWN_MASK[square]) == 0;
-                if is_isolated { score += PAWN_ISOLATED; }*/
+                if is_isolated { 
+                    open_score += PAWN_ISOLATED; 
+                    end_score += PAWN_ISOLATED;
+                }
             }
 
             for &piece in pieces {
