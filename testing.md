@@ -202,3 +202,20 @@ Elo: 33.85 +/- 27.07, nElo: 36.41 +/- 28.88
 LOS: 99.33 %, DrawRatio: 37.77 %, PairsRatio: 1.44
 Games: 556, Wins: 267, Losses: 213, Draws: 76, Points: 305.0 (54.86 %)
 Ptnml(0-2): [41, 30, 105, 38, 64], WL/DD Ratio: 25.25
+
+## Isolated pawns
+Pre:
+Eval calls: 235880910
+Total eval time: 13.09s
+Avg eval time: 55.5ns
+
+Post:
+Eval calls: 227391790
+Total eval time: 13.55s
+Avg eval time: 59.6ns
+
+Results of isolated_pawns vs passed_pawns (10+0.1, NULL, NULL, 2moves_v1.epd):
+Elo: 9.38 +/- 19.67, nElo: 10.29 +/- 21.53
+LOS: 82.54 %, DrawRatio: 54.00 %, PairsRatio: 1.09
+Games: 1000, Wins: 498, Losses: 471, Draws: 31, Points: 513.5 (51.35 %)
+Ptnml(0-2): [92, 18, 270, 11, 109], WL/DD Ratio: 269.00
