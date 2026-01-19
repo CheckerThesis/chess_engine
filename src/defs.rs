@@ -74,8 +74,20 @@ impl Piece { //                           PieceType Color
         Self::WHITE_DRAGON
     ];
 
+    pub const WHITE_PIECES_EXCLUDE_PAWN: &'static [Self] = &[
+        Self::WHITE_KNIGHT, Self::WHITE_BISHOP, 
+        Self::WHITE_ROOK, Self::WHITE_QUEEN, Self::WHITE_KING, 
+        Self::WHITE_DRAGON
+    ];
+
     pub const BLACK_PIECES: &'static [Self] = &[
         Self::BLACK_PAWN, Self::BLACK_KNIGHT, Self::BLACK_BISHOP, 
+        Self::BLACK_ROOK, Self::BLACK_QUEEN, Self::BLACK_KING, 
+        Self::BLACK_DRAGON
+    ];
+
+    pub const BLACK_PIECES_EXCLUDE_PAWN: &'static [Self] = &[
+        Self::BLACK_KNIGHT, Self::BLACK_BISHOP, 
         Self::BLACK_ROOK, Self::BLACK_QUEEN, Self::BLACK_KING, 
         Self::BLACK_DRAGON
     ];

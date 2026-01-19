@@ -2,7 +2,7 @@
 use std::{hint::black_box, sync::{Arc, atomic::Ordering}, time::{Duration, Instant}};
 
 use vault::{
-    board::Board, defs::{Color, Piece, PieceType}, fens::{ENDGAME1, FEN_MATE_IN_4, FEN_START, ITALIAN, KIWIPETE, MIDDLEGAME1, POSITION3, POSITION4, POSITION4_FLIPPED}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, attacks::square_attacked}, perft::perft, search::{Search, evaluate::{EVAL_CALLS, EVAL_TIME_NS}}, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}, test_suites::run_suites, transposition_table::{self, TranspositionTable}, uci::uci_loop
+    board::{Board, print_bitboard}, defs::{Color, Piece, PieceType}, fens::{ENDGAME1, FEN_MATE_IN_4, FEN_START, ITALIAN, KIWIPETE, MIDDLEGAME1, POSITION3, POSITION4, POSITION4_FLIPPED}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, attacks::square_attacked}, perft::perft, search::{Search, evaluate::{BLACK_PASSED_PAWN_MASKS, EVAL_CALLS, EVAL_TIME_NS, TOTAL_PHASE, WHITE_PASSED_PAWN_MASKS}}, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}, test_suites::run_suites, transposition_table::{self, TranspositionTable}, uci::uci_loop
 };
 /*
 lto = "fat"
@@ -125,25 +125,6 @@ fn test_move_ordering(depth: u8) -> (f64, f64) {
     );
 
     (total_nodes as f64, total_time.as_secs_f64())
-
-    // let mut nodes_sum: f64 = 0.0;
-    // let mut time_sum: f64 = 0.0;
-    // let iterations = 3;
-
-    // println!("Countermove");
-
-    // for i in 0..iterations {
-    //     let (nodes, time) = test_move_ordering(9);
-    //     nodes_sum += nodes;
-    //     time_sum += time;
-    // }
-
-    // println!("--------");
-    // println!("Nodes: {}   Time: {:.2}s   ({:.2} Mnps)", 
-    //     nodes_sum / iterations as f64, 
-    //     time_sum / iterations as f64,
-    //     (nodes_sum as f64 / time_sum) / 1_000_000.0
-    // );
 }
 
 pub fn print_eval_stats() {
@@ -163,60 +144,10 @@ pub fn print_eval_stats() {
 // Future:
 // Bucket transposition table
 fn main() {
-    // test_search_changes();
     // run_suites("/home/tien/code/chess_engine/src/test_suites/wac/wac.epd");
 
-    // let tt = Arc::new(TranspositionTable::new(24));
-    // let mut position = Board::new(KIWIPETE);
-    // let search = Arc::new(Search::new(tt.clone(), 0));
-    // let best_move = position.iterative_deepen(&search, 17, true);
-    // let first = search.first_cutoffs.load(Ordering::Relaxed);
-    // let total = search.total_cutoffs.load(Ordering::Relaxed);
-    // println!("first: {}    total: {}    percent: {:.2}%", 
-    //     first,
-    //     total,
-    //     (first as f64 / total as f64) * 100.0
-    // );
-
-    uci_loop();
-
-    // let tt = Arc::new(TranspositionTable::new(20));
-    // let mut position = Board::new(FEN_START);
-    // let search = Arc::new(Search::new(tt.clone(), 0));
-    // let best_move = position.iterative_deepen(&search, 15, true);
-    // let mut position = Board::new(KIWIPETE);
-    // println!("{}", position.evaluate()); // 90
-
-    // position.parse_fen(POSITION3);
-    // println!("{}", position.evaluate()); // -5
-
-    // position.parse_fen(POSITION4);
-    // println!("{}", position.evaluate()); // 175
-
-    // position.parse_fen(POSITION4_FLIPPED); // 175
-    // println!("{}", position.evaluate());
-
-    // let mut position = Board::new(KIWIPETE);
-    // position.evaluate();
-
-    // let mut position = Board::new(FEN_START);
-    // println!("START: {}", position.evaluate());
-    // position = Board::new(KIWIPETE);
-    // println!("KIWIPETE: {}", position.evaluate());
-    // position = Board::new(POSITION3);
-    // println!("POSITION3: {}", position.evaluate());
-    // position = Board::new(POSITION4);
-    // println!("POSITION4: {}", position.evaluate());
-
+    // test_search_changes();
     // print_eval_stats();
 
-    // let mut position = Board::new("7r/7p/8/8/8/8/1P6/R7 w - - 0 1");
-    // println!("White: {}", position.evaluate()); // TODO should be 30 but is 15
-    // position.parse_fen("7r/7p/8/8/8/8/1P6/R7 b - - 0 1");
-    // println!("Black: {}", position.evaluate());
-
-    // position.parse_fen("7r/7p/8/8/8/8/P7/R7 w - - 0 1");
-    // println!("White: {}", position.evaluate());
-    // position.parse_fen("7r/7p/8/8/8/8/P7/R7 b - - 0 1");
-    // println!("Black: {}", position.evaluate());
+    uci_loop();
 }
