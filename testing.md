@@ -219,3 +219,31 @@ Elo: 9.38 +/- 19.67, nElo: 10.29 +/- 21.53
 LOS: 82.54 %, DrawRatio: 54.00 %, PairsRatio: 1.09
 Games: 1000, Wins: 498, Losses: 471, Draws: 31, Points: 513.5 (51.35 %)
 Ptnml(0-2): [92, 18, 270, 11, 109], WL/DD Ratio: 269.00
+
+## Piece mobility
+Pre:
+Eval calls: 227391790
+Total eval time: 13.55s
+Avg eval time: 59.6ns
+
+Post:
+Eval calls: 297412200
+Total eval time: 30.53s
+Avg eval time: 102.6ns
+
+Results of mobility vs isolated_pawns (10+0.1, NULL, NULL, 2moves_v1.epd):
+Elo: 18.87 +/- 20.95, nElo: 20.92 +/- 23.14
+LOS: 96.18 %, DrawRatio: 56.12 %, PairsRatio: 1.26
+Games: 866, Wins: 448, Losses: 401, Draws: 17, Points: 456.5 (52.71 %)
+Ptnml(0-2): [74, 10, 243, 7, 99], WL/DD Ratio: inf
+
+Post aggression:
+Eval calls: 240334185
+Total eval time: 25.29s
+Avg eval time: 105.2ns
+
+Results of mobility_aggression vs mobility (10+0.1, NULL, NULL, 2moves_v1.epd):
+Elo: -3.82 +/- 22.51, nElo: -4.05 +/- 23.81
+LOS: 36.94 %, DrawRatio: 50.12 %, PairsRatio: 0.94
+Games: 818, Wins: 390, Losses: 399, Draws: 29, Points: 404.5 (49.45 %)
+Ptnml(0-2): [89, 16, 205, 13, 86], WL/DD Ratio: inf
