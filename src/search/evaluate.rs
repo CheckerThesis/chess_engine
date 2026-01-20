@@ -1,6 +1,6 @@
 use std::{sync::atomic::{AtomicU64, Ordering}, time::Instant};
 
-use crate::{board::{Board, print_bitboard}, defs::{Color, Piece, PieceType}, movegen::magic::{get_bishop_attacks, get_rook_attacks}};
+use crate::{board::{Board, print_bitboard}, defs::{Color, Piece, PieceType}, movegen::{bitboards::{BLACK_PAWN_ATTACKS, KING_RAYS, KNIGHT_RAYS, WHITE_PAWN_ATTACKS}, magic::{get_bishop_attacks, get_rook_attacks}}};
 
 pub const PIECE_VALUE: [i32; 8] = [
     0,     // none
@@ -332,6 +332,8 @@ pub const TOTAL_PHASE: i32 =
     PHASE_VALUES[4] * 4 +
     PHASE_VALUES[5] * 2;
 
+const DOUBLED_PAWN_PENALTY: i32 = -15;
+
 impl Board {
     pub fn piece_value_at(&self, piece: Piece, square: usize) -> i32 {
         let piece_type = piece.piece_type();
@@ -348,8 +350,8 @@ impl Board {
     }
 
     pub fn evaluate(&self) -> i32 {
-        // let start = Instant::now();
-        // EVAL_CALLS.fetch_add(1, Ordering::Relaxed);
+        let start = Instant::now();
+        EVAL_CALLS.fetch_add(1, Ordering::Relaxed);
 
         let total_material_on_board = 
             (self.bitboards[Piece::WHITE_KNIGHT.index()] | 
@@ -369,27 +371,72 @@ impl Board {
         phase = (phase * 256 + (TOTAL_PHASE / 2)) / TOTAL_PHASE;
 
         fn evaluate_helper(position: &Board, color: Color) -> (i32, i32) {
+            fn get_attacks(piece_type: PieceType, color: Color, square: usize, occupancy: u64) -> u64 {
+                match piece_type {
+                    PieceType::PAWN => {
+                        if color == Color::WHITE { return WHITE_PAWN_ATTACKS[square] }
+                        BLACK_PAWN_ATTACKS[square]
+                    },
+                    PieceType::KNIGHT => KNIGHT_RAYS[square],
+                    PieceType::BISHOP => get_bishop_attacks(square, occupancy),
+                    PieceType::ROOK => get_rook_attacks(square, occupancy),
+                    PieceType::QUEEN => get_bishop_attacks(square, occupancy) | get_rook_attacks(square, occupancy),
+                    PieceType::KING => KING_RAYS[square],
+
+                    _ => 0
+                }
+            }
+
             let mut open_score = 0;
             let mut end_score = 0;
 
             let mut bishop_count = 0;
 
-            let (pieces, our_pawns, enemy_pawns, passed_pawn_mask, passed_pawn_bonus, square_map) = 
+            let (pieces, our_pawns, enemy_pawns, 
+                passed_pawn_mask, passed_pawn_bonus, square_map,
+                our_occupancy, enemy_pawn_attacks) = 
                 if color == Color::WHITE { 
                     (Piece::WHITE_PIECES_EXCLUDE_PAWN,
                     position.bitboards[Piece::WHITE_PAWN.index()], 
                     position.bitboards[Piece::BLACK_PAWN.index()],
                     &WHITE_PASSED_PAWN_MASKS,
                     &PAWN_PASSED_WHITE_BONUS_BOARD,
-                    &IDENTITY64)
+                    &IDENTITY64,
+                    position.occupancies[Color::WHITE.index()],
+                    ((position.bitboards[Piece::BLACK_PAWN.index()] >> 7) & !FILE_MASKS[0]) | ((position.bitboards[Piece::BLACK_PAWN.index()] >> 9) & !FILE_MASKS[7]))
                 } else {
                     (Piece::BLACK_PIECES_EXCLUDE_PAWN,
                     position.bitboards[Piece::BLACK_PAWN.index()],
                     position.bitboards[Piece::WHITE_PAWN.index()],
                     &BLACK_PASSED_PAWN_MASKS,
                     &PAWN_PASSED_BLACK_BONUS_BOARD,
-                    &MIRROR64)
+                    &MIRROR64,
+                    position.occupancies[Color::BLACK.index()],
+                    ((position.bitboards[Piece::WHITE_PAWN.index()] << 7) & !FILE_MASKS[7]) | ((position.bitboards[Piece::WHITE_PAWN.index()] << 9) & !FILE_MASKS[0]))
                 };
+            let all_occupancy = position.occupancies[Color::WHITE.index()] | position.occupancies[Color::BLACK.index()];
+
+            const KNIGHT_MOBILITY: [[i32; 9]; 2] = [
+                [-20, -15, -5, 0, 5, 10, 15, 20, 25], // opening
+                [-20, -10, 0, 5, 10, 15, 20, 25, 30]  // ending
+            ];
+            const BISHOP_MOBILITY: [[i32; 14]; 2] = [
+                [-15, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 50],
+                [-15, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 50]
+            ];
+            const ROOK_MOBILITY: [[i32; 15]; 2] = [
+                [-15, -10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 50],
+                [-15, -10, -5, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 100]
+            ];
+            const QUEEN_MOBILITY: [[i32; 28]; 2] = [
+                [-10, -5, 0, 5, 10, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50],
+                [-10, -5, 0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+            ];
+
+            const PAWN_THREAT_ON_KNIGHT: [i32; 2] = [-20, -10];
+            const PAWN_THREAT_ON_BISHOP: [i32; 2] = [-20, -10];
+            const PAWN_THREAT_ON_ROOK:   [i32; 2] = [-40, -20];
+            const PAWN_THREAT_ON_QUEEN:  [i32; 2] = [-50, -30];
 
             // Pawns
             let mut bitboard = our_pawns;
@@ -416,6 +463,13 @@ impl Board {
                     open_score += PAWN_ISOLATED; 
                     end_score += PAWN_ISOLATED;
                 }
+
+                // Doubled Pawns
+                // let file_mask = FILE_MASKS[square % 8];
+                // if (our_pawns & file_mask).count_ones() > 1 {
+                //     open_score += DOUBLED_PAWN_PENALTY;
+                //     end_score += DOUBLED_PAWN_PENALTY;
+                // }
             }
 
             for &piece in pieces {
@@ -431,16 +485,57 @@ impl Board {
                     end_score += PIECE_VALUE[piece_type.index()];
                     end_score += ENDING_PIECE_SQUARE[piece_type.index()][square_map[square]];
 
-                    match piece_type {
-                        // Bishop pairs
-                        PieceType::BISHOP => bishop_count += 1,
-                        
-                        // Open files
-                        PieceType::ROOK | PieceType::QUEEN => {
-                            let bonuses =
-                            if piece_type == PieceType::ROOK { [ROOK_OPEN_FILE_BONUS, ROOK_SEMI_OPEN_FILE_BONUS] }
-                            else { [QUEEN_OPEN_FILE_BONUS, QUEEN_SEMI_OPEN_FILE_BONUS] };
+                    // Mobility
+                    let attacks = get_attacks(piece_type, color, square, all_occupancy);
+                    let valid_moves = attacks & !our_occupancy;
+                    let mobility = valid_moves.count_ones() as usize;
+                    let is_attacked_by_pawn = ((1 << square) & enemy_pawn_attacks) != 0;
 
+                    match piece_type {
+                        PieceType::KNIGHT => {
+                            let index = mobility.min(8);
+                            open_score += KNIGHT_MOBILITY[0][index];
+                            end_score += KNIGHT_MOBILITY[1][index];
+                            if is_attacked_by_pawn {
+                                open_score += PAWN_THREAT_ON_KNIGHT[0];
+                                end_score += PAWN_THREAT_ON_KNIGHT[1];
+                            }
+                        },
+
+                        PieceType::BISHOP => {
+                            bishop_count += 1; // bishop pairs
+                            let index = mobility.min(13);
+                            open_score += BISHOP_MOBILITY[0][index];
+                            end_score += BISHOP_MOBILITY[1][index];
+                            if is_attacked_by_pawn {
+                                open_score += PAWN_THREAT_ON_BISHOP[0];
+                                end_score += PAWN_THREAT_ON_BISHOP[1];
+                            }
+                        },
+                        
+                        PieceType::ROOK | PieceType::QUEEN => {
+                            let bonuses;
+                            if piece_type == PieceType::ROOK { 
+                                bonuses = [ROOK_OPEN_FILE_BONUS, ROOK_SEMI_OPEN_FILE_BONUS];
+                                let index = mobility.min(14);
+                                open_score += ROOK_MOBILITY[0][index];
+                                end_score += ROOK_MOBILITY[1][index];
+                                if is_attacked_by_pawn {
+                                    open_score += PAWN_THREAT_ON_ROOK[0];
+                                    end_score += PAWN_THREAT_ON_ROOK[1];
+                                }
+                            } else { 
+                                bonuses = [QUEEN_OPEN_FILE_BONUS, QUEEN_SEMI_OPEN_FILE_BONUS];
+                                let index = mobility.min(27);
+                                open_score += QUEEN_MOBILITY[0][index];
+                                end_score += QUEEN_MOBILITY[1][index];
+                                if is_attacked_by_pawn {
+                                    open_score += PAWN_THREAT_ON_QUEEN[0];
+                                    end_score += PAWN_THREAT_ON_QUEEN[1];
+                                }
+                            }
+
+                            // Open files
                             let file = square % 8;
                             let file_mask = FILE_MASKS[file];
                         
@@ -473,7 +568,7 @@ impl Board {
         let end_score = white_end_score - black_end_score;
         let score = ((open_score * (256 - phase)) + (end_score * phase)) / 256;
 
-        // EVAL_TIME_NS.fetch_add(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        EVAL_TIME_NS.fetch_add(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
         if self.side == Color::WHITE { score } 
         else { -score }
     }
@@ -481,41 +576,23 @@ impl Board {
     fn get_least_valuable_piece(&self, attackers_bb: u64, side: Color) -> Option<(PieceType, u64)> {
         if attackers_bb == 0 { return None; }
 
-        // Pawns
         let subset = attackers_bb & self.bitboards[PieceType::PAWN.bb_index(side)];
-        if subset != 0 {
-            return Some((PieceType::PAWN, subset & subset.wrapping_neg()));
-        }
+        if subset != 0 { return Some((PieceType::PAWN, subset & subset.wrapping_neg())); }
 
-        // Knights
         let subset = attackers_bb & self.bitboards[PieceType::KNIGHT.bb_index(side)];
-        if subset != 0 {
-            return Some((PieceType::KNIGHT, subset & subset.wrapping_neg()));
-        }
+        if subset != 0 { return Some((PieceType::KNIGHT, subset & subset.wrapping_neg())); }
 
-        // Bishops
         let subset = attackers_bb & self.bitboards[PieceType::BISHOP.bb_index(side)];
-        if subset != 0 {
-            return Some((PieceType::BISHOP, subset & subset.wrapping_neg()));
-        }
+        if subset != 0 { return Some((PieceType::BISHOP, subset & subset.wrapping_neg())); }
 
-        // Rooks
         let subset = attackers_bb & self.bitboards[PieceType::ROOK.bb_index(side)];
-        if subset != 0 {
-            return Some((PieceType::ROOK, subset & subset.wrapping_neg()));
-        }
+        if subset != 0 { return Some((PieceType::ROOK, subset & subset.wrapping_neg())); }
 
-        // Queens
         let subset = attackers_bb & self.bitboards[PieceType::QUEEN.bb_index(side)];
-        if subset != 0 {
-            return Some((PieceType::QUEEN, subset & subset.wrapping_neg()));
-        }
+        if subset != 0 { return Some((PieceType::QUEEN, subset & subset.wrapping_neg())); }
 
-        // Kings
         let subset = attackers_bb & self.bitboards[PieceType::KING.bb_index(side)];
-        if subset != 0 {
-            return Some((PieceType::KING, subset & subset.wrapping_neg()));
-        }
+        if subset != 0 { return Some((PieceType::KING, subset & subset.wrapping_neg())); }
 
         None
     }

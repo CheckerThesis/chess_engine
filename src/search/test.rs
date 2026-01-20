@@ -360,4 +360,35 @@ mod tests {
         assert_eq!(position.killers[ply][0], Some(move_b), "Slot 0 should stay Move B");
         assert_eq!(position.killers[ply][1], Some(move_a), "Slot 1 should NOT become Move B");
     }
+
+    #[test]
+    fn test_pawn_shield() {
+        let mut board_safe = Board::new("rnbq1rk1/pppppppp/8/8/8/8/PPPPPPPP/RNBQ1RK1 w - - 0 1");
+        let score_safe = board_safe.evaluate();
+
+        let mut board_open_g = Board::new("rnbq1rk1/pppppppp/8/8/8/8/PPPPPP1P/RNBQ1RK1 w - - 0 1");
+        let score_open_g = board_open_g.evaluate();   
+
+        let mut board_pushed_h = Board::new("rnbq1rk1/pppppppp/8/8/8/7P/PPPPPPP1/RNBQ1RK1 w - - 0 1");
+        let score_pushed_h = board_pushed_h.evaluate();   
+
+        println!("safe: {}   open_g: {}   pushed_h: {}", score_safe, score_open_g, score_pushed_h);
+
+        assert!(score_safe > score_open_g, 
+            "Pawn shield logic failed: Safe King ({}) should be > Open King ({})", 
+            score_safe, score_open_g
+        );
+
+        // The safe position should be strictly better than the pushed pawn position
+        assert!(score_safe > score_pushed_h, 
+            "Pawn shield logic failed: Safe King ({}) should be > Pushed Pawn ({})", 
+            score_safe, score_pushed_h
+        );
+
+        // The open file penalty should be worse than the pushed pawn penalty
+        assert!(score_pushed_h > score_open_g,
+            "Pawn shield logic failed: Pushed Pawn ({}) should be > Open King ({})",
+            score_pushed_h, score_open_g
+        );
+    }
 }

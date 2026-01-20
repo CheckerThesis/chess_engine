@@ -146,8 +146,8 @@ pub fn print_eval_stats() {
 fn main() {
     // run_suites("/home/tien/code/chess_engine/src/test_suites/wac/wac.epd");
 
-    // test_search_changes();
-    // print_eval_stats();
+    test_search_changes();
+    print_eval_stats();
 
-    uci_loop();
+    // uci_loop();
 }
