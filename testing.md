@@ -247,3 +247,14 @@ Elo: -3.82 +/- 22.51, nElo: -4.05 +/- 23.81
 LOS: 36.94 %, DrawRatio: 50.12 %, PairsRatio: 0.94
 Games: 818, Wins: 390, Losses: 399, Draws: 29, Points: 404.5 (49.45 %)
 Ptnml(0-2): [89, 16, 205, 13, 86], WL/DD Ratio: inf
+
+## Pawn shields
+Pre:
+Eval calls: 240334185
+Total eval time: 25.29s
+Avg eval time: 105.2ns
+
+Post:
+Eval calls: 180589930
+Total eval time: 18.96s
+Avg eval time: 105.0ns

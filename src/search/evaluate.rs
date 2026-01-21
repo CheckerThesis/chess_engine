@@ -1,6 +1,6 @@
 use std::{sync::atomic::{AtomicU64, Ordering}, time::Instant};
 
-use crate::{board::{Board, print_bitboard}, defs::{Color, Piece, PieceType}, movegen::{bitboards::{BLACK_PAWN_ATTACKS, KING_RAYS, KNIGHT_RAYS, WHITE_PAWN_ATTACKS}, magic::{get_bishop_attacks, get_rook_attacks}}};
+use crate::{board::{Board, print_bitboard}, defs::{Color, Piece, PieceType}, movegen::{bitboards::{BLACK_PAWN_ATTACKS, KING_RAYS, KNIGHT_RAYS, WHITE_PAWN_ATTACKS}, magic::{get_bishop_attacks, get_rook_attacks}}, squares::squares::A1};
 
 pub const PIECE_VALUE: [i32; 8] = [
     0,     // none
@@ -334,6 +334,31 @@ pub const TOTAL_PHASE: i32 =
 
 const DOUBLED_PAWN_PENALTY: i32 = -15;
 
+pub const PAWN_SHIELD: [u64; 64] = [
+    (1 << 8) | (1 << 9),
+    (1 << 8) | (1 << 9) | (1 << 10),
+    (1 << 9) | (1 << 10) | (1 << 11),
+    0,
+    0,
+    0,
+    (1 << 13) | (1 << 14) | (1 << 15),
+    (1 << 14) | (1 << 15),
+    0, 0, 0, 0, 0, 0, 0, 0, // Rank 2
+    0, 0, 0, 0, 0, 0, 0, 0, // Rank 3
+    0, 0, 0, 0, 0, 0, 0, 0, // Rank 4
+    0, 0, 0, 0, 0, 0, 0, 0, // Rank 5
+    0, 0, 0, 0, 0, 0, 0, 0, // Rank 6
+    0, 0, 0, 0, 0, 0, 0, 0, // Rank 7
+    (1 << 48) | (1 << 49),
+    (1 << 48) | (1 << 49) | (1 << 50),
+    (1 << 49) | (1 << 50) | (1 << 51),
+    0,
+    0,
+    0,
+    (1 << 53) | (1 << 54) | (1 << 55),
+    (1 << 54) | (1 << 55),
+];
+
 impl Board {
     pub fn piece_value_at(&self, piece: Piece, square: usize) -> i32 {
         let piece_type = piece.piece_type();
@@ -350,8 +375,8 @@ impl Board {
     }
 
     pub fn evaluate(&self) -> i32 {
-        let start = Instant::now();
-        EVAL_CALLS.fetch_add(1, Ordering::Relaxed);
+        // let start = Instant::now();
+        // EVAL_CALLS.fetch_add(1, Ordering::Relaxed);
 
         let total_material_on_board = 
             (self.bitboards[Piece::WHITE_KNIGHT.index()] | 
@@ -550,6 +575,23 @@ impl Board {
                                 end_score += bonuses[1]; 
                             }
                         },
+
+                        PieceType::KING => {
+                            let shield_mask = PAWN_SHIELD[square];
+                            if shield_mask != 0 {
+                                let shield = shield_mask & our_pawns;
+                                let pawn_count = shield.count_ones();
+                                let max_pawns = shield_mask.count_ones();
+                                let missing = max_pawns - pawn_count;
+                                match missing {
+                                    0 => (),
+                                    1 => open_score -= 10,
+                                    2 => open_score -= 15,
+                                    3 => open_score -= 25,
+                                    _ => ()
+                                }
+                            }
+                        },
         
                         _ => ()
                     }
@@ -568,7 +610,7 @@ impl Board {
         let end_score = white_end_score - black_end_score;
         let score = ((open_score * (256 - phase)) + (end_score * phase)) / 256;
 
-        EVAL_TIME_NS.fetch_add(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        // EVAL_TIME_NS.fetch_add(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
         if self.side == Color::WHITE { score } 
         else { -score }
     }

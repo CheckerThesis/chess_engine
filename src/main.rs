@@ -2,7 +2,7 @@
 use std::{hint::black_box, sync::{Arc, atomic::Ordering}, time::{Duration, Instant}};
 
 use vault::{
-    board::{Board, print_bitboard}, defs::{Color, Piece, PieceType}, fens::{ENDGAME1, FEN_MATE_IN_4, FEN_START, ITALIAN, KIWIPETE, MIDDLEGAME1, POSITION3, POSITION4, POSITION4_FLIPPED}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, attacks::square_attacked}, perft::perft, search::{Search, evaluate::{BLACK_PASSED_PAWN_MASKS, EVAL_CALLS, EVAL_TIME_NS, TOTAL_PHASE, WHITE_PASSED_PAWN_MASKS}}, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}, test_suites::run_suites, transposition_table::{self, TranspositionTable}, uci::uci_loop
+    board::{Board, print_bitboard}, defs::{Color, Piece, PieceType}, fens::{ENDGAME1, FEN_MATE_IN_4, FEN_START, ITALIAN, KIWIPETE, MIDDLEGAME1, POSITION3, POSITION4, POSITION4_FLIPPED}, movegen::{MOVE_FLAG_NONE, MOVE_FLAG_PAWN_START, Move, MoveList, attacks::square_attacked}, perft::perft, search::{Search, evaluate::{BLACK_PASSED_PAWN_MASKS, EVAL_CALLS, EVAL_TIME_NS, PAWN_SHIELD, TOTAL_PHASE, WHITE_PASSED_PAWN_MASKS}}, squares::squares::{B1, B8, C3, C6, E2, E4, E5, F7}, test_suites::run_suites, transposition_table::{self, TranspositionTable}, uci::uci_loop
 };
 /*
 lto = "fat"
@@ -146,8 +146,15 @@ pub fn print_eval_stats() {
 fn main() {
     // run_suites("/home/tien/code/chess_engine/src/test_suites/wac/wac.epd");
 
-    test_search_changes();
-    print_eval_stats();
+    // test_search_changes();
+    // print_eval_stats();
 
     // uci_loop();
+
+    for i in 0..64 {
+        if PAWN_SHIELD[i] != 0 {
+            println!("{}", i);
+            print_bitboard(PAWN_SHIELD[i]);
+        }
+    }
 }
